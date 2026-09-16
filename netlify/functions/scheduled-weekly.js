@@ -1,8 +1,7 @@
 // Panelin "Otomatik Mesaj Programı" (haftalık takvim) ekranında kaydedilen
 // programları her 10 dakikada bir kontrol edip zamanı gelenleri gerçekten gönderir.
-// Artık kişiler tek tek danışan seçilerek değil, panelin 4 sabit grubuna
-// (Yeni danışan / Kadın danışan / Erkek danışan / Özel danışan) göre bulunuyor.
-const { firebaseGetData, firebaseWrite } = require('./_firebase-helper');
+// Kişiler panelin 4 sabit grubuna (Yeni danışan / Kadın danışan / Erkek danışan / Özel danışan) göre bulunuyor.
+const { firebaseGetData, firebaseWriteFullData } = require('./_firebase-helper');
 
 exports.config = {
   schedule: '*/10 * * * *'
@@ -42,9 +41,7 @@ async function sendText(to, message) {
 }
 
 // Panelde eklenen görsel base64 (data:...) olarak Firebase'de saklanıyor.
-// WhatsApp'a link olarak gönderemeyiz (herkese açık bir adres değil), bu yüzden
-// önce Meta'nın medya sunucusuna yüklüyoruz, dönen "media id" ile mesaj atıyoruz.
-// Aynı programdaki tüm alıcılar için görsel sadece 1 kere yükleniyor.
+// WhatsApp'a link olarak gönderemeyiz, önce Meta'nın medya sunucusuna yüklüyoruz.
 async function uploadMedia(dataUrl) {
   const m = /^data:([^;]+);base64,(.+)$/.exec(dataUrl || '');
   if (!m) throw new Error('Geçersiz görsel verisi');
@@ -95,8 +92,6 @@ exports.handler = async function () {
     const todayISO = now.toISOString().slice(0, 10);
     const nowHHMM = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
 
-    // Kişi listesi artık "wa" düğümünde, her kişinin "grup" alanı
-    // (yeni / kadin / erkek / ozel) panelin 4 sabit grubundan birine eşit.
     const contacts = Array.isArray(data.wa) ? data.wa : [];
 
     let sentTotal = 0;
@@ -130,10 +125,10 @@ exports.handler = async function () {
       }
     }
 
-    // Sadece programın kendisini geri yazıyoruz (tüm veriyi değil) —
-    // böylece panel aynı anda açıksa üzerine yazma riski en aza iner.
+    // Panelin kendi cift-katmanli formatiyla TUM veriyi geri yaziyoruz
+    // (sadece bir alt yola yazmiyoruz, cunku ust dugum tek bir metin).
     if (changed) {
-      await firebaseWrite(`diyetpro/${uid}/waSchedule`, data.waSchedule);
+      await firebaseWriteFullData(uid, data);
     }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true, sent: sentTotal }) };
