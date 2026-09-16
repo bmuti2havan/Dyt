@@ -1,7 +1,6 @@
 // Panelin "Randevular" sayfasındaki "🔔 WhatsApp Hatırlatma" ayarına göre,
 // randevudan belirlenen saat önce danışana otomatik WhatsApp mesajı gönderir.
-// Her 10 dakikada bir çalışıp kontrol eder; panel kapalıyken de çalışır.
-const { firebaseGetData, firebaseWrite } = require('./_firebase-helper');
+const { firebaseGetData, firebaseWriteFullData } = require('./_firebase-helper');
 
 exports.config = {
   schedule: '*/10 * * * *'
@@ -65,7 +64,7 @@ exports.handler = async function () {
     let changed = false;
 
     for (const a of data.appts) {
-      if (!a || a.reminded) continue;              // bu randevu için zaten hatirlatma gitti
+      if (!a || a.reminded) continue;
       if (!a.when || !a.clientId) continue;
 
       const c = clientsById[a.clientId];
@@ -75,10 +74,8 @@ exports.handler = async function () {
       if (isNaN(apptTime.getTime())) continue;
 
       const diffMs = apptTime.getTime() - now.getTime();
-      if (diffMs < 0 || diffMs > windowMs) continue;  // ya geçmiş ya da penceresi henüz gelmedi
+      if (diffMs < 0 || diffMs > windowMs) continue;
 
-      // a.when panelde "YYYY-MM-DDTHH:mm" (Türkiye yerel saati) olarak tutuluyor;
-      // tarih/saat metnini doğrudan bu string'den okuyoruz (saat kayması olmasın diye).
       const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(a.when);
       const tarih = m ? `${m[3]}.${m[2]}.${m[1]}` : '';
       const saat = m ? `${m[4]}:${m[5]}` : '';
@@ -98,9 +95,9 @@ exports.handler = async function () {
       }
     }
 
-    // Sadece randevular listesini geri yazıyoruz, tüm veriyi değil.
+    // Panelin kendi cift-katmanli formatiyla TUM veriyi geri yaziyoruz.
     if (changed) {
-      await firebaseWrite(`diyetpro/${uid}/appts`, data.appts);
+      await firebaseWriteFullData(uid, data);
     }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true, sent: sentCount }) };
