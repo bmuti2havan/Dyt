@@ -1,4 +1,4 @@
-const { firebaseGetData, firebaseWrite } = require('./_firebase-helper');
+const { firebaseGetData, firebaseWriteFullData } = require('./_firebase-helper');
 
 // Her gun Turkiye saatiyle 10:00'da calisir (UTC 07:00).
 // Istediginiz saati degistirmek icin asagidaki cron'u duzenleyin.
@@ -74,8 +74,10 @@ exports.handler = async function () {
       }
     }
 
+    // Panelin kendi cift-katmanli formatiyla TUM veriyi geri yaziyoruz
+    // (firebaseWrite degil — o tek katmanli yazar ve veri yapisini bozar).
     if (changed) {
-      await firebaseWrite(`diyetpro/${uid}`, data);
+      await firebaseWriteFullData(uid, data);
     }
 
     return { statusCode: 200, body: JSON.stringify({ ok: true, sent: sentCount }) };
