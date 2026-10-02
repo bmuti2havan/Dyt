@@ -5456,7 +5456,7 @@ function intakeForm(c){
           <td class="num">${trDate(m.date)}</td>
           <td class="t-right num">${n1(m.weight)} kg</td>
           <td>${esc(m.note||'')}</td>
-          <td class="t-right no-print"><button class="x" data-del-measure="${m.id}" title="Sil">✕</button></td></tr>`).join('')
+          <td class="t-right no-print"><button class="btn btn-sm" data-edit-measure="${m.id}" style="margin-right:6px">Düzenle</button><button class="x" data-del-measure="${m.id}" title="Sil">✕</button></td></tr>`).join('')
         : `<tr><td colspan="4" style="color:var(--muted)">Henüz görüşme kaydı yok. Aşağıdan ilk satırı ekleyin.</td></tr>`}
         <tr class="no-print" style="background:var(--blue-50)">
           <td><input id="s-date" type="date" value="${todayISO()}" style="border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%"></td>
@@ -5539,7 +5539,7 @@ function pageClient(){
         <td class="t-right num">${m.hip?n1(m.hip)+' cm':'—'}</td>
         <td class="t-right num">${m.fat?n1(m.fat)+'%':'—'}</td>
         <td style="color:var(--muted)">${esc(m.note||'')}</td>
-        <td class="t-right"><button class="x" data-del-measure="${m.id}" title="Sil">✕</button></td></tr>`}).join('')}
+        <td class="t-right"><button class="btn btn-sm" data-edit-measure="${m.id}" style="margin-right:6px">Düzenle</button><button class="x" data-del-measure="${m.id}" title="Sil">✕</button></td></tr>`}).join('')}
       </tbody></table>`:`<div class="empty"><div class="eic">${ic('plus',24)}</div><h4>Ölçüm yok</h4><p>İlk ölçümü girdiğinizde BKİ ve kilo grafiği otomatik hesaplanır.</p><button class="btn btn-primary" data-modal="measure">${ic('plus',15)} Ölçüm ekle</button></div>`}
     </section>`;
   }
@@ -6334,14 +6334,19 @@ function openModal(kind){
   const c=clientOf(S.client);
   if(kind==='client') return modal('Yeni danışan',clientForm(),'Danışanı kaydet','client','680px');
   if(kind==='client-edit') return modal('Danışan bilgileri',clientForm(c),'Değişiklikleri kaydet','client-edit','680px');
-  if(kind==='measure') return modal('Ölçüm ekle',`<div class="form-grid">
-    <div class="field"><label>Tarih</label><input id="m-date" type="date" value="${todayISO()}"></div>
-    <div class="field"><label>Kilo (kg) *</label><input id="m-weight" type="number" step="0.1" value="${esc(c&&c.weight||'')}"></div>
-    <div class="field"><label>Bel çevresi (cm)</label><input id="m-waist" type="number" step="0.5"></div>
-    <div class="field"><label>Kalça çevresi (cm)</label><input id="m-hip" type="number" step="0.5"></div>
-    <div class="field"><label>Vücut yağ oranı (%)</label><input id="m-fat" type="number" step="0.1"></div>
-    <div class="field"><label>Kas kütlesi (kg)</label><input id="m-muscle" type="number" step="0.1"></div>
-    <div class="field full"><label>Not</label><input id="m-note" placeholder="Örn. ödemli, adet dönemi"></div></div>`,'Ölçümü kaydet','measure');
+  if(kind==='measure'||kind==='measure-edit'){
+    const m0=(kind==='measure-edit'&&c)?(c.measures||[]).find(x=>x.id===S.editMeasure):null;
+    if(kind==='measure-edit'&&!m0) return toast('Ölçüm bulunamadı');
+    return modal(m0?'Ölçümü düzenle':'Ölçüm ekle',`<div class="form-grid">
+    <div class="field"><label>Tarih</label><input id="m-date" type="date" value="${m0?esc(m0.date):todayISO()}"></div>
+    <div class="field"><label>Kilo (kg) *</label><input id="m-weight" type="number" step="0.1" value="${m0?esc(m0.weight||''):esc(c&&c.weight||'')}"></div>
+    <div class="field"><label>Bel çevresi (cm)</label><input id="m-waist" type="number" step="0.5" value="${m0?esc(m0.waist||''):''}"></div>
+    <div class="field"><label>Kalça çevresi (cm)</label><input id="m-hip" type="number" step="0.5" value="${m0?esc(m0.hip||''):''}"></div>
+    <div class="field"><label>Vücut yağ oranı (%)</label><input id="m-fat" type="number" step="0.1" value="${m0?esc(m0.fat||''):''}"></div>
+    <div class="field"><label>Kas kütlesi (kg)</label><input id="m-muscle" type="number" step="0.1" value="${m0?esc(m0.muscle||''):''}"></div>
+    <div class="field full"><label>Not</label><input id="m-note" placeholder="Örn. ödemli, adet dönemi" value="${m0?esc(m0.note||''):''}"></div></div>`,
+    m0?'Değişikliği kaydet':'Ölçümü kaydet', m0?'measure-edit':'measure');
+  }
   if(kind==='appt'){
     if(!DB.clients.length) return modal('Randevu','<p>Önce bir danışan eklemeniz gerekiyor.</p>','Tamam','close');
     const now=new Date(Date.now()+864e5); now.setMinutes(0);
@@ -6477,6 +6482,18 @@ async function handleOk(act){
     c.measures=c.measures||[];
     c.measures.push({id:uid('m'),date:val('m-date')||todayISO(),weight:val('m-weight'),waist:val('m-waist'),hip:val('m-hip'),fat:val('m-fat'),muscle:val('m-muscle'),note:val('m-note')});
     c.weight=val('m-weight'); toast('Ölçüm kaydedildi');
+  }
+  if(act==='measure-edit'){
+    if(!val('m-weight')) return toast('Kilo zorunlu');
+    const m0=(c.measures||[]).find(x=>x.id===S.editMeasure);
+    if(!m0) return toast('Ölçüm bulunamadı');
+    m0.date=val('m-date')||m0.date; m0.weight=val('m-weight'); m0.waist=val('m-waist');
+    m0.hip=val('m-hip'); m0.fat=val('m-fat'); m0.muscle=val('m-muscle'); m0.note=val('m-note');
+    m0.edited=Date.now();
+    // en guncel olcumu danisan kart ozetinde de yansit (en son tarihli olcumse)
+    const latest=[...c.measures].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+    if(latest&&latest.id===m0.id) c.weight=m0.weight;
+    toast('Ölçüm güncellendi');
   }
   if(act==='appt'){
     if(!val('a-when')) return toast('Tarih zorunlu');
@@ -7542,6 +7559,7 @@ document.addEventListener('click',async e=>{
   const ai=t.closest('[data-additem]'); if(ai){ S.mealIdx=+ai.dataset.additem; return openModal('item'); }
   const di=t.closest('[data-delitem]'); if(di){ const [m,i]=di.dataset.delitem.split(':').map(Number);
     DB.plans.find(x=>x.id===S.plan).days[S.day].meals[m].items.splice(i,1); await save(); return render(); }
+  const em=t.closest('[data-edit-measure]'); if(em){ S.editMeasure=em.dataset.editMeasure; return openModal('measure-edit'); }
   const dm=t.closest('[data-del-measure]'); if(dm){ const c=clientOf(S.client);
     const it=c.measures.find(x=>x.id===dm.dataset.delMeasure);
     if(it) trashPush('measure',(c.name||'')+' · '+trDate(it.date)+(it.weight?' · '+it.weight+' kg':''),it,{clientId:c.id});
