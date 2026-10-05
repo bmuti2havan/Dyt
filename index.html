@@ -2717,6 +2717,95 @@ const GEM_MODELS={
   'gemini-3-pro-image':'Nano Banana Pro — en kaliteli, en pahalı'
 };
 
+/* ══════════════ "Listeden program oluştur" için Claude (Anthropic) — Gemini'ye alternatif ══════════════ */
+const CLAUDE_MODEL='claude-haiku-4-5-20251001';
+const claudeKey=()=>((typeof DB!=='undefined'&&DB&&DB.profile&&DB.profile.claude)||'');
+function claudeExplain(status,msg){
+  const m=String(msg||'').toLowerCase();
+  if(status===401||m.includes('invalid x-api-key')||m.includes('authentication'))
+    return 'Anahtar geçersiz — console.anthropic.com\'dan tekrar kopyala.';
+  if(status===429||m.includes('rate') || m.includes('credit') || m.includes('quota'))
+    return 'Kota/bakiye doldu — console.anthropic.com üzerinden bakiye yükle ya da biraz bekle.';
+  if(status===400) return 'İstek reddedildi'+(msg?' — '+msg.slice(0,120):'');
+  return 'Anthropic sunucusu hata verdi ('+status+')'+(msg?' — '+msg.slice(0,110):'');
+}
+async function claudeText(prompt,maxTok){
+  const key=claudeKey();
+  if(!key) throw new Error('Claude anahtarı girilmemiş');
+  const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),120000);
+  let r;
+  try{
+    /* Tarayıcı api.anthropic.com'a doğrudan istek atamıyor (CORS kapalı);
+       istek kendi sunucu fonksiyonumuza (Netlify) gidip oradan Anthropic'e
+       iletiliyor — WhatsApp entegrasyonuyla aynı desen. */
+    r=await fetch('/.netlify/functions/claude-proxy',{
+      method:'POST', signal:ctl.signal,
+      headers:{ 'content-type':'application/json' },
+      body:JSON.stringify({
+        apiKey:key,
+        model:CLAUDE_MODEL,
+        maxTokens:maxTok||8192,
+        prompt:prompt
+      })
+    });
+  }catch(e){ clearTimeout(to); throw new Error('Anthropic sunucusuna ulaşılamadı (internet?)'); }
+  clearTimeout(to);
+  if(!r.ok){
+    let msg=''; try{ const j=await r.json(); msg=(j&&j.error&&j.error.message)||''; }catch(e){}
+    throw new Error(claudeExplain(r.status,msg));
+  }
+  const d=await r.json();
+  const txt=(d.content||[]).map(b=>b.text||'').join('');
+  if(!txt) throw new Error('Claude boş yanıt döndürdü');
+  return txt;
+}
+async function runClaudeTest(){
+  const key=(val('claude-key')||claudeKey()).trim();
+  if(!key) return toast('Önce anahtarı yapıştır');
+  S.claudeDiag={state:'loading'};
+  claudeDiagModal();
+  try{
+    const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),20000);
+    let r;
+    try{
+      r=await fetch('/.netlify/functions/claude-proxy',{
+        method:'POST', signal:ctl.signal,
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({apiKey:key,model:CLAUDE_MODEL,maxTokens:8,prompt:'merhaba'})
+      });
+    }catch(e){ clearTimeout(to); throw new Error('Anthropic sunucusuna ulaşılamadı (internet?)'); }
+    clearTimeout(to);
+    if(!r.ok){ let msg=''; try{ const j=await r.json(); msg=(j&&j.error&&j.error.message)||''; }catch(e){}
+      const err=new Error(claudeExplain(r.status,msg)); err.status=r.status; throw err; }
+    S.claudeDiag={state:'ok'};
+    if(DB.profile.claude!==key){ DB.profile.claude=key; await save(); }
+  }catch(e){ S.claudeDiag={state:'err',msg:e.message,status:e.status||0}; }
+  claudeDiagModal();
+}
+function claudeDiagModal(){
+  const d=S.claudeDiag||{};
+  const box = d.state==='loading'
+   ? `<div class="ai-load"><span class="spin"></span><b>Anahtar deneniyor…</b></div>`
+   : d.state==='ok'
+   ? `<div class="ai-load"><span style="font-size:30px">✅</span><b>Anahtar çalışıyor</b><small>Claude Haiku 4.5 ile üretime hazır</small></div>`
+   : d.state==='err'
+   ? `<div class="ai-load"><span style="font-size:30px">⚠️</span><b style="color:var(--danger)">${esc(d.msg||'Bağlanılamadı')}</b><small>${d.status?'Kod '+d.status:''}</small></div>`
+   : `<div class="ai-load"><span style="font-size:30px">🔎</span><b>Anahtarı sınayalım</b><small>Anthropic'e bağlanıp neyin ters gittiğini söyler</small></div>`;
+  modal('Claude (Anthropic) anahtarı',
+    `<div class="field"><label>Anthropic API anahtarı</label>
+       <input id="claude-key" value="${esc(claudeKey())}" placeholder="sk-ant- ile başlar"></div>
+     <div class="ai-box" style="min-height:120px">${box}</div>
+     <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+       <button class="btn btn-primary" data-claude-test="1" style="flex:1;justify-content:center">🔎 Anahtarı test et</button>
+       <button class="btn" data-claude-save="1" style="flex:1;justify-content:center">Kaydet</button></div>
+     <details style="margin-top:14px"><summary style="cursor:pointer;font-size:13px;color:var(--ink-2)">Anahtarı nereden alıyorum?</summary>
+       <ol style="padding-left:20px;color:var(--ink-2);font-size:12.5px;line-height:1.9;margin-top:8px">
+         <li><b>console.anthropic.com</b> → <b>API Keys</b> → <b>Create Key</b></li>
+         <li>Anahtar <b>sk-ant-</b> ile başlar</li>
+         <li>console.anthropic.com/settings/billing üzerinden bakiye yükle</li>
+       </ol></details>`,
+    'Kapat','close','580px');
+}
 function gemFindImage(d){
   if(d && d.output_image && d.output_image.data) return d.output_image.data;
   const steps=(d&&d.steps)||[];
@@ -3412,8 +3501,9 @@ String(raw).slice(0,12000),
 '---'].join('\n');
 }
 function openPaste(){
-  if(!gemKey()){ S.gemDiag=null; return gemDiagModal(); }
+  if(!gemKey() && !claudeKey()){ S.gemDiag=null; return gemDiagModal(); }
   S.pasteTone=S.pasteTone||'samimi';
+  if(!S.pasteProvider) S.pasteProvider=(claudeKey()&&!gemKey())?'claude':'gemini';
   S.pasteRes=null;
   drawPaste('idle');
 }
@@ -3454,11 +3544,16 @@ function drawPaste(state,err){
           <option value="resmi" ${S.pasteTone==='resmi'?'selected':''}>Profesyonel</option>
           <option value="kisa" ${S.pasteTone==='kisa'?'selected':''}>Kısa ve sade</option>
         </select></div>
+      <div class="field"><label>Yapay zekâ</label>
+        <select id="pst-provider">
+          <option value="gemini" ${S.pasteProvider!=='claude'?'selected':''}>Gemini${gemKey()?'':' (anahtar yok)'}</option>
+          <option value="claude" ${S.pasteProvider==='claude'?'selected':''}>Claude${claudeKey()?'':' (anahtar yok)'}</option>
+        </select></div>
     </div>
     ${state==='loading'?`<div class="ai-load"><span class="spin"></span><b>Program düzenleniyor…</b><small>20-60 saniye sürebilir, sayfadan ayrılma</small></div>`
      :state==='error'?`<div class="ai-load"><span style="font-size:30px">⚠️</span><b style="color:var(--danger)">${esc(err||'Olmadı')}</b>
         <small>Metni kısaltıp tekrar dene</small></div>`
-     :`<div class="ai-load"><span style="font-size:30px">📋</span><b>Gemini listeyi programa çevirsin</b>
+     :`<div class="ai-load"><span style="font-size:30px">📋</span><b>${S.pasteProvider==='claude'?'Claude':'Gemini'} listeyi programa çevirsin</b>
         <small>Öğünlere ayırır, isim verir, tarif cümlesi ekler — miktarlara dokunmaz</small></div>`}
     <button class="btn btn-primary" data-paste-run="1" ${state==='loading'?'disabled':''} style="margin-top:12px;width:100%;justify-content:center">✨ Düzenle</button>`;
   }
@@ -3469,13 +3564,16 @@ async function runPaste(){
   S.pasteRaw=raw;
   S.pasteDays=+((document.getElementById('pst-days')||{}).value)||S.pasteDays||7;
   S.pasteTone=(document.getElementById('pst-tone')||{}).value||S.pasteTone||'samimi';
+  S.pasteProvider=(document.getElementById('pst-provider')||{}).value||S.pasteProvider||'gemini';
   if(raw.trim().length<20) return toast('Önce programın metnini yapıştır');
   drawPaste('loading');
   try{
     let j, lastErr;
     for(let attempt=0; attempt<2; attempt++){
       try{
-        const txt=await geminiText(pastePrompt(raw,S.pasteDays,S.pasteTone),8192);
+        const txt=S.pasteProvider==='claude'
+          ? await claudeText(pastePrompt(raw,S.pasteDays,S.pasteTone),8192)
+          : await geminiText(pastePrompt(raw,S.pasteDays,S.pasteTone),8192);
         j=gemJson(txt); lastErr=null; break;
       }catch(e){ lastErr=e; }
     }
@@ -6009,6 +6107,10 @@ function pageSettings(){
           <input id="pf-gemini" value="${esc(p.gemini||'')}" placeholder="aistudio.google.com/apikey adresinden alınır">
           <span class="hint">Boş bırakırsan yapay zekâ görsel üretimi çalışmaz.</span>
           <button class="btn btn-sm" data-act="gem-diag" style="margin-top:8px">🔎 Anahtarı test et</button></div>
+        <div class="field full"><label>Claude API anahtarı ("Listeden program oluştur" için, isteğe bağlı)</label>
+          <input id="pf-claude" value="${esc(p.claude||'')}" placeholder="console.anthropic.com/settings/keys adresinden alınır">
+          <span class="hint">Girersen "Listeden program oluştur" ekranında Gemini yerine Claude'u da seçebilirsin.</span>
+          <button class="btn btn-sm" data-act="claude-diag" style="margin-top:8px">🔎 Anahtarı test et</button></div>
         <div class="field full"><label>Kapak görseli / logo</label>
           <div class="logo-box">
             ${p.logo?`<img src="${p.logo}" alt="logo">`:'<span style="color:var(--muted);font-size:12.5px">Henüz eklenmedi</span>'}
@@ -7637,6 +7739,8 @@ document.addEventListener('click',async e=>{
   const sh=t.closest('[data-share]'); if(sh&&!sh.disabled){ return doShare(sh.dataset.share); }
   const sp=t.closest('[data-shop]'); if(sp){ return doShop(sp.dataset.shop); }
   const gdg=t.closest('[data-gem-diag]'); if(gdg){ S.gemDiag=null; return gemDiagModal(); }
+  const cdt=t.closest('[data-claude-test]'); if(cdt) return runClaudeTest();
+  const cds=t.closest('[data-claude-save]'); if(cds){ DB.profile.claude=val('claude-key'); await save(); toast('Kaydedildi'); return closeModal(); }
   const gt=t.closest('[data-gem-test]'); if(gt){ return runGemTest(); }
   const gs=t.closest('[data-gem-save]'); if(gs){
     const k=(val('gem-key')||'').trim(); if(!k) return toast('Anahtarı yapıştırın');
@@ -7961,7 +8065,8 @@ document.addEventListener('click',async e=>{
       if(!confirm('Çöp kutusundaki tüm kayıtlar kalıcı olarak silinsin mi? Geri alınamaz.')) return;
       DB.trash=[]; await save(); toast('Çöp kutusu boşaltıldı'); return render(); }
     if(a==='gem-diag'){ S.gemDiag=null; return gemDiagModal(); }
-    if(a==='save-profile'){ Object.assign(DB.profile,{name:val('pf-name'),clinic:val('pf-clinic'),phone:val('pf-phone'),mail:val('pf-mail'),note:val('pf-note'),gemini:val('pf-gemini')}); await save(); toast('Bilgiler kaydedildi'); render(); }
+    if(a==='claude-diag'){ S.claudeDiag=null; return claudeDiagModal(); }
+    if(a==='save-profile'){ Object.assign(DB.profile,{name:val('pf-name'),clinic:val('pf-clinic'),phone:val('pf-phone'),mail:val('pf-mail'),note:val('pf-note'),gemini:val('pf-gemini'),claude:val('pf-claude')}); await save(); toast('Bilgiler kaydedildi'); render(); }
     if(a==='greet-new'){ return render(); }
     if(a==='recipe-shuffle'){ S.recipeShuffle=String(Math.random()); return render(); }
     if(a==='open-gallery'){ return openGallery({type:'browse'}); }
