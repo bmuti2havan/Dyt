@@ -2735,18 +2735,17 @@ async function claudeText(prompt,maxTok){
   const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),120000);
   let r;
   try{
-    r=await fetch('https://api.anthropic.com/v1/messages',{
+    /* Tarayıcı api.anthropic.com'a doğrudan istek atamıyor (CORS kapalı);
+       istek kendi sunucu fonksiyonumuza (Netlify) gidip oradan Anthropic'e
+       iletiliyor — WhatsApp entegrasyonuyla aynı desen. */
+    r=await fetch('/.netlify/functions/claude-proxy',{
       method:'POST', signal:ctl.signal,
-      headers:{
-        'x-api-key':key,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true',
-        'content-type':'application/json'
-      },
+      headers:{ 'content-type':'application/json' },
       body:JSON.stringify({
+        apiKey:key,
         model:CLAUDE_MODEL,
-        max_tokens:maxTok||8192,
-        messages:[{role:'user',content:prompt}]
+        maxTokens:maxTok||8192,
+        prompt:prompt
       })
     });
   }catch(e){ clearTimeout(to); throw new Error('Anthropic sunucusuna ulaşılamadı (internet?)'); }
@@ -2769,10 +2768,10 @@ async function runClaudeTest(){
     const ctl=new AbortController(), to=setTimeout(()=>ctl.abort(),20000);
     let r;
     try{
-      r=await fetch('https://api.anthropic.com/v1/messages',{
+      r=await fetch('/.netlify/functions/claude-proxy',{
         method:'POST', signal:ctl.signal,
-        headers:{'x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true','content-type':'application/json'},
-        body:JSON.stringify({model:CLAUDE_MODEL,max_tokens:8,messages:[{role:'user',content:'merhaba'}]})
+        headers:{'content-type':'application/json'},
+        body:JSON.stringify({apiKey:key,model:CLAUDE_MODEL,maxTokens:8,prompt:'merhaba'})
       });
     }catch(e){ clearTimeout(to); throw new Error('Anthropic sunucusuna ulaşılamadı (internet?)'); }
     clearTimeout(to);
