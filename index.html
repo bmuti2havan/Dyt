@@ -8582,6 +8582,31 @@ function maybeShowAnniv(){
     ov.remove();
   });
 }
+const VOICE_ONCE_KEY='voice-red-2026-10-05';
+function maybeSpeakOnce(){
+  if(!DB||!DB.profile) return;
+  if(DB.profile.voiceSeen===VOICE_ONCE_KEY) return;
+  if(!('speechSynthesis' in window)) return;
+  DB.profile.voiceSeen=VOICE_ONCE_KEY;
+  try{ save(); }catch(e){}
+  const text='Seni çok seviyorum. Kırmızı sana o kadar yakışmış ki... dünyanın en güzel çiçeğisin.';
+  let spoken=false;
+  function speakNow(){
+    if(spoken) return; spoken=true;
+    try{
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang='tr-TR'; u.rate=0.95; u.pitch=1.08;
+      const voices=speechSynthesis.getVoices();
+      const trVoice=voices.find(v=>v.lang&&v.lang.toLowerCase().startsWith('tr'));
+      if(trVoice) u.voice=trVoice;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+  if(speechSynthesis.getVoices().length===0){
+    speechSynthesis.onvoiceschanged=speakNow;
+    setTimeout(speakNow,700);
+  } else speakNow();
+}
 const LOVE_TICK_DATE='2026-10-05';
 const LOVE_TICK_MSGS=[
   'İki ayı geride bıraktık... Bu kısacık sürede nelerin içinden geçtiğimizi sen de ben de biliyoruz. Ama sonunda kavuştuk, sonunda sarıldık. İyi ki varsın.',
@@ -8635,6 +8660,7 @@ function unlock(){
        setTimeout(()=>toast(rnd(UNLOCK_WELCOME)),500);
        setTimeout(maybeShowAnniv,650);
        scheduleLoveTicks();
+       setTimeout(maybeSpeakOnce,400);
        if(cloudReady()){ if(CL()) CL().enabled=true; cloudSync(false);
          setInterval(()=>{ if(!document.hidden && cloudReady() && document.getElementById('lock').hidden) cloudSync(false); },60000); }
        if(trashPurge()>0) save({noCloud:true});
