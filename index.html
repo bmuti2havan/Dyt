@@ -3229,8 +3229,9 @@ clientBrief(c),
 extra?('\nDİYETİSYEN NOTU:\n'+String(extra).slice(0,1500)):''].join('\n');
 }
 function openGenPlan(){
-  if(!gemKey()){ S.gemDiag=null; return gemDiagModal(); }
+  if(!gemKey() && !claudeKey()){ S.gemDiag=null; return gemDiagModal(); }
   S.genTone=S.genTone||'samimi'; S.genDays=S.genDays||7; S.pasteRes=null;
+  if(!S.pasteProvider) S.pasteProvider=(claudeKey()&&!gemKey())?'claude':'gemini';
   drawGen('idle');
 }
 function drawGen(state,err){
@@ -3253,6 +3254,11 @@ function drawGen(state,err){
       <div class="field full"><label>Ek not — isteğe bağlı</label>
         <textarea id="gn-extra" rows="3" placeholder="Örn. akşamları geç yiyor, öğlen dışarıda, kırmızı et sevmiyor, bütçe kısıtlı">${esc(S.genExtra||'')}</textarea>
         <span class="hint">Danışan dosyasındaki alerji, hastalık ve hedef bilgileri zaten gönderiliyor.</span></div>
+      <div class="field full"><label>Yapay zekâ</label>
+        <select id="gn-provider">
+          <option value="gemini" ${S.pasteProvider!=='claude'?'selected':''}>Gemini${gemKey()?'':' (anahtar yok)'}</option>
+          <option value="claude" ${S.pasteProvider==='claude'?'selected':''}>Claude${claudeKey()?'':' (anahtar yok)'}</option>
+        </select></div>
     </div>
     ${state==='loading'?`<div class="ai-load"><span class="spin"></span><b>Program yazılıyor…</b><small>30-90 saniye sürebilir, sayfadan ayrılma</small></div>`
      :state==='error'?`<div class="ai-load"><span style="font-size:30px">⚠️</span><b style="color:var(--danger)">${esc(err||'Olmadı')}</b><small>Tekrar dene ya da gün sayısını azalt</small></div>`:''}
@@ -3265,10 +3271,13 @@ async function runGen(){
   S.genDays=+((document.getElementById('gn-days')||{}).value)||7;
   S.genTone=(document.getElementById('gn-tone')||{}).value||'samimi';
   S.genExtra=(document.getElementById('gn-extra')||{}).value||'';
+  S.pasteProvider=(document.getElementById('gn-provider')||{}).value||S.pasteProvider||'gemini';
   const kcal=+((document.getElementById('gn-kcal')||{}).value)||dailyTarget(c);
   drawGen('loading');
   try{
-    const j=gemJson(await geminiText(genPrompt(c,S.genDays,S.genTone,S.genExtra,kcal)));
+    const prompt=genPrompt(c,S.genDays,S.genTone,S.genExtra,kcal);
+    const txt=S.pasteProvider==='claude' ? await claudeText(prompt,8192) : await geminiText(prompt,8192);
+    const j=gemJson(txt);
     const days=normDays(j,S.genDays);
     if(!days.length) throw new Error('Model programı çıkaramadı');
     S.pasteRes={days}; S.pasteDays=S.genDays;
