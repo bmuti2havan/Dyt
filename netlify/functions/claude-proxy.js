@@ -22,16 +22,16 @@ exports.handler = async function (event) {
   catch (e) { return { statusCode: 400, body: JSON.stringify({ error: { message: 'Gecersiz istek govdesi' } }) }; }
 
   let { apiKey, prompt, maxTokens, model } = body;
-  // HTTP header'lari yalnizca Latin-1 (ASCII) karakter kabul eder. Anahtar
+  // HTTP header'lari yalnizca Latin-1 (ASCII) karakter kabul eder ve bir
+  // API anahtarinin icinde hicbir zaman bosluk/satir sonu olmaz. Anahtar
   // kopyala-yapistir sirasinda gorunmez bir Unicode karakter (sifir
-  // genislikli bosluk, akilli tirnak vb.) icerirse, header'a koyarken
-  // dusuk seviyeli bir "ByteString" hatasiyla sunucu coker - bunun yerine
-  // anahtari temizleyip, hala bozuksa anlasilir bir mesaj donduruyoruz.
-  apiKey = String(apiKey || '').replace(/[^\x20-\x7E]/g, '').trim();
+  // genislikli bosluk, akilli tirnak vb.) ya da satir kaydirmasindan gelen
+  // bir ara bosluk/tab/yeni satir icerirse, header'a koyarken dusuk
+  // seviyeli bir "ByteString" hatasiyla sunucu coker - bunun yerine
+  // anahtari TUM bosluklardan (bas/son/ara fark etmeksizin) ve ASCII-disi
+  // karakterlerden temizliyoruz.
+  apiKey = String(apiKey || '').replace(/\s+/g, '').replace(/[^\x21-\x7E]/g, '');
   if (!apiKey) return { statusCode: 400, body: JSON.stringify({ error: { message: 'apiKey eksik' } }) };
-  if (!/^[\x21-\x7E]+$/.test(apiKey)) {
-    return { statusCode: 400, body: JSON.stringify({ error: { message: 'API anahtari gecersiz karakterler iceriyor - anahtari console.anthropic.com\'dan tekrar kopyala ve yapistir.' } }) };
-  }
   if (!prompt) return { statusCode: 400, body: JSON.stringify({ error: { message: 'prompt eksik' } }) };
 
   try {
