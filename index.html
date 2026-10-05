@@ -3194,16 +3194,46 @@ function clientBrief(c){
   const t=dailyTarget(c); add('Günlük enerji hedefi',t&&t+' kcal');
   add('Protein hedefi',c.pTarget&&c.pTarget+' g');
   add('Alerji / intolerans',c.allergy); add('Hastalık / tanı',c.health);
-  add('İlaçlar',c.meds); add('Sevmedikleri',c.dislikes); add('Meslek',c.job);
+  add('İlaçlar',c.meds);
+  add('Sevdikleri (önceliklendir)',c.likes);
+  add('Sevmedikleri (ASLA kullanma)',c.dislikes);
+  add('Kan tahlili',c.blood); add('Önemli notlar',c.important);
+  add('Meslek',c.job);
   if(c.note) add('Not',String(c.note).slice(0,400));
+  /* Ölçüm geçmişi: kilo gidişatını (ve varsa bel/kalça/yağ oranı değişimini)
+     modelin görmesi için — "değerlerine bak" isteği buradan karşılanıyor. */
+  const ms=[...(c.measures||[])].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(ms.length){
+    const f=ms[0], l=ms[ms.length-1];
+    const diff=(+l.weight-+f.weight);
+    let trend='Ölçüm geçmişi: '+ms.length+' kayıt, '+trDate(f.date)+' → '+trDate(l.date)+
+      ', kilo '+(diff>0?'+':'')+diff.toFixed(1)+' kg değişti (son: '+l.weight+' kg).';
+    if(l.waist) trend+=' Son bel ölçüsü: '+l.waist+' cm.';
+    if(l.note) trend+=' Son görüşme notu: '+String(l.note).slice(0,200)+'.';
+    L.push(trend);
+  }
   return L.length?L.join('\n'):'Danışan bilgisi girilmemiş.';
+}
+/* Bir önceki (şu an üretilenden farklı) programın özeti — model aynı
+   öğünleri tekrar etmesin, bir önceki haftadan ders çıkarıp çeşitlendirsin. */
+function recentPlanSummary(c,excludePlanId){
+  if(!c) return '';
+  const prev=plansOf(c.id).filter(p=>p.id!==excludePlanId).sort((a,b)=>new Date(b.start)-new Date(a.start))[0];
+  if(!prev) return '';
+  const lines=[];
+  (prev.days||[]).forEach((d,i)=>{
+    const titles=(d.meals||[]).map(m=>m.title).filter(Boolean);
+    if(titles.length) lines.push((i+1)+'. gün: '+titles.join(', '));
+  });
+  if(!lines.length) return '';
+  return '\nÖNCEKİ PROGRAM ('+trDate(prev.start)+' başlangıçlı — ders al, AYNI öğünleri tekrar etme, çeşitlendir):\n'+lines.slice(0,7).join('\n');
 }
 const TONE_TXT=t=> t==='kisa' ? 'Kısa ve net yaz, süsleme yapma.'
   : t==='resmi' ? 'Kibar ve profesyonel bir dille yaz.'
   : 'Sıcak, samimi ve teşvik edici bir dille yaz; danışana "sen" diye hitap et.';
 
 /* ── A) Sıfırdan program üret ── */
-function genPrompt(c,days,tone,extra,kcal){
+function genPrompt(c,days,tone,extra,kcal,excludePlanId){
   const slots=MEAL_PRESET.map((m,i)=>i+': '+m[0]).join(', ');
   return [
 'Sen deneyimli bir diyetisyenin asistanısın. Aşağıdaki danışan için Türk mutfağına uygun, uygulanabilir bir beslenme programı hazırla.',
@@ -3214,7 +3244,9 @@ function genPrompt(c,days,tone,extra,kcal){
 '- Günlük toplam yaklaşık '+(kcal||'uygun')+' kcal olacak şekilde porsiyonla.',
 '- Market bulunabilirliği yüksek, mevsimlik ve ekonomik besinler seç. Egzotik ya da bulunması zor ürün kullanma.',
 '- Günler birbirinin kopyası olmasın; kahvaltılar ve akşamlar çeşitlensin.',
-'- Alerji, sevmedikleri ve hastalık bilgisine kesinlikle uy.',
+'- Alerji, hastalık ve "ASLA kullanma" bilgisine kesinlikle uy — bu besinleri hiçbir öğünde kullanma.',
+'- "Sevdikleri" listesindeki besinleri mümkün olduğunca sık ve öncelikli kullan; danışan onları zaten seviyor.',
+'- Ölçüm geçmişindeki kilo/bel gidişatını dikkate al: kilo artıyorsa porsiyon ve kalori daha sıkı kontrollü olsun, hedefe yaklaşıyorsa mevcut yaklaşımı koru ve pekiştir.',
 '- "lines" içinde her satır tek besin + ev ölçüsü olsun. Örnek: "4 yemek kaşığı yoğurt", "1 küçük şeftali", "2 tam ceviz".',
 '- "title" öğünün iştah açıcı kısa adı. Ara öğünlerde title boş kalabilir.',
 '- "tip" o öğün için 1 cümlelik hazırlanış tarifi veya püf noktası. '+TONE_TXT(tone),
@@ -3226,6 +3258,7 @@ function genPrompt(c,days,tone,extra,kcal){
 '',
 'DANIŞAN:',
 clientBrief(c),
+recentPlanSummary(c,excludePlanId),
 extra?('\nDİYETİSYEN NOTU:\n'+String(extra).slice(0,1500)):''].join('\n');
 }
 function openGenPlan(){
@@ -3275,7 +3308,7 @@ async function runGen(){
   const kcal=+((document.getElementById('gn-kcal')||{}).value)||dailyTarget(c);
   drawGen('loading');
   try{
-    const prompt=genPrompt(c,S.genDays,S.genTone,S.genExtra,kcal);
+    const prompt=genPrompt(c,S.genDays,S.genTone,S.genExtra,kcal,pl.id);
     const txt=S.pasteProvider==='claude' ? await claudeText(prompt,8192) : await geminiText(prompt,8192);
     const j=gemJson(txt);
     const days=normDays(j,S.genDays);
