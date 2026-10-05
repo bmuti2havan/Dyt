@@ -3799,7 +3799,12 @@ function wTable(widths,cells,border){
   +['top','left','bottom','right','insideH','insideV'].map(x=>`<w:${x} w:val="${border?'single':'none'}" w:sz="6" w:space="0" w:color="${border||'auto'}"/>`).join('')
   +`</w:tblBorders></w:tblPr><w:tblGrid>${widths.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`
   +`<w:tr>${cells}</w:tr></w:tbl>`+wP('',{after:80,size:8});}
-const wBreak=()=>`<w:p><w:r><w:br w:type="page"/></w:r></w:p>`;
+/* Boş sayfa hatasının kök nedeni: <w:br type="page"/> bir karakter gibi
+   davranır ve önceki içerik tam sayfa sonuna denk geldiğinde bile yeni bir
+   sayfaya ZORLA geçer -> aradaki sayfa tamamen boş kalır. pageBreakBefore
+   ise "bu paragraf zaten sayfa başındaysa hiçbir şey yapma" mantığıyla
+   çalışır, yani fazladan boş sayfa oluşturmaz. */
+const wBreak=()=>`<w:p><w:pPr><w:pageBreakBefore/><w:spacing w:before="0" w:after="0" w:line="0" w:lineRule="auto"/><w:rPr><w:sz w:val="2"/><w:szCs w:val="2"/></w:rPr></w:pPr></w:p>`;
 function wRows(widths,rows,border){
   return `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:tblBorders>`
   +['top','left','bottom','right','insideH','insideV'].map(x=>`<w:${x} w:val="${border?'single':'none'}" w:sz="6" w:space="0" w:color="${border||'auto'}"/>`).join('')
