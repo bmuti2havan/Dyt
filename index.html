@@ -7638,9 +7638,12 @@ function render(){
   window.scrollTo(0,0);
 }
 
+let _mdOnBg=false;
+document.addEventListener('mousedown',e=>{ _mdOnBg=e.target.classList&&e.target.classList.contains('modal-bg'); });
+document.addEventListener('touchstart',e=>{ _mdOnBg=e.target.classList&&e.target.classList.contains('modal-bg'); },{passive:true});
 document.addEventListener('click',async e=>{
   const t=e.target;
-  if(t.classList.contains('modal-bg')) return closeModal();
+  if(t.classList.contains('modal-bg')){ const was=_mdOnBg; _mdOnBg=false; if(was) return closeModal(); return; }
   if(t.closest('button[data-close]')) return closeModal();
   const ok=t.closest('[data-ok]'); if(ok) return handleOk(ok.dataset.ok);
   const go=t.closest('[data-go]'); if(go){ S.page=go.dataset.go; S.q=''; return render(); }
@@ -8052,6 +8055,7 @@ document.addEventListener('input',e=>{
   }
   if(e.target.id==='q'){ S.q=e.target.value; render();
     const i=document.getElementById('q'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }
+  if(e.target.id==='pst-raw'){ S.pasteRaw=e.target.value; }
   if(e.target.id==='it-food'||e.target.id==='it-gram'){
     const f=DB.foods.find(x=>x.n.toLocaleLowerCase('tr')===val('it-food').toLocaleLowerCase('tr'));
     const gr=+val('it-gram');
@@ -8063,6 +8067,8 @@ document.addEventListener('input',e=>{
   }
 });
 document.addEventListener('change',async e=>{
+  if(e.target.id==='pst-days'){ S.pasteDays=+e.target.value||S.pasteDays; }
+  if(e.target.id==='pst-tone'){ S.pasteTone=e.target.value||S.pasteTone; }
   const lbUp=e.target.closest('[data-lovebox-upload]');
   if(lbUp && lbUp.files && lbUp.files.length){
     if(!DB.loveBox) DB.loveBox=[];
