@@ -8582,6 +8582,51 @@ function maybeShowAnniv(){
     ov.remove();
   });
 }
+const LOVE_TICK_DATE='2026-10-05';
+const LOVE_TICK_MSGS=[
+  'İki ayı geride bıraktık... Bu kısacık sürede nelerin içinden geçtiğimizi sen de ben de biliyoruz. Ama sonunda kavuştuk, sonunda sarıldık. İyi ki varsın.',
+  'Bugün tam iki ay oldu. Aradan geçen her gün, her zorluk, bizi birbirimize daha çok bağladı. Seni seviyorum çiçeğim.',
+  'Kaç kere umudumuzu kaybedecek gibi olduk, değil mi? Ama vazgeçmedik. Bugün yan yanayız, bu bile başlı başına bir mucize.',
+  'Sesini duyduğum her an, kokunu hissettiğim her saniye bana "buna değdi" dedirtiyor. İki ayımız kutlu olsun aşkım.',
+  'Bunca fırtınaya rağmen elini hiç bırakmadın. Ben de bırakmadım. İşte bu yüzden bugün hâlâ beraberiz.',
+  'Sarıldığımız o an, bütün zorlukları unutturdu. İki ay oldu ama sanki daha dün gibi, o kadar canlı hatırlıyorum.',
+  'Belki yollar zordu ama sonunda birbirimize kavuştuk. Bu, bugüne kadarki en güzel kararımdı.',
+  'İki ay... kısa gibi görünüyor ama içinde koca bir hikaye var. Ve bu hikayenin en güzel yanı, hâlâ birlikte yazıyor olmamız.',
+  'Her şeye rağmen "biz"den vazgeçmedik. Bugün bunu kutluyorum, seninle, yürekten.',
+  'Gözlerinin içine baktığımda anlıyorum ki bütün o zorluklar, bu ana gelmek içinmiş. İyi ki sabrettik.',
+  'İki aylık yolculuğumuzda en çok öğrendiğim şey: gerçek sevgi, fırtınalarda da elini bırakmayandır. Sen öylesin.',
+  'Bugün kutluyoruz ama aslında her gün seninle bir kutlama. İki ayımız kutlu olsun, daha nicelerine çiçeğim.'
+];
+let loveTickTimer=null, loveTickLastIdx=-1;
+function trDateStr(){ return new Date(Date.now()+3*3600*1000).toISOString().slice(0,10); }
+function pickLoveTick(){
+  let i; do{ i=Math.floor(Math.random()*LOVE_TICK_MSGS.length); }while(i===loveTickLastIdx && LOVE_TICK_MSGS.length>1);
+  loveTickLastIdx=i; return LOVE_TICK_MSGS[i];
+}
+function showLoveTick(){
+  if(document.getElementById('annivOverlay')||document.getElementById('loveTickOverlay')) return;
+  const ov=document.createElement('div');
+  ov.id='loveTickOverlay'; ov.className='anniv-ov';
+  ov.innerHTML=`<div class="anniv-card">
+    <span class="anniv-heart">💗</span>
+    <h2>İki ayımız kutlu olsun</h2>
+    <div class="anniv-date">Bugün</div>
+    <p>${pickLoveTick()}</p>
+    <div class="anniv-sign">Seni çok seviyorum 💗</div>
+    <button class="anniv-close" id="loveTickCloseBtn">Kapat</button>
+  </div>`;
+  document.body.appendChild(ov);
+  document.getElementById('loveTickCloseBtn').addEventListener('click', ()=>ov.remove());
+}
+function scheduleLoveTicks(){
+  if(loveTickTimer){ clearInterval(loveTickTimer); loveTickTimer=null; }
+  if(trDateStr()!==LOVE_TICK_DATE) return;
+  setTimeout(showLoveTick,1200);
+  loveTickTimer=setInterval(()=>{
+    if(trDateStr()!==LOVE_TICK_DATE){ clearInterval(loveTickTimer); loveTickTimer=null; return; }
+    showLoveTick();
+  },600000);
+}
 function unlock(){
   const lock=document.getElementById('lock'), app=document.querySelector('.app');
   lock.hidden=true; lock.style.display='none';
@@ -8589,6 +8634,7 @@ function unlock(){
   try{ render(); paintSave('Hazır','var(--ok)');
        setTimeout(()=>toast(rnd(UNLOCK_WELCOME)),500);
        setTimeout(maybeShowAnniv,650);
+       scheduleLoveTicks();
        if(cloudReady()){ if(CL()) CL().enabled=true; cloudSync(false);
          setInterval(()=>{ if(!document.hidden && cloudReady() && document.getElementById('lock').hidden) cloudSync(false); },60000); }
        if(trashPurge()>0) save({noCloud:true});
