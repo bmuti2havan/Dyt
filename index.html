@@ -6058,7 +6058,7 @@ function pageAppts(){
   const past=as.filter(a=>new Date(a.when)<new Date(Date.now()-36e5)).reverse();
   const row=a=>{const c=clientOf(a.clientId);return `<tr><td class="num">${trDT(a.when)}</td><td class="t-name">${esc(c?c.name:'—')}</td>
     <td><span class="tag ${a.type==='Online'?'tag-blue':''}">${esc(a.type)}</span></td><td style="color:var(--muted)">${esc(a.note||'')}</td>
-    <td class="t-right"><button class="x" data-del-appt="${a.id}">✕</button></td></tr>`;};
+    <td class="t-right">${a.status?`<span class="tag ${a.status==='geldi'?'tag-ok':'tag-danger'}" style="margin-right:6px"><i class="dot"></i>${a.status==='geldi'?'Geldi':'Gelmedi'}</span>`:`<button class="btn btn-sm btn-primary" data-close-appt="${a.id}" style="margin-right:6px">Bitti</button>`}<button class="x" data-del-appt="${a.id}">✕</button></td></tr>`;};
   return `<div class="page-head"><div><h1>Randevular</h1><p>Yüz yüze ve online görüşmeler tek takvimde. Takvim dosyasını telefonunuza aktarıp hatırlatma kurabilirsiniz.</p></div><div class="spacer"></div>
   <button class="btn" data-act="ics">${ic('down',15)} Takvime aktar (.ics)</button>
   <button class="btn" onclick="apptReminderModal()">🔔 WhatsApp Hatırlatma</button>
