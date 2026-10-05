@@ -8582,14 +8582,14 @@ function maybeShowAnniv(){
     ov.remove();
   });
 }
-const VOICE_ONCE_KEY='voice-red-2026-10-05';
+const VOICE_ONCE_KEY='voice-red-2026-10-05-v2';
 function maybeSpeakOnce(){
   if(!DB||!DB.profile) return;
   if(DB.profile.voiceSeen===VOICE_ONCE_KEY) return;
   if(!('speechSynthesis' in window)) return;
   DB.profile.voiceSeen=VOICE_ONCE_KEY;
   try{ save(); }catch(e){}
-  const text='Seni çok seviyorum. Kırmızı sana o kadar yakışmış ki... dünyanın en güzel çiçeğisin.';
+  const text='Seni çok seviyorum. Kırmızı sana o kadar yakışmış ki... dünyanın en güzel çiçeğisin. Karımsın sen, benim karım.';
   let spoken=false;
   function speakNow(){
     if(spoken) return; spoken=true;
