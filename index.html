@@ -5500,6 +5500,8 @@ function pageClients(){
     <thead><tr><th>Danışan</th><th>Hedef</th><th class="t-right">Boy / Kilo</th><th class="t-right">BKİ</th><th class="t-right">Günlük enerji</th><th>Program</th><th></th></tr></thead>
     <tbody>${list.map(c=>{
       const b=bmi(c.weight,c.height), lbl=bmiLabel(b), p=plansOf(c.id).find(x=>x.status==='Aktif');
+      const openAppts=DB.appts.filter(a=>a.clientId===c.id&&!a.status).sort((x,y)=>new Date(x.when)-new Date(y.when));
+      const oa=openAppts[0];
       return `<tr>
         <td><div class="av-row"><span class="av" style="background:${avColor(c.name)}">${initials(c.name)}</span>
           <div><div class="t-name">${esc(c.name)}</div><div class="t-sub">${c.age?esc(c.age)+' yaş · ':''}${c.sex==='K'?'Kadın':'Erkek'}${c.phone?' · '+esc(c.phone):''}</div></div></div></td>
@@ -5508,7 +5510,7 @@ function pageClients(){
         <td class="t-right"><span class="num">${b?b.toFixed(1):'—'}</span> ${b?`<div class="t-sub"><span class="tag ${lbl[1]}" style="font-size:10.5px">${lbl[0]}</span></div>`:''}</td>
         <td class="t-right num">${c.kcalTarget? c.kcalTarget+' kcal':'—'}</td>
         <td>${p? `<span class="tag tag-ok"><i class="dot"></i>${esc(p.name)}</span>`:'<span class="tag">Program yok</span>'}</td>
-        <td class="t-right"><button class="btn btn-sm" data-client="${c.id}">Dosyayı aç</button></td></tr>`}).join('')}
+        <td class="t-right">${oa?`<button class="btn btn-sm btn-primary" data-close-appt="${oa.id}" style="margin-right:6px">Bitti</button>`:''}<button class="btn btn-sm" data-client="${c.id}">Dosyayı aç</button></td></tr>`}).join('')}
     </tbody></table></div></section>`
   : `<section class="card"><div class="empty"><div class="eic">${ic('plus',24)}</div><h4>${S.q?'Eşleşen danışan yok':'Henüz danışan eklenmedi'}</h4><p>${S.q?'Farklı bir isim deneyin.':'Danışan eklediğinizde ölçüm takibi, program hazırlama ve randevu yönetimi bu dosyadan yürür.'}</p><button class="btn btn-primary" data-modal="client">${ic('plus',15)} Yeni danışan ekle</button></div></section>`}`;
 }
