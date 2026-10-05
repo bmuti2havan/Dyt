@@ -6,12 +6,32 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: { message: 'Method not allowed' } }) };
   }
+  // Netlify, govde icerigine gore (ozellikle cok-baytli / Turkce karakterler
+  // yuzunden) istegi base64 ile kodlayabilir - once onu cozuyoruz, yoksa
+  // JSON.parse yanlis/eksik veri uretebiliyordu.
+  let rawBody;
+  try {
+    rawBody = event.isBase64Encoded
+      ? Buffer.from(event.body || '', 'base64').toString('utf8')
+      : (event.body || '{}');
+  } catch (e) {
+    return { statusCode: 400, body: JSON.stringify({ error: { message: 'Istek govdesi cozulemedi' } }) };
+  }
   let body;
-  try { body = JSON.parse(event.body || '{}'); }
+  try { body = JSON.parse(rawBody); }
   catch (e) { return { statusCode: 400, body: JSON.stringify({ error: { message: 'Gecersiz istek govdesi' } }) }; }
 
-  const { apiKey, prompt, maxTokens, model } = body;
+  let { apiKey, prompt, maxTokens, model } = body;
+  // HTTP header'lari yalnizca Latin-1 (ASCII) karakter kabul eder. Anahtar
+  // kopyala-yapistir sirasinda gorunmez bir Unicode karakter (sifir
+  // genislikli bosluk, akilli tirnak vb.) icerirse, header'a koyarken
+  // dusuk seviyeli bir "ByteString" hatasiyla sunucu coker - bunun yerine
+  // anahtari temizleyip, hala bozuksa anlasilir bir mesaj donduruyoruz.
+  apiKey = String(apiKey || '').replace(/[^\x20-\x7E]/g, '').trim();
   if (!apiKey) return { statusCode: 400, body: JSON.stringify({ error: { message: 'apiKey eksik' } }) };
+  if (!/^[\x21-\x7E]+$/.test(apiKey)) {
+    return { statusCode: 400, body: JSON.stringify({ error: { message: 'API anahtari gecersiz karakterler iceriyor - anahtari console.anthropic.com\'dan tekrar kopyala ve yapistir.' } }) };
+  }
   if (!prompt) return { statusCode: 400, body: JSON.stringify({ error: { message: 'prompt eksik' } }) };
 
   try {
