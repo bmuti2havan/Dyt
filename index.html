@@ -4131,9 +4131,11 @@ async function exportDocx(share){
 
   /* ── Haftalık özet sayfası ── */
   const wantSum=(p.docSummary!==false);
+  let summaryRendered=false;
   if(wantSum){
     const dolu=p.days.map((d,i)=>({d,i})).filter(x=>x.d.meals.some(m=>m.lines.length||m.title));
     if(dolu.length){
+      summaryRendered=true;
       body+=wBreak();
       /* Kapak görseli — yalnızca programa özel kapak seçilmişse ve genişse */
       const banner=p.coverPhoto||'';
@@ -4184,8 +4186,15 @@ async function exportDocx(share){
 
   /* Günler */
   const used=p.days.map((d,i)=>({d,i})).filter(x=>x.d.meals.some(m=>m.lines.length||m.title||m.photo)||x.d.photo);
-  used.forEach(({d,i})=>{
-    body+=wBreak();
+  used.forEach(({d,i},idx)=>{
+    /* Her gün için zorla sayfa sonu vermiyoruz: önceki günün son öğünü sayfanın
+       üstüne taştığında, bir sonraki günü yine de yeni sayfaya zorlamak altında
+       büyük boş alan bırakıyordu. Bunun yerine günler doğal akışla sıralanıyor;
+       sadece haftalık özetten sonra 1. gün için (ayrı bölüm hissi için) ve diğer
+       günler arasında görsel nefes payı için sayfa sonu değil boşluk ekleniyor,
+       Word gerektiğinde kendi sayfa sonunu veriyor.*/
+    if(idx===0 && summaryRendered) body+=wBreak();
+    else if(idx>0) body+=wP('',{size:6,after:0,before:160});
     let head=wP(`${DAY_EMOJI[i]}  ${i+1}. GÜN  ·  ${dFull(p,i).toLocaleUpperCase('tr')}`,{b:true,size:30,color:T.gunRenk[i],font:TF,after:d.sub?40:0});
     if(d.sub) head+=wP(d.sub,{i:true,size:19,color:TC,after:0});
     body+=wTable([W],wCell(W,head,T.gunFill[i]), T.kapak==='rule'?T.cizgi:'');
