@@ -3711,11 +3711,16 @@ async function runBatch(){
     const m=p.days[j.di].meals[j.mi];
     S.bq.cur=(j.di+1)+'. gün · '+(m.title||m.name);
     drawBatch('run');
-    try{
-      const img=await geminiImage(aiPrompt(m,'plate'),S.gemModel);
-      m.photo=img; addToGallery(img,(m.title||m.name)+' (Gemini)');
-      S.bq.done++; await save();
-    }catch(e){ S.bq.fail++; S.bq.err=e.message; }
+    /* Uzun bir toplu işlemde ara sıra tek bir istek geçici ağ hatasıyla
+       (zaman aşımı, "sunucuya ulaşılamadı" vb.) başarısız olabiliyor;
+       bunu kalıcı hata saymadan önce bir kere daha deniyoruz. */
+    let img, lastErr;
+    for(let attempt=0; attempt<2; attempt++){
+      try{ img=await geminiImage(aiPrompt(m,'plate'),S.gemModel); lastErr=null; break; }
+      catch(e){ lastErr=e; if(attempt===0) await new Promise(r=>setTimeout(r,1500)); }
+    }
+    if(lastErr){ S.bq.fail++; S.bq.err=lastErr.message; }
+    else{ m.photo=img; addToGallery(img,(m.title||m.name)+' (Gemini)'); S.bq.done++; await save(); }
     drawBatch('run');
   }
   drawBatch('done');
