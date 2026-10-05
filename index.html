@@ -3233,14 +3233,19 @@ const TONE_TXT=t=> t==='kisa' ? 'Kısa ve net yaz, süsleme yapma.'
   : 'Sıcak, samimi ve teşvik edici bir dille yaz; danışana "sen" diye hitap et.';
 
 /* ── A) Sıfırdan program üret ── */
-function genPrompt(c,days,tone,extra,kcal,excludePlanId){
+function genPrompt(c,days,tone,extra,kcal,excludePlanId,range){
   const slots=MEAL_PRESET.map((m,i)=>i+': '+m[0]).join(', ');
+  const chunkDays=range?range.count:days;
+  const rangeNote=range
+    ? 'Bu toplam '+range.total+' günlük programın SADECE '+range.start+'. günden '+(range.start+range.count-1)+'. güne kadar olan kısmını üret (yani tam '+range.count+' gün). Diğer günler ayrıca üretiliyor, onları burada tekrar üretme; haftanın geri kalanıyla tutarlı ve çeşitli olsun.'
+    : '';
   return [
 'Sen deneyimli bir diyetisyenin asistanısın. Aşağıdaki danışan için Türk mutfağına uygun, uygulanabilir bir beslenme programı hazırla.',
 '',
 'KURALLAR:',
 '- Yanıtı SADECE geçerli JSON olarak ver. Açıklama, markdown, kod bloğu ekleme.',
-'- Tam '+days+' gün üret. Her günde tam '+MEAL_PRESET.length+' öğün olacak; slot numaraları: '+slots+'.',
+'- Tam '+chunkDays+' gün üret. Her günde tam '+MEAL_PRESET.length+' öğün olacak; slot numaraları: '+slots+'.',
+rangeNote,
 '- Günlük toplam yaklaşık '+(kcal||'uygun')+' kcal olacak şekilde porsiyonla.',
 '- Market bulunabilirliği yüksek, mevsimlik ve ekonomik besinler seç. Egzotik ya da bulunması zor ürün kullanma.',
 '- Günler birbirinin kopyası olmasın; kahvaltılar ve akşamlar çeşitlensin.',
@@ -3308,10 +3313,8 @@ async function runGen(){
   const kcal=+((document.getElementById('gn-kcal')||{}).value)||dailyTarget(c);
   drawGen('loading');
   try{
-    const prompt=genPrompt(c,S.genDays,S.genTone,S.genExtra,kcal,pl.id);
-    const txt=S.pasteProvider==='claude' ? await claudeText(prompt,8192) : await geminiText(prompt,8192);
-    const j=gemJson(txt);
-    const days=normDays(j,S.genDays);
+    const days=await generateDaysChunked(S.genDays,S.pasteProvider,
+      range=>genPrompt(c,S.genDays,S.genTone,S.genExtra,kcal,pl.id,range));
     if(!days.length) throw new Error('Model programı çıkaramadı');
     S.pasteRes={days}; S.pasteDays=S.genDays;
     drawPaste('done');
@@ -3515,17 +3518,27 @@ async function applyMatch(){
   await save(); toast(nm+' eşleşti · '+nf+' yeni besin · '+ni+' hesap dışı'); closeModal(); render();
 }
 
-function pastePrompt(raw,days,tone){
+function pastePrompt(raw,days,tone,range){
   const slots=MEAL_PRESET.map((m,i)=>i+': '+m[0]).join(', ');
   const t = tone==='kisa' ? 'Kısa ve net yaz, süsleme yapma.'
         : tone==='resmi' ? 'Kibar ve profesyonel bir dille yaz.'
         : 'Sıcak, samimi ve teşvik edici bir dille yaz; danışana "sen" diye hitap et.';
+  /* range: {start,count,total} verilirse, model METNİN TAMAMINI görür ama
+     yanıtında sadece belirtilen gün aralığını üretir. Bu, Claude çağrılarını
+     (Netlify'nin 60 saniyelik senkron fonksiyon sınırına takılmamak için)
+     küçük parçalara bölebilmemizi sağlıyor — tek seferde 7 gün yerine
+     birkaç kısa çağrı. */
+  const chunkDays = range ? range.count : days;
+  const rangeNote = range
+    ? 'Bu toplam '+range.total+' günlük programın SADECE '+range.start+'. günden '+(range.start+range.count-1)+'. güne kadar olan kısmını üret (yani tam '+range.count+' gün, metindeki ilgili günlere karşılık gelen kısmı kullan). Diğer günler ayrıca üretiliyor, onları burada tekrar üretme.'
+    : '';
   return [
 'Sen deneyimli bir diyetisyenin asistanısın. Aşağıdaki dağınık beslenme programı metnini düzenli bir yapıya çevir.',
 '',
 'KURALLAR:',
 '- Yanıtı SADECE geçerli JSON olarak ver. Açıklama, markdown, kod bloğu ekleme.',
-'- Tam '+days+' gün üret. Metinde daha az gün varsa kalan günleri aynı mantıkla, benzer kalorik yoğunlukta ve çeşitlendirerek sen tamamla.',
+'- Tam '+chunkDays+' gün üret. Metinde daha az gün varsa kalan günleri aynı mantıkla, benzer kalorik yoğunlukta ve çeşitlendirerek sen tamamla.',
+rangeNote,
 '- Her günde tam '+MEAL_PRESET.length+' öğün olacak; slot numaraları: '+slots+'.',
 '- Metindeki besinleri, porsiyonları ve miktarları AYNEN koru. Yeni besin uydurma, miktar değiştirme.',
 '- "lines" içinde her satır tek bir besin ve ev ölçüsü olsun. Örnek: "2 yemek kaşığı yulaf", "1 küçük şeftali", "2 tam ceviz".',
@@ -3541,6 +3554,27 @@ function pastePrompt(raw,days,tone){
 '---',
 String(raw).slice(0,12000),
 '---'].join('\n');
+}
+/* Claude icin Netlify'nin 60sn senkron fonksiyon siniri yuzunden buyuk
+   (5-7 gunluk) tek bir cagri zaman asimina ugrayip "Anthropic sunucusuna
+   ulasilamadi" hatasi verebiliyordu - cikti kucuk parcalara bolunerek
+   art arda birkac hizli cagri yapiliyor ve sonuclar birlestiriliyor.
+   Gemini dogrudan tarayicidan gittigi icin bu sinira takilmiyor, tek
+   cagrida kaliyor (alanda zaten calistigi kanitlanmis). */
+async function generateDaysChunked(totalDays,provider,buildPrompt){
+  const CHUNK=3;
+  if(provider!=='claude' || totalDays<=CHUNK){
+    const txt=provider==='claude'?await claudeText(buildPrompt(null),8192):await geminiText(buildPrompt(null),8192);
+    return normDays(gemJson(txt),totalDays);
+  }
+  let all=[], start=1;
+  while(start<=totalDays){
+    const count=Math.min(CHUNK,totalDays-start+1);
+    const txt=await claudeText(buildPrompt({start,count,total:totalDays}),4096);
+    all=all.concat(normDays(gemJson(txt),count));
+    start+=count;
+  }
+  return all.slice(0,totalDays);
 }
 function openPaste(){
   if(!gemKey() && !claudeKey()){ S.gemDiag=null; return gemDiagModal(); }
@@ -3610,25 +3644,15 @@ async function runPaste(){
   if(raw.trim().length<20) return toast('Önce programın metnini yapıştır');
   drawPaste('loading');
   try{
-    let j, lastErr;
+    let days, lastErr;
     for(let attempt=0; attempt<2; attempt++){
       try{
-        const txt=S.pasteProvider==='claude'
-          ? await claudeText(pastePrompt(raw,S.pasteDays,S.pasteTone),8192)
-          : await geminiText(pastePrompt(raw,S.pasteDays,S.pasteTone),8192);
-        j=gemJson(txt); lastErr=null; break;
+        days=await generateDaysChunked(S.pasteDays,S.pasteProvider,
+          range=>pastePrompt(raw,S.pasteDays,S.pasteTone,range));
+        lastErr=null; break;
       }catch(e){ lastErr=e; }
     }
     if(lastErr) throw lastErr;
-    const days=(j.days||[]).slice(0,S.pasteDays).map(d=>({
-      sub:String(d.sub||'').slice(0,120),
-      meals:(d.meals||[]).map(m=>({
-        slot:Math.max(0,Math.min(MEAL_PRESET.length-1,+m.slot||0)),
-        title:String(m.title||'').slice(0,90),
-        lines:(Array.isArray(m.lines)?m.lines:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,14),
-        tip:String(m.tip||'').slice(0,220)
-      }))
-    }));
     if(!days.length) throw new Error('Model programı çıkaramadı');
     S.pasteRes={days};
     drawPaste('done');
