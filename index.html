@@ -6946,8 +6946,17 @@ const SVG={
 };
 const ic=(k,sz)=>`<svg class="i" viewBox="0 0 24 24" width="${sz||18}" height="${sz||18}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${SVG[k]||''}</svg>`;
 const initials=n=>String(n||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toLocaleUpperCase('tr');
-const AV=['#2E8BD8','#1F87A6','#3E6FC4','#6E7FC9','#2E9BAE','#1F7FB8','#4A8FC2'];
-const avColor=n=>AV[(String(n||'').length+String(n||'').charCodeAt(0)||0)%AV.length];
+/* 50 farklı, birbirine karışmayan renk — her danışan adına göre sabit bir renge denk gelir */
+const AV=['#8E2929','#2149AB','#8E2982','#CA7816','#42298E','#CA1652','#29698E','#A416CA','#298E5C','#AB3E21',
+  '#1626CA','#4F8E29','#AB217D','#8E7529','#6021AB','#8E2936','#215BAB','#8E298E','#CA6116','#36298E',
+  '#CA1669','#29758E','#8D16CA','#298E4F','#AB2C21','#163DCA','#5C8E29','#AB218F','#8E6829','#4E21AB',
+  '#8E2943','#216DAB','#81298E','#CA4A16','#292A8E','#CA1680','#29828E','#7616CA','#298E42','#AB2128',
+  '#1654CA','#698E29','#AB21A0','#8E5B29','#3D21AB','#8E2950','#217EAB','#74298E','#CA3316','#29378E'];
+const avColor=n=>{
+  const s=String(n||'?');
+  let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))|0;
+  return AV[Math.abs(h)%AV.length];
+};
 
 const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
   {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},
