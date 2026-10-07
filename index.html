@@ -6436,7 +6436,8 @@ const SVG={
  bell:'<path d="M18 8.6a6 6 0 1 0-12 0c0 6-2.4 7.4-2.4 7.4h16.8S18 14.6 18 8.6"/><path d="M13.7 20a2 2 0 0 1-3.4 0"/>',
  back:'<path d="m14.5 5.5-6.5 6.5 6.5 6.5"/>',
  camera:'<path d="M4 8.4h3.2l1.4-2.2h6.8l1.4 2.2H20a1.6 1.6 0 0 1 1.6 1.6v8a1.6 1.6 0 0 1-1.6 1.6H4A1.6 1.6 0 0 1 2.4 18v-8A1.6 1.6 0 0 1 4 8.4Z"/><circle cx="12" cy="13.8" r="3.4"/>',
- chart:'<path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/>'
+ chart:'<path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/>',
+ help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.8 1c0 1.6-2.3 1.9-2.3 3.4"/><path d="M12 17.2h.01"/>'
 };
 const ic=(k,sz)=>`<svg class="i" viewBox="0 0 24 24" width="${sz||18}" height="${sz||18}" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${SVG[k]||''}</svg>`;
 const initials=n=>String(n||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toLocaleUpperCase('tr');
@@ -6452,7 +6453,7 @@ const avColor=n=>{
   return AV[Math.abs(h)%AV.length];
 };
 
-const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
+const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'help',ic:'help',t:'Yardım'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
   {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},
   {s:'Sistem'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
 const TITLES={wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar'};
@@ -7238,7 +7239,7 @@ document.addEventListener('click',async e=>{
   if(t.classList.contains('modal-bg')){ const was=_mdOnBg; _mdOnBg=false; if(was) return closeModal(); return; }
   if(t.closest('button[data-close]')) return closeModal();
   const ok=t.closest('[data-ok]'); if(ok) return handleOk(ok.dataset.ok);
-  const go=t.closest('[data-go]'); if(go){ S.page=go.dataset.go; S.q=''; return render(); }
+  const go=t.closest('[data-go]'); if(go){ if(go.dataset.go==='help'){ return openSupportModal(); } S.page=go.dataset.go; S.q=''; return render(); }
   const md=t.closest('[data-modal]'); if(md) return openModal(md.dataset.modal);
   const sg=t.closest('[data-seg]'); if(sg){
     const [grp,v]=sg.dataset.seg.split(':');
