@@ -6323,7 +6323,7 @@ function modal(title,bodyHTML,okLabel,okAct,size){
 const closeModal=()=>{ S.waAutoStop=true; document.getElementById('modalRoot').innerHTML=''; };
 function openSupportModal(){
   modal('🆘 Yardım / Bir Sorun mu Var?',
-    `<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Sorun yaşarsan buradan bildir, hallederiz. Yazsın sadece.</p>
+    `<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Sorun yaşarsan buradan bildir, hallederiz.</p>
     <div class="field full"><label>Ne çalışmıyor?</label><textarea id="sup-msg" rows="5" placeholder="Örn. Program PDF'e aktarırken uygulama kapanıyor / Danışan eklerken hata çıktı..."></textarea></div>`,
     'E-postayı aç ve gönder','support-send','480px');
 }
