@@ -6739,7 +6739,7 @@ async function handleOk(act){
     if(!msg) return toast('Önce ne çalışmıyor onu yaz');
     const who=(DB.profile&&DB.profile.name)||'Panel';
     const body='Gönderen: '+who+'\nTarih: '+new Date().toLocaleString('tr-TR')+'\nSayfa: '+(S.page||'')+'\n\n'+msg;
-    const mailto='mailto:tayfunmuti541@gmail.com?subject='+encodeURIComponent('Panel — çalışmayan bir yer var')+'&body='+encodeURIComponent(body);
+    const mailto='mailto:Bmuti3331@gmail.com?subject='+encodeURIComponent('Panel — çalışmayan bir yer var')+'&body='+encodeURIComponent(body);
     window.location.href=mailto;
     closeModal(); toast('E-posta uygulaması açıldı, göndermeyi unutma 📩'); return;
   }
