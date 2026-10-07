@@ -1043,6 +1043,7 @@ main>*{animation:rise .22s ease both}
         <input id="gsearch" placeholder="Danışan, program veya besin ara" aria-label="Genel arama"></div>
       <div class="top-right">
         <button class="btn btn-sm" data-act="print" id="btnPrint"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M7 9V3.6h10V9"/><rect x="3.6" y="9" width="16.8" height="7.6" rx="2"/><path d="M7 14.4h10v6H7z"/></svg> Yazdır</button>
+        <button class="btn btn-sm" data-act="support" title="Bir şey çalışmıyorsa buradan bildir"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.8 1c0 1.6-2.3 1.9-2.3 3.4"/><path d="M12 17.2h.01"/></svg> Yardım</button>
         <button class="btn btn-sm" data-act="lock" title="Uygulamayı kilitle">Kilitle</button>
       <div class="who"><div class="avatar">AK</div><div><div style="font-size:13px;font-weight:600" id="whoName">Dyt. Ayşenur KORKMAZ</div><small>Diyetisyen</small></div></div>
       </div>
@@ -6320,6 +6321,12 @@ function modal(title,bodyHTML,okLabel,okAct,size){
   const f=document.querySelector('.modal-b input,.modal-b select,.modal-b textarea'); if(f) f.focus();
 }
 const closeModal=()=>{ S.waAutoStop=true; document.getElementById('modalRoot').innerHTML=''; };
+function openSupportModal(){
+  modal('🆘 Yardım / Bir Sorun mu Var?',
+    `<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Panelde çalışmayan, hata veren ya da garip görünen bir yer varsa aşağıya yaz. Gönder'e bastığında e-posta uygulaman açılacak, oradan göndermen yeterli — doğrudan bana ulaşır.</p>
+    <div class="field full"><label>Ne çalışmıyor?</label><textarea id="sup-msg" rows="5" placeholder="Örn. Program PDF'e aktarırken uygulama kapanıyor / Danışan eklerken hata çıktı..."></textarea></div>`,
+    'E-postayı aç ve gönder','support-send','480px');
+}
 const RECIPE_LIB=[
   {id:'r01',ad:'Yulaflı Meyveli Kahvaltı Kasesi',em:'🥣',kcal:320,dk:10,malz:['4 yemek kaşığı yulaf ezmesi','1 su bardağı süt (ya da bitkisel süt)','1 adet muz','1 tatlı kaşığı chia tohumu','Birkaç dilim çilek'],yap:['Yulafı sütle karıştırıp 5 dakika dinlendirin.','Üzerine dilimlenmiş muz ve çileği yerleştirin.','Chia tohumunu serpin, isterseniz az bal gezdirin.']},
   {id:'r02',ad:'Izgara Tavuklu Kinoa Salatası',em:'🍗',kcal:380,dk:25,malz:['150 g tavuk göğsü','1/2 su bardağı haşlanmış kinoa','Kiraz domates, salatalık','2 yemek kaşığı zeytinyağı','Limon, tuz, karabiber'],yap:['Tavuğu baharatlayıp ızgarada pişirin, dinlendirip dilimleyin.','Kinoayı haşlayıp soğutun.','Tüm malzemeleri karıştırıp zeytinyağı ve limonla harmanlayın.']},
@@ -6726,6 +6733,15 @@ async function handleOk(act){
     if(!confirm('Bu fotoğraf silinsin mi? Bu işlem geri alınamaz.')) return;
     DB.loveBox=(DB.loveBox||[]).filter(x=>x.id!==id);
     await save(); closeModal(); toast('Fotoğraf silindi'); render(); return;
+  }
+  if(act==='support-send'){
+    const msg=val('sup-msg');
+    if(!msg) return toast('Önce ne çalışmıyor onu yaz');
+    const who=(DB.profile&&DB.profile.name)||'Panel';
+    const body='Gönderen: '+who+'\nTarih: '+new Date().toLocaleString('tr-TR')+'\nSayfa: '+(S.page||'')+'\n\n'+msg;
+    const mailto='mailto:tayfunmuti541@gmail.com?subject='+encodeURIComponent('Panel — çalışmayan bir yer var')+'&body='+encodeURIComponent(body);
+    window.location.href=mailto;
+    closeModal(); toast('E-posta uygulaması açıldı, göndermeyi unutma 📩'); return;
   }
   if(act==='wa-save') return waSave(S.waEdit||'');
   if(act==='wa-tpl-save') return waTplSave(S.waTplEdit||'');
@@ -8102,6 +8118,7 @@ document.addEventListener('click',async e=>{
   const act=t.closest('[data-act]'); if(act){
     const a=act.dataset.act;
     if(a==='print') window.print();
+    if(a==='support'){ openSupportModal(); return; }
     if(a==='lock'){ lockApp(); return; }
     if(a==='cloud-connect'){
       const api=val('cl-api')||CLOUD_API, bk=(val('cl-bucket')||CLOUD_DB).replace(/\/+$/,''), ml=val('cl-mail'), ps=val('cl-pass');
