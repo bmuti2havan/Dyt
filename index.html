@@ -6453,7 +6453,7 @@ const avColor=n=>{
   return AV[Math.abs(h)%AV.length];
 };
 
-const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'help',ic:'help',t:'Yardım'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
+const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
   {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},
   {s:'Sistem'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
 const TITLES={wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar'};
@@ -7239,7 +7239,7 @@ document.addEventListener('click',async e=>{
   if(t.classList.contains('modal-bg')){ const was=_mdOnBg; _mdOnBg=false; if(was) return closeModal(); return; }
   if(t.closest('button[data-close]')) return closeModal();
   const ok=t.closest('[data-ok]'); if(ok) return handleOk(ok.dataset.ok);
-  const go=t.closest('[data-go]'); if(go){ if(go.dataset.go==='help'){ return openSupportModal(); } S.page=go.dataset.go; S.q=''; return render(); }
+  const go=t.closest('[data-go]'); if(go){ S.page=go.dataset.go; S.q=''; return render(); }
   const md=t.closest('[data-modal]'); if(md) return openModal(md.dataset.modal);
   const sg=t.closest('[data-seg]'); if(sg){
     const [grp,v]=sg.dataset.seg.split(':');
