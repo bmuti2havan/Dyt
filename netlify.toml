@@ -5,18 +5,8 @@
 [functions]
   node_bundler = "esbuild"
 
-# CommonJS (exports.handler) fonksiyonlarda exports.config.schedule Netlify
-# tarafindan dikkate alinmiyor - cron ifadesini burada, netlify.toml icinde
-# ayrica tanimlamak gerekiyor. Asil "otomatik mesaj hic calismiyor" sorununun
-# kok nedeni buydu.
-[functions."scheduled-weekly"]
-  schedule = "*/10 * * * *"
-
-[functions."scheduled-messages"]
-  schedule = "0 7 * * *"
-
-[functions."scheduled-appt-reminder"]
-  schedule = "*/10 * * * *"
-
+# Tum otomatik WhatsApp gonderim fonksiyonlari (haftalik program, randevu
+# hatirlatma, yeni danisan hosgeldin mesaji) kaldirildi. WhatsApp mesajlari
+# artik yalnizca panelden elle tetiklenir. Bulut yedekleme dokunulmadi.
 [functions."scheduled-backup"]
   schedule = "0 9,15 * * *"
