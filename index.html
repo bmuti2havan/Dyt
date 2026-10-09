@@ -721,28 +721,42 @@ function waFail(err,label){
   toast(label+(err&&err.code?' ('+err.code+')':'')+': '+(waExplain(err)||(err&&err.message)||'bilinmeyen hata'),9000);
 }
 
+/* Tek, paylaşılan gönderim yardımcısı: hem düz metin hem dosya gönderimi
+   bunu kullanır. 20 saniyede cevap gelmezse isteği kendi iptal eder —
+   böylece kötü bir bağlantı "sonsuza kadar bekleyen" bir gönderim yerine
+   net bir "zaman aşımı" hatası verir. */
+async function waApiCall(payload){
+  const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),20000);
+  try{
+    const r=await fetch('https://graph.facebook.com/v21.0/'+WA_PHONE_ID+'/messages', {
+      method:'POST', signal:ctl.signal,
+      headers: { 'Authorization':'Bearer '+WA_TOKEN, 'Content-Type':'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data=await r.json().catch(()=>({}));
+    return { ok:r.ok, data };
+  }catch(e){
+    if(e && e.name==='AbortError') return { ok:false, timeout:true, data:{} };
+    return { ok:false, networkErr:e, data:{} };
+  }finally{ clearTimeout(to); }
+}
+function waResultErr(res){
+  if(res.timeout) return 'Zaman aşımı: 20 saniyede cevap gelmedi, bağlantı yavaş ya da kopuk olabilir.';
+  if(res.networkErr) return 'Bağlantı hatası: '+(res.networkErr.message||'internet yok ya da istek engellendi');
+  return '';
+}
 async function sendWA(to, message, meta){
   meta = meta || {};
   if(!to){ toast('Telefon numarası yok'); return false; }
-  try{
-    const r = await fetch('https://graph.facebook.com/v21.0/' + WA_PHONE_ID + '/messages', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + WA_TOKEN, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product:'whatsapp', to: waNormalizePhone(to), type:'text', text:{ body: message } })
-    });
-    const data = await r.json().catch(()=>({}));
-    const ok = r.ok;
-    if(!ok){ console.error('WA hata',data); waFail(data.error,'WhatsApp gönderilemedi'); }
-    else toast('WhatsApp mesajı gönderildi');
-    waLogPush({ to, name: meta.name||'', message, type: meta.type||'manuel', ok, err: ok?'':waErrText(data.error), why: ok?'':waExplain(data.error) });
-    try{ await save(); }catch(e){}
-    return ok;
-  }catch(e){
-    console.error(e); toast('WhatsApp gönderilemedi: internet bağlantısı yok ya da tarayıcı isteği engelledi ('+(e&&e.message||'hata')+')',9000);
-    waLogPush({ to, name: meta.name||'', message, type: meta.type||'manuel', ok:false, err:'Bağlantı hatası: '+(e&&e.message||'') });
-    try{ await save(); }catch(e2){}
-    return false;
-  }
+  const res = await waApiCall({ messaging_product:'whatsapp', to: waNormalizePhone(to), type:'text', text:{ body: message } });
+  const ok = res.ok;
+  if(ok) toast('WhatsApp mesajı gönderildi');
+  else if(res.timeout||res.networkErr) toast('WhatsApp gönderilemedi: '+waResultErr(res),9000);
+  else { console.error('WA hata',res.data); waFail(res.data.error,'WhatsApp gönderilemedi'); }
+  waLogPush({ to, name: meta.name||'', message, type: meta.type||'manuel', ok,
+    err: ok?'':(waErrText(res.data.error)||waResultErr(res)), why: ok?'':(waExplain(res.data.error)||waResultErr(res)) });
+  try{ await save(); }catch(e){}
+  return ok;
 }
 
 /* Dosya/belge gonderme - fileUrl internette erisilebilir bir link olmali */
@@ -750,28 +764,18 @@ async function sendWAFile(to, fileUrl, fileName, caption, meta){
   meta = meta || {};
   if(!to){ toast('Telefon numarası yok'); return false; }
   if(!fileUrl){ toast('Dosya bağlantısı yok'); return false; }
-  try{
-    const r = await fetch('https://graph.facebook.com/v21.0/' + WA_PHONE_ID + '/messages', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + WA_TOKEN, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messaging_product:'whatsapp', to: waNormalizePhone(to), type:'document',
-        document: { link: fileUrl, filename: fileName||'dosya', caption: caption||undefined }
-      })
-    });
-    const data = await r.json().catch(()=>({}));
-    const ok = r.ok;
-    if(!ok){ console.error('WA dosya hata',data); waFail(data.error,'Dosya gönderilemedi'); }
-    else toast('Dosya WhatsApp\'ta gönderildi');
-    waLogPush({ to, name: meta.name||'', message: '[Dosya] '+(fileName||''), type: meta.type||'dosya', ok, err: ok?'':waErrText(data.error), why: ok?'':waExplain(data.error) });
-    try{ await save(); }catch(e){}
-    return ok;
-  }catch(e){
-    console.error(e); toast('Dosya gönderilemedi: internet bağlantısı yok ya da tarayıcı isteği engelledi ('+(e&&e.message||'hata')+')',9000);
-    waLogPush({ to, name: meta.name||'', message: '[Dosya] '+(fileName||''), type: meta.type||'dosya', ok:false, err:'Bağlantı hatası: '+(e&&e.message||'') });
-    try{ await save(); }catch(e2){}
-    return false;
-  }
+  const res = await waApiCall({
+    messaging_product:'whatsapp', to: waNormalizePhone(to), type:'document',
+    document: { link: fileUrl, filename: fileName||'dosya', caption: caption||undefined }
+  });
+  const ok = res.ok;
+  if(ok) toast('Dosya WhatsApp\'ta gönderildi');
+  else if(res.timeout||res.networkErr) toast('Dosya gönderilemedi: '+waResultErr(res),9000);
+  else { console.error('WA dosya hata',res.data); waFail(res.data.error,'Dosya gönderilemedi'); }
+  waLogPush({ to, name: meta.name||'', message: '[Dosya] '+(fileName||''), type: meta.type||'dosya', ok,
+    err: ok?'':(waErrText(res.data.error)||waResultErr(res)), why: ok?'':(waExplain(res.data.error)||waResultErr(res)) });
+  try{ await save(); }catch(e){}
+  return ok;
 }
 
 /* ═══════ Panel açıkken çalışan otomatik zamanlayıcı ═══════
@@ -800,119 +804,12 @@ async function autoBackupCheck(){
 setInterval(()=>{ autoBackupCheck(); }, 5*60*1000); // her 5 dakikada bir kontrol
 window.addEventListener('load', ()=>{ setTimeout(()=>{ autoBackupCheck(); }, 4000); });
 
-/* ═══════ Haftalık Otomatik Mesaj Programı ═══════
-   DB.waSchedule = [ { id, days:['Pzt','Sal',...], time:'09:00',
-                        message:'...', groups:['yeni','kadin',...], image:'data:...'|'', lastSentDate:null } ]
-   "groups" WA_GROUPS içindeki sabit 4 gruptan (Yeni/Kadın/Erkek/Özel danışan) biri ya da birkaçı olabilir.
-   Gerçek gönderim, saatinde ve panel kapalıyken bile, Netlify'daki
-   zamanlanmış fonksiyon tarafından yapılır (bu dosyada sadece
-   PROGRAMI YAZIP KAYDEDİYORUZ, gönderimin kendisi sunucuda olur). */
-const WA_DAYS = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
-
-function waScheduleEnsure(){ if(!Array.isArray(DB.waSchedule)) DB.waSchedule = []; }
-
-/* Bir gün, o günün tüm mesajlarını (A/B/C/D...) tek ekranda gösterir ve yönetir */
-function waSchedulerHtml(){
-  waScheduleEnsure();
-  const day = S.waSchDay || WA_DAYS[0];
-  const dayCount = d => DB.waSchedule.filter(s=>(s.days||[]).includes(d)).length;
-
-  const dayTabs = WA_DAYS.map(d=>
-    `<button type="button" class="day-pick" data-wa-sch-day-tab="${d}" aria-pressed="${day===d}">
-      ${d}${dayCount(d)?`<span style="display:block;font-size:9.5px;font-weight:500;opacity:.75;margin-top:1px">${dayCount(d)}</span>`:''}
-    </button>`).join('');
-
-  const dayEntries = DB.waSchedule
-    .filter(s=>(s.days||[]).includes(day))
-    .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
-
-  const entriesHtml = dayEntries.length ? dayEntries.map((s,i)=>{
-    const letter = String.fromCharCode(65+i); // A, B, C, D...
-    const tags = (s.groups||[]).map(waGroupTag).join('');
-    return `<div class="agenda-slot">
-      <div class="agenda-time">${esc(s.time)}</div>
-      <div class="agenda-body">
-        <b style="font-size:12px;color:var(--muted)">Mesaj ${letter}</b>
-        <div class="agenda-msg">${esc(s.message)}</div>
-        <div class="agenda-tags">${tags}</div>
-      </div>
-      ${s.image?`<img class="agenda-img" src="${s.image}">`:''}
-      <button class="x" title="Sil" onclick="waDeleteSlot('${s.id}')">✕</button>
-    </div>`;
-  }).join('') : `<div class="agenda-empty">${day} günü için henüz mesaj eklenmedi.</div>`;
-
-  const groupChips = WA_GROUPS.map(g=>
-    `<button type="button" class="grp-pick ${g.id}" data-wa-sch-grp-pick="${g.id}" aria-pressed="false"><i class="dot"></i>${esc(g.label)}</button>`
-  ).join('');
-
-  return `
-    <div style="max-height:66vh;overflow:auto">
-      <div class="day-pick-row" style="margin-bottom:16px">${dayTabs}</div>
-
-      <h4 style="margin-bottom:8px">${day} günü — mesajlar</h4>
-      <div class="card" style="padding:0 14px;margin-bottom:16px">${entriesHtml}</div>
-
-      <h4 style="margin-bottom:8px">${day} gününe yeni mesaj ekle</h4>
-      <div class="field"><label>Saat</label><input type="time" id="wa-sch-time" value="09:00"></div>
-      <div class="field"><label>Mesaj metni (isim için {isim} yazabilirsiniz)</label>
-        <textarea id="wa-sch-msg" rows="3" placeholder="Merhaba {isim}, ..."></textarea>
-        <button type="button" class="btn btn-sm" style="margin-top:6px;align-self:flex-start" data-wa-tpl-open="wa-sch-msg">📋 Şablon seç</button>
-      </div>
-      <div class="field"><label>Görsel — isteğe bağlı</label>
-        <input type="file" id="wa-sch-file" accept="image/*">
-      </div>
-      ${S.waSchImg?`<img src="${S.waSchImg}" style="max-width:140px;border-radius:8px;margin-top:6px;display:block">
-        <button class="btn btn-sm" style="margin-top:4px" onclick="S.waSchImg='';openWaScheduler();">Görseli kaldır</button>`:''}
-      <div class="field"><label>Hangi gruplara gidecek?</label>
-        <div class="grp-pick-row">${groupChips}</div>
-        <span class="hint">Birden fazla grup seçebilirsin, hepsine aynı mesaj gider.</span>
-      </div>
-      <button class="btn btn-primary" style="margin-top:4px" onclick="waAddSlot()">+ ${day} gününe ekle</button>
-    </div>`;
-}
-
-function waSwitchSchDay(d){ S.waSchDay=d; S.waSchImg=''; openWaScheduler(); }
-
-function openWaScheduler(){
-  modal('Otomatik Mesaj Programı — Haftalık Takvim', waSchedulerHtml(), 'Kapat', 'close', '640px');
-  setTimeout(()=>{
-    const fi=document.getElementById('wa-sch-file');
-    if(fi) fi.addEventListener('change', async ()=>{
-      const f=fi.files&&fi.files[0]; if(!f) return;
-      try{ S.waSchImg=await shrinkData(await blobToData(f),900,.85); openWaScheduler(); }
-      catch(err){ toast('Görsel okunamadı'); }
-    });
-  },0);
-}
-
-async function waAddSlot(){
-  const day = S.waSchDay || WA_DAYS[0];
-  const time = document.getElementById('wa-sch-time').value;
-  const message = document.getElementById('wa-sch-msg').value.trim();
-  const groups = Array.from(document.querySelectorAll('[data-wa-sch-grp-pick][aria-pressed="true"]')).map(x=>x.dataset.waSchGrpPick);
-
-  if(!time) return toast('Saat seçin');
-  if(!message) return toast('Mesaj yazın');
-  if(!groups.length) return toast('En az bir grup seçin');
-
-  waScheduleEnsure();
-  DB.waSchedule.push({
-    id: 'sch_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-    days: [day], time, message, groups, image: S.waSchImg||'', lastSentDate: null
-  });
-  S.waSchImg='';
-  await save();
-  toast(day+' gününe eklendi');
-  openWaScheduler();
-}
-
-async function waDeleteSlot(id){
-  waScheduleEnsure();
-  DB.waSchedule = DB.waSchedule.filter(s=>s.id!==id);
-  await save();
-  toast('Program silindi');
-  openWaScheduler();
-}
+/* Not: Daha önce burada haftalık "Otomatik Mesaj Programı" (Netlify
+   sunucusunda arka planda çalışan zamanlanmış gönderim) vardı. Panel
+   kapalıyken bile tetiklenen bu tür otomasyonlar öngörülemeyen/çift
+   gönderimlere yol açtığı için tamamen kaldırıldı. WhatsApp mesajları
+   artık SADECE WhatsApp sayfasından, elle "Gönderime başla" ile gider —
+   ne zaman, kime, ne gittiği her zaman senin kontrolünde ve ekranda. */
 
 /* ══════════════ Depolama ══════════════ */
 const KEY='dyt-ayseur-korkmaz-v1';
@@ -5597,43 +5494,33 @@ function pageFoods(){
     </tbody></table></div></section>`;
 }
 
-/* ── Randevu hatırlatma (WhatsApp) ── */
-function apptReminderEnsure(){
-  if(!DB.apptReminder) DB.apptReminder={on:false,hours:3,message:'Merhaba {isim}, {tarih} saat {saat} randevunuzu hatırlatmak isteriz. Görüşmek üzere! 🌿'};
-  return DB.apptReminder;
+/* ── Randevu hatırlatma (WhatsApp) ──
+   Not: Daha önce burada "randevudan N saat önce otomatik gönder" özelliği
+   vardı; bu, panel kapalıyken Netlify sunucusunda arka planda çalışıyordu.
+   Öngörülemeyen/tekrarlı gönderimlere yol açtığı için kaldırıldı. Yerine,
+   her randevu satırında elle basılan basit bir "🔔 Hatırlat" butonu var —
+   mesaj tam olarak ne zaman, kime gittiğini sen görerek gönderiyorsun. */
+async function apptSendReminder(id){
+  const a=DB.appts.find(x=>x.id===id); if(!a) return;
+  const c=clientOf(a.clientId);
+  if(!c) return toast('Danışan bulunamadı');
+  if(!c.phone) return toast('Bu danışanın telefon numarası kayıtlı değil');
+  const d=new Date(a.when);
+  const tarih=isNaN(d)?'':d.toLocaleDateString('tr-TR');
+  const saat=isNaN(d)?'':d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+  const msg='Merhaba '+(c.name||'')+', '+tarih+' saat '+saat+' randevunuzu hatırlatmak isteriz. Görüşmek üzere! 🌿';
+  const ok=await sendWA(c.phone, msg, {name:c.name, type:'randevu-hatırlatma'});
+  if(ok){ a.reminded=true; a.remindedAt=new Date().toISOString(); await save(); render(); }
 }
-function apptReminderModal(){
-  const r=apptReminderEnsure();
-  modal('WhatsApp Randevu Hatırlatma', `
-    <div class="field full" style="flex-direction:row;align-items:center;gap:8px">
-      <input type="checkbox" id="ar-on" ${r.on?'checked':''} style="width:auto">
-      <label style="margin:0" for="ar-on">Otomatik hatırlatma açık</label>
-    </div>
-    <div class="field full"><label>Randevudan kaç saat önce gönderilsin?</label>
-      <input type="number" id="ar-hours" min="1" max="72" value="${esc(r.hours)}"></div>
-    <div class="field full"><label>Mesaj metni ({isim}, {tarih}, {saat} otomatik doldurulur)</label>
-      <textarea id="ar-msg" rows="3">${esc(r.message)}</textarea></div>
-    <p class="hint">Bu hatırlatma, panel kapalıyken bile Netlify'daki sunucu tarafından her 10-15 dakikada bir kontrol edilip gönderilir.</p>
-  `,'Kaydet','appt-reminder-save','560px');
-}
-async function apptReminderSave(){
-  const r=apptReminderEnsure();
-  r.on=!!document.getElementById('ar-on').checked;
-  r.hours=Math.max(1,Math.min(72,+val('ar-hours')||3));
-  r.message=val('ar-msg')||r.message;
-  await save(); toast('Hatırlatma ayarları kaydedildi'); closeModal();
-}
-
 function pageAppts(){
   const as=[...DB.appts].sort((a,b)=>new Date(a.when)-new Date(b.when));
   const future=as.filter(a=>new Date(a.when)>=new Date(Date.now()-36e5));
   const past=as.filter(a=>new Date(a.when)<new Date(Date.now()-36e5)).reverse();
   const row=a=>{const c=clientOf(a.clientId);return `<tr><td class="num">${trDT(a.when)}</td><td class="t-name">${esc(c?c.name:'—')}</td>
     <td><span class="tag ${a.type==='Online'?'tag-blue':''}">${esc(a.type)}</span></td><td style="color:var(--muted)">${esc(a.note||'')}</td>
-    <td class="t-right">${a.status?`<span class="tag ${a.status==='geldi'?'tag-ok':'tag-danger'}" style="margin-right:6px"><i class="dot"></i>${a.status==='geldi'?'Geldi':'Gelmedi'}</span>`:`<button class="btn btn-sm btn-primary" data-close-appt="${a.id}" style="margin-right:6px">Bitti</button>`}<button class="x" data-del-appt="${a.id}">✕</button></td></tr>`;};
+    <td class="t-right">${a.status?`<span class="tag ${a.status==='geldi'?'tag-ok':'tag-danger'}" style="margin-right:6px"><i class="dot"></i>${a.status==='geldi'?'Geldi':'Gelmedi'}</span>`:`<button class="btn btn-sm btn-primary" data-close-appt="${a.id}" style="margin-right:6px">Bitti</button>`}${c&&c.phone?`<button class="btn btn-sm" data-appt-remind="${a.id}" title="${a.reminded?'Daha önce hatırlatıldı, yine de gönder':'WhatsApp hatırlatması gönder'}" style="margin-right:6px">${a.reminded?'🔔 Tekrar gönder':'🔔 Hatırlat'}</button>`:''}<button class="x" data-del-appt="${a.id}">✕</button></td></tr>`;};
   return `<div class="page-head"><div><h1>Randevular</h1><p>Yüz yüze ve online görüşmeler tek takvimde. Takvim dosyasını telefonunuza aktarıp hatırlatma kurabilirsiniz.</p></div><div class="spacer"></div>
   <button class="btn" data-act="ics">${ic('down',15)} Takvime aktar (.ics)</button>
-  <button class="btn" onclick="apptReminderModal()">🔔 WhatsApp Hatırlatma</button>
   <button class="btn btn-primary" data-modal="appt">${ic('plus',15)} Randevu</button></div>
   <section class="card"><div class="card-h"><h3>Yaklaşan</h3></div>
     ${future.length?`<table><thead><tr><th>Tarih</th><th>Danışan</th><th>Tür</th><th>Not</th><th></th></tr></thead><tbody>${future.map(row).join('')}</tbody></table>`
@@ -6169,7 +6056,6 @@ async function handleOk(act){
   }
   if(act==='wa-save') return waSave(S.waEdit||'');
   if(act==='wa-tpl-save') return waTplSave(S.waTplEdit||'');
-  if(act==='appt-reminder-save') return apptReminderSave();
   if(act==='wa-quick-send') return waQuickSendGo();
   const c=clientOf(S.client);
   if(act==='client'||act==='client-edit'){
@@ -6682,8 +6568,13 @@ function pageWa(){
     <p>Kişi listeni tut, hazırladığın metni ya da görseli sırayla herkese gönder.</p></div>
     <button class="btn btn-primary" data-wa-add="1">${ic('plus',15)} Kişi ekle</button>
     <button class="btn" onclick="waTplManage()">📋 Şablonlar</button>
-    <button class="btn" onclick="waLogModal()">📜 Gönderim geçmişi</button>
-    <button class="btn" onclick="openWaScheduler()">🕐 Otomatik Mesaj Programı</button></div>
+    <button class="btn" onclick="waLogModal()">📜 Gönderim geçmişi</button></div>
+  <div class="card" style="margin-bottom:16px;background:var(--blue-50);border-color:var(--blue-100)">
+    <div class="card-b" style="font-size:12.5px;color:var(--ink-2);display:flex;gap:8px;align-items:flex-start">
+      <span style="font-size:16px">ℹ️</span>
+      <span><b>WhatsApp'ın 24 saat kuralı:</b> Bir kişi size son 24 saat içinde kendisi WhatsApp'tan yazmadıysa, Meta serbest metin göndermeyi engeller — bu bir uygulama hatası değil, WhatsApp'ın kendi kuralı. Böyle durumlarda mesaj "gönderilemedi" olarak işaretlenir ve sebebi altında yazar.</span>
+    </div>
+  </div>
 
   <section class="card" style="margin-bottom:16px">
     <div class="card-h"><h3>☀️ Günün paylaşımları</h3><div class="spacer"></div>
@@ -6848,11 +6739,13 @@ function drawSend(){
   const done=S.waDone||[];
   if(i>=q.length){
     const okCount=done.filter(d=>d.ok).length, failCount=done.length-okCount;
+    const win24=done.filter(d=>!d.ok && /24 saat/.test(d.err||'')).length;
     return modal('Gönderim tamamlandı',
       `<div class="ai-load"><span style="font-size:34px">${failCount?'⚠️':'✅'}</span>
         <b>${okCount} kişiye gönderildi${failCount?', '+failCount+' kişiye gönderilemedi':''}</b>
-        <small>Listeyi istediğin zaman yeniden gönderime alabilirsin</small></div>
-      ${waResultsHtml()}`,
+        <small>${win24?win24+' tanesi 24 saat kuralı yüzünden gitmedi (altta detaylı yazıyor). ':''}Listeyi istediğin zaman yeniden gönderime alabilirsin</small></div>
+      ${waResultsHtml()}
+      ${failCount?`<button class="btn btn-primary" style="margin-top:4px" onclick="waRetryFailed()">🔁 Sadece başarısızları tekrar dene (${failCount})</button>`:''}`,
       'Kapat','close','520px');
   }
   const x=q[i], txt=waText(x), tel=phoneIntl(x.tel);
@@ -6881,6 +6774,12 @@ function drawSend(){
          href="https://wa.me/${tel}?text=${encodeURIComponent(txt)}">WhatsApp'ta aç</a>
     </details>`,
     'Durdur','close','560px');
+}
+function waRetryFailed(){
+  const failedIds=(S.waDone||[]).filter(d=>!d.ok).map(d=>d.id);
+  if(!failedIds.length) return;
+  S.waQ=failedIds; S.waI=0; S.waDone=[];
+  drawSend();
 }
 async function waSendOne(advanceOnFail){
   const list=waList();
@@ -7234,6 +7133,7 @@ document.addEventListener('click',async e=>{
     if(grp==='next'){ const box=document.getElementById('nextBox'); if(box) box.style.display = v==='1'?'':'none'; }
     return; }
   const ca=t.closest('[data-close-appt]'); if(ca){ return openCloseAppt(ca.dataset.closeAppt); }
+  const arm=t.closest('[data-appt-remind]'); if(arm){ return apptSendReminder(arm.dataset.apptRemind); }
   const cc=t.closest('[data-close-client]'); if(cc){ return openCloseAppt(null,cc.dataset.closeClient); }
   const cy=t.closest('[data-cal-ym]'); if(cy){ S.calYM=cy.dataset.calYm; if(cy.dataset.calDay) S.calDay=cy.dataset.calDay; return render(); }
   const cd=t.closest('[data-cal-day]'); if(cd&&!cd.dataset.calYm){ S.calDay=cd.dataset.calDay; return render(); }
@@ -7328,8 +7228,6 @@ document.addEventListener('click',async e=>{
     S.waFormGrp=waGp.dataset.waGrpPick;
     document.querySelectorAll('.grp-pick').forEach(b=>b.setAttribute('aria-pressed', b===waGp?'true':'false'));
     return; }
-  const waSgp=t.closest('[data-wa-sch-grp-pick]'); if(waSgp){ waSgp.setAttribute('aria-pressed', waSgp.getAttribute('aria-pressed')==='true'?'false':'true'); return; }
-  const waSdt=t.closest('[data-wa-sch-day-tab]'); if(waSdt){ return waSwitchSchDay(waSdt.dataset.waSchDayTab); }
   const waTo=t.closest('[data-wa-tpl-open]'); if(waTo){ return waTplPicker(waTo.dataset.waTplOpen); }
   const waTp=t.closest('[data-wa-tpl-pick]'); if(waTp){
     const tpl=waTplList().find(x=>x.id===waTp.dataset.waTplPick);
