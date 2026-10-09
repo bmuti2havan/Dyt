@@ -804,12 +804,126 @@ async function autoBackupCheck(){
 setInterval(()=>{ autoBackupCheck(); }, 5*60*1000); // her 5 dakikada bir kontrol
 window.addEventListener('load', ()=>{ setTimeout(()=>{ autoBackupCheck(); }, 4000); });
 
-/* Not: Daha önce burada haftalık "Otomatik Mesaj Programı" (Netlify
-   sunucusunda arka planda çalışan zamanlanmış gönderim) vardı. Panel
-   kapalıyken bile tetiklenen bu tür otomasyonlar öngörülemeyen/çift
-   gönderimlere yol açtığı için tamamen kaldırıldı. WhatsApp mesajları
-   artık SADECE WhatsApp sayfasından, elle "Gönderime başla" ile gider —
-   ne zaman, kime, ne gittiği her zaman senin kontrolünde ve ekranda. */
+/* ═══════ Haftalık Otomatik Mesaj Programı ═══════
+   DB.waSchedule = [ { id, days:['Pzt','Sal',...], time:'09:00',
+                        message:'...', groups:['yeni','kadin',...], image:'data:...'|'',
+                        lastSentDate:null, sentLog:{ '2026-10-09':[contactId,...] } } ]
+   "groups" WA_GROUPS içindeki sabit 4 gruptan (Yeni/Kadın/Erkek/Özel danışan) biri ya da birkaçı olabilir.
+   Gerçek gönderim, saatinde ve panel kapalıyken bile, Netlify'daki
+   zamanlanmış fonksiyon tarafından yapılır (netlify/functions/scheduled-weekly.js).
+   Bu dosyada sadece PROGRAMI YAZIP KAYDEDİYORUZ. O fonksiyon her başarılı
+   gönderimden hemen sonra "bu kişiye bugün gönderildi" bilgisini kaydeder
+   (sentLog), böylece ara kesilme/yeniden deneme olsa bile aynı kişiye aynı
+   gün iki kez gitmez. */
+const WA_DAYS = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
+
+function waScheduleEnsure(){ if(!Array.isArray(DB.waSchedule)) DB.waSchedule = []; }
+
+/* Bir gün, o günün tüm mesajlarını (A/B/C/D...) tek ekranda gösterir ve yönetir */
+function waSchedulerHtml(){
+  waScheduleEnsure();
+  const day = S.waSchDay || WA_DAYS[0];
+  const dayCount = d => DB.waSchedule.filter(s=>(s.days||[]).includes(d)).length;
+
+  const dayTabs = WA_DAYS.map(d=>
+    `<button type="button" class="day-pick" data-wa-sch-day-tab="${d}" aria-pressed="${day===d}">
+      ${d}${dayCount(d)?`<span style="display:block;font-size:9.5px;font-weight:500;opacity:.75;margin-top:1px">${dayCount(d)}</span>`:''}
+    </button>`).join('');
+
+  const dayEntries = DB.waSchedule
+    .filter(s=>(s.days||[]).includes(day))
+    .sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+
+  const entriesHtml = dayEntries.length ? dayEntries.map((s,i)=>{
+    const letter = String.fromCharCode(65+i); // A, B, C, D...
+    const tags = (s.groups||[]).map(waGroupTag).join('');
+    const sentToday = (s.sentLog && s.sentLog[todayISO()]) ? s.sentLog[todayISO()].length : 0;
+    return `<div class="agenda-slot">
+      <div class="agenda-time">${esc(s.time)}</div>
+      <div class="agenda-body">
+        <b style="font-size:12px;color:var(--muted)">Mesaj ${letter}</b>
+        <div class="agenda-msg">${esc(s.message)}</div>
+        <div class="agenda-tags">${tags}</div>
+        ${sentToday?`<div class="hint" style="margin-top:3px">Bugün ${sentToday} kişiye gönderildi</div>`:''}
+      </div>
+      ${s.image?`<img class="agenda-img" src="${s.image}">`:''}
+      <button class="x" title="Sil" onclick="waDeleteSlot('${s.id}')">✕</button>
+    </div>`;
+  }).join('') : `<div class="agenda-empty">${day} günü için henüz mesaj eklenmedi.</div>`;
+
+  const groupChips = WA_GROUPS.map(g=>
+    `<button type="button" class="grp-pick ${g.id}" data-wa-sch-grp-pick="${g.id}" aria-pressed="false"><i class="dot"></i>${esc(g.label)}</button>`
+  ).join('');
+
+  return `
+    <p class="hint" style="margin-bottom:14px">Mesaj, belirlediğin gün ve saatte, panel kapalı olsa bile sunucu tarafından otomatik gönderilir. Her kişiye günde en fazla 1 kez gider — sunucu kime gönderildiğini takip eder, ara kesilme olsa bile tekrar göndermez. <b>24 saat kuralı</b> (bkz. yukarıdaki bilgi kutusu) burada da geçerlidir.</p>
+    <div style="max-height:60vh;overflow:auto">
+      <div class="day-pick-row" style="margin-bottom:16px">${dayTabs}</div>
+
+      <h4 style="margin-bottom:8px">${day} günü — mesajlar</h4>
+      <div class="card" style="padding:0 14px;margin-bottom:16px">${entriesHtml}</div>
+
+      <h4 style="margin-bottom:8px">${day} gününe yeni mesaj ekle</h4>
+      <div class="field"><label>Saat</label><input type="time" id="wa-sch-time" value="09:00"></div>
+      <div class="field"><label>Mesaj metni (isim için {isim} yazabilirsiniz)</label>
+        <textarea id="wa-sch-msg" rows="3" placeholder="Merhaba {isim}, ..."></textarea>
+        <button type="button" class="btn btn-sm" style="margin-top:6px;align-self:flex-start" data-wa-tpl-open="wa-sch-msg">📋 Şablon seç</button>
+      </div>
+      <div class="field"><label>Görsel — isteğe bağlı</label>
+        <input type="file" id="wa-sch-file" accept="image/*">
+      </div>
+      ${S.waSchImg?`<img src="${S.waSchImg}" style="max-width:140px;border-radius:8px;margin-top:6px;display:block">
+        <button class="btn btn-sm" style="margin-top:4px" onclick="S.waSchImg='';openWaScheduler();">Görseli kaldır</button>`:''}
+      <div class="field"><label>Hangi gruplara gidecek?</label>
+        <div class="grp-pick-row">${groupChips}</div>
+        <span class="hint">Birden fazla grup seçebilirsin, hepsine aynı mesaj gider.</span>
+      </div>
+      <button class="btn btn-primary" style="margin-top:4px" onclick="waAddSlot()">+ ${day} gününe ekle</button>
+    </div>`;
+}
+
+function waSwitchSchDay(d){ S.waSchDay=d; S.waSchImg=''; openWaScheduler(); }
+
+function openWaScheduler(){
+  modal('Otomatik Mesaj Programı — Haftalık Takvim', waSchedulerHtml(), 'Kapat', 'close', '640px');
+  setTimeout(()=>{
+    const fi=document.getElementById('wa-sch-file');
+    if(fi) fi.addEventListener('change', async ()=>{
+      const f=fi.files&&fi.files[0]; if(!f) return;
+      try{ S.waSchImg=await shrinkData(await blobToData(f),900,.85); openWaScheduler(); }
+      catch(err){ toast('Görsel okunamadı'); }
+    });
+  },0);
+}
+
+async function waAddSlot(){
+  const day = S.waSchDay || WA_DAYS[0];
+  const time = document.getElementById('wa-sch-time').value;
+  const message = document.getElementById('wa-sch-msg').value.trim();
+  const groups = Array.from(document.querySelectorAll('[data-wa-sch-grp-pick][aria-pressed="true"]')).map(x=>x.dataset.waSchGrpPick);
+
+  if(!time) return toast('Saat seçin');
+  if(!message) return toast('Mesaj yazın');
+  if(!groups.length) return toast('En az bir grup seçin');
+
+  waScheduleEnsure();
+  DB.waSchedule.push({
+    id: 'sch_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+    days: [day], time, message, groups, image: S.waSchImg||'', lastSentDate: null, sentLog: {}
+  });
+  S.waSchImg='';
+  await save();
+  toast(day+' gününe eklendi');
+  openWaScheduler();
+}
+
+async function waDeleteSlot(id){
+  waScheduleEnsure();
+  DB.waSchedule = DB.waSchedule.filter(s=>s.id!==id);
+  await save();
+  toast('Program silindi');
+  openWaScheduler();
+}
 
 /* ══════════════ Depolama ══════════════ */
 const KEY='dyt-ayseur-korkmaz-v1';
@@ -6568,7 +6682,8 @@ function pageWa(){
     <p>Kişi listeni tut, hazırladığın metni ya da görseli sırayla herkese gönder.</p></div>
     <button class="btn btn-primary" data-wa-add="1">${ic('plus',15)} Kişi ekle</button>
     <button class="btn" onclick="waTplManage()">📋 Şablonlar</button>
-    <button class="btn" onclick="waLogModal()">📜 Gönderim geçmişi</button></div>
+    <button class="btn" onclick="waLogModal()">📜 Gönderim geçmişi</button>
+    <button class="btn" onclick="openWaScheduler()">🕐 Otomatik Mesaj Programı</button></div>
   <div class="card" style="margin-bottom:16px;background:var(--blue-50);border-color:var(--blue-100)">
     <div class="card-b" style="font-size:12.5px;color:var(--ink-2);display:flex;gap:8px;align-items:flex-start">
       <span style="font-size:16px">ℹ️</span>
@@ -7228,6 +7343,8 @@ document.addEventListener('click',async e=>{
     S.waFormGrp=waGp.dataset.waGrpPick;
     document.querySelectorAll('.grp-pick').forEach(b=>b.setAttribute('aria-pressed', b===waGp?'true':'false'));
     return; }
+  const waSgp=t.closest('[data-wa-sch-grp-pick]'); if(waSgp){ waSgp.setAttribute('aria-pressed', waSgp.getAttribute('aria-pressed')==='true'?'false':'true'); return; }
+  const waSdt=t.closest('[data-wa-sch-day-tab]'); if(waSdt){ return waSwitchSchDay(waSdt.dataset.waSchDayTab); }
   const waTo=t.closest('[data-wa-tpl-open]'); if(waTo){ return waTplPicker(waTo.dataset.waTplOpen); }
   const waTp=t.closest('[data-wa-tpl-pick]'); if(waTp){
     const tpl=waTplList().find(x=>x.id===waTp.dataset.waTplPick);

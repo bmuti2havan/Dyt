@@ -5,8 +5,12 @@
 [functions]
   node_bundler = "esbuild"
 
-# Tum otomatik WhatsApp gonderim fonksiyonlari (haftalik program, randevu
-# hatirlatma, yeni danisan hosgeldin mesaji) kaldirildi. WhatsApp mesajlari
-# artik yalnizca panelden elle tetiklenir. Bulut yedekleme dokunulmadi.
+# Randevu hatirlatma ve yeni-danisan hosgeldin mesaji kaldirildi (elle
+# tetiklenen butonlarla degistirildi). Haftalik "Otomatik Mesaj Programi"
+# ise kisi bazinda tekrar-gonderim korumasiyla (bkz. scheduled-weekly.js)
+# geri eklendi - panel kapaliyken bile zamanindan gonderir.
+[functions."scheduled-weekly"]
+  schedule = "*/10 * * * *"
+
 [functions."scheduled-backup"]
   schedule = "0 9,15 * * *"
