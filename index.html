@@ -778,25 +778,11 @@ async function sendWAFile(to, fileUrl, fileName, caption, meta){
    Not: Bu, yalnızca sayfa TARAYICIDA AÇIKKEN çalışır. Bilgisayar/
    telefon kapalıysa ya da sekme kapatılırsa duraklar. Panel açık
    kaldığı sürece (örn. bir bilgisayarda hep açık bırakılırsa)
-   günde 2 kez yedek alır ve yeni danışanlara hoş geldin mesajı yollar. */
-const WA_MSG_NEW_FEMALE = 'Merhaba {isim}, aramıza hoş geldiniz! Beslenme yolculuğunuzda yanınızdayım. 🌿';
-const WA_MSG_NEW_MALE   = 'Merhaba {isim}, aramıza hoş geldin! Beslenme programın için buradayım. 💪';
+   günde 2 kez yedek alır. (Otomatik WhatsApp hoş geldin mesajı
+   kaldırıldı — tüm WhatsApp gönderimleri artık yalnızca elle,
+   WhatsApp sayfasından tetiklenir.) */
 
 function todayStr(d){ return new Date(d||Date.now()).toISOString().slice(0,10); }
-
-async function autoWelcomeCheck(){
-  if(!DB || !Array.isArray(DB.clients)) return;
-  const today = todayStr();
-  let changed = false;
-  for(const c of DB.clients){
-    if(!c || !c.phone || c.waWelcomeSent) continue;
-    if(!c.created || todayStr(c.created) !== today) continue;
-    const tpl = c.sex==='K' ? WA_MSG_NEW_FEMALE : WA_MSG_NEW_MALE;
-    const ok = await sendWA(c.phone, tpl.replace(/\{isim\}/g, c.name||''), {name:c.name, type:'otomatik-hoşgeldin'});
-    if(ok){ c.waWelcomeSent = true; changed = true; }
-  }
-  if(changed){ try{ await save(); }catch(e){} }
-}
 
 async function autoBackupCheck(){
   if(typeof cloudReady!=='function' || !cloudReady()) return; // bulut girişi yoksa yedek alamayız
@@ -811,8 +797,8 @@ async function autoBackupCheck(){
   }catch(e){ console.error('Yedekleme hatası', e); }
 }
 
-setInterval(()=>{ autoWelcomeCheck(); autoBackupCheck(); }, 5*60*1000); // her 5 dakikada bir kontrol
-window.addEventListener('load', ()=>{ setTimeout(()=>{ autoWelcomeCheck(); autoBackupCheck(); }, 4000); });
+setInterval(()=>{ autoBackupCheck(); }, 5*60*1000); // her 5 dakikada bir kontrol
+window.addEventListener('load', ()=>{ setTimeout(()=>{ autoBackupCheck(); }, 4000); });
 
 /* ═══════ Haftalık Otomatik Mesaj Programı ═══════
    DB.waSchedule = [ { id, days:['Pzt','Sal',...], time:'09:00',
