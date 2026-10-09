@@ -132,15 +132,23 @@ async function sendImage(to, mediaId, caption) {
   }
 }
 
-// sentLog'u sadece son 7 günle sınırlı tutar, DB'nin sonsuza kadar büyümesini engeller.
-function trimSentLog(sentLog, todayISO) {
+// Bir kişiye kalıcı olarak ulaşılamıyorsa (geçersiz numara, süresi dolmuş
+// token vb.) bu limit olmadan fonksiyon o kişiyi gün boyunca her 10
+// dakikada bir yeniden dener — gereksiz Meta API çağrısı ve günlük şişmesi
+// yaratır. 3 denemeden sonra o gün için bırakılır (ertesi uygun günde
+// yeniden denenir); kaç kişiye gidemediği panelde görünür.
+const MAX_ATTEMPTS_PER_DAY = 3;
+
+// sentLog/failLog'u sadece son 7 günle sınırlı tutar, DB'nin sonsuza kadar büyümesini engeller.
+function trimLog(log, todayISO) {
+  if (!log) return;
   const keep = new Set();
   const base = new Date(todayISO + 'T00:00:00Z');
   for (let i = 0; i < 7; i++) {
     const d = new Date(base.getTime() - i * 86400000);
     keep.add(d.toISOString().slice(0, 10));
   }
-  Object.keys(sentLog).forEach(k => { if (!keep.has(k)) delete sentLog[k]; });
+  Object.keys(log).forEach(k => { if (!keep.has(k)) delete log[k]; });
 }
 
 exports.handler = async function () {
@@ -170,15 +178,22 @@ exports.handler = async function () {
 
       if (!slot.sentLog || typeof slot.sentLog !== 'object') slot.sentLog = {};
       if (!Array.isArray(slot.sentLog[todayISO])) slot.sentLog[todayISO] = [];
+      if (!slot.failLog || typeof slot.failLog !== 'object') slot.failLog = {};
+      if (!slot.failLog[todayISO] || typeof slot.failLog[todayISO] !== 'object') slot.failLog[todayISO] = {};
       const alreadySentIds = new Set(slot.sentLog[todayISO]);
+      const attempts = slot.failLog[todayISO];
+      const givenUpIds = new Set(Object.keys(attempts).filter(id => attempts[id] >= MAX_ATTEMPTS_PER_DAY));
 
+      // "Çözüldü" (resolved) = ya gönderildi ya da deneme hakkı bitti.
+      const isResolved = c => alreadySentIds.has(c.id) || givenUpIds.has(c.id);
       const allTargets = contacts.filter(c => c && c.tel && slot.groups && slot.groups.includes(c.grup));
-      const targets = allTargets.filter(c => !alreadySentIds.has(c.id));
+      const targets = allTargets.filter(c => !isResolved(c));
 
       if (!targets.length) {
-        // Hedef yok ya da hepsine zaten gönderilmiş — bugün için kapat.
+        // Hedef yok, hepsine zaten gönderilmiş ya da deneme hakkı bitenler kaldı — bugün için kapat.
         slot.lastSentDate = todayISO;
-        trimSentLog(slot.sentLog, todayISO);
+        trimLog(slot.sentLog, todayISO);
+        trimLog(slot.failLog, todayISO);
         try { await writeData(idToken, uid, data); } catch (e) { console.error('Kayıt hatası:', e); }
         continue;
       }
@@ -197,18 +212,25 @@ exports.handler = async function () {
         if (ok) {
           sentTotal++;
           slot.sentLog[todayISO].push(c.id);
-          // HER başarılı gönderimden hemen sonra kaydet: fonksiyon burada
-          // kesilse bile bir sonraki çalışma bu kişiyi "zaten gönderildi"
-          // olarak görür ve tekrar göndermez.
-          try { await writeData(idToken, uid, data); }
-          catch (e) { console.error('Gönderim yapıldı ama kayıt başarısız (bir sonraki turda yeniden denenecek değil, zaten bu kişi için sentLog belleğimizde var, sıradaki kişiye geçiyoruz):', e); }
+        } else {
+          attempts[c.id] = (attempts[c.id] || 0) + 1;
         }
+        // HER denemeden hemen sonra kaydet (başarılı ya da başarısız):
+        // fonksiyon burada kesilse bile bir sonraki çalışma bu kişiyi
+        // doğru durumda görür — ne tekrar gönderir ne de sınırsız dener.
+        try { await writeData(idToken, uid, data); }
+        catch (e) { console.error('Kayıt başarısız, sıradaki kişiye geçiliyor (bir sonraki 10 dakikalık turda bu adım yeniden denenir):', e); }
       }
 
-      const stillPending = allTargets.some(c => !new Set(slot.sentLog[todayISO]).has(c.id));
+      // (isResolved yukarıdaki sabit Set'leri kullanıyordu; burada bilerek
+      // slot.sentLog/attempts'i DOĞRUDAN okuyoruz çünkü döngü sırasında
+      // güncellendiler — isResolved'ın yakaladığı Set'ler artık bayat.)
+      const stillPending = allTargets.some(c =>
+        !slot.sentLog[todayISO].includes(c.id) && (attempts[c.id] || 0) < MAX_ATTEMPTS_PER_DAY);
       if (!stillPending) {
         slot.lastSentDate = todayISO;
-        trimSentLog(slot.sentLog, todayISO);
+        trimLog(slot.sentLog, todayISO);
+        trimLog(slot.failLog, todayISO);
         try { await writeData(idToken, uid, data); } catch (e) { console.error('Kayıt hatası:', e); }
       }
     }

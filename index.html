@@ -838,6 +838,7 @@ function waSchedulerHtml(){
     const letter = String.fromCharCode(65+i); // A, B, C, D...
     const tags = (s.groups||[]).map(waGroupTag).join('');
     const sentToday = (s.sentLog && s.sentLog[todayISO()]) ? s.sentLog[todayISO()].length : 0;
+    const failToday = (s.failLog && s.failLog[todayISO()]) ? Object.keys(s.failLog[todayISO()]).filter(id=>s.failLog[todayISO()][id]>=3).length : 0;
     return `<div class="agenda-slot">
       <div class="agenda-time">${esc(s.time)}</div>
       <div class="agenda-body">
@@ -845,6 +846,7 @@ function waSchedulerHtml(){
         <div class="agenda-msg">${esc(s.message)}</div>
         <div class="agenda-tags">${tags}</div>
         ${sentToday?`<div class="hint" style="margin-top:3px">Bugün ${sentToday} kişiye gönderildi</div>`:''}
+        ${failToday?`<div class="hint" style="margin-top:3px;color:var(--danger)">${failToday} kişiye 3 denemede de gönderilemedi (numara ya da 24 saat kuralı olabilir) — WhatsApp sayfasından elle dene</div>`:''}
       </div>
       ${s.image?`<img class="agenda-img" src="${s.image}">`:''}
       <button class="x" title="Sil" onclick="waDeleteSlot('${s.id}')">✕</button>
@@ -856,7 +858,7 @@ function waSchedulerHtml(){
   ).join('');
 
   return `
-    <p class="hint" style="margin-bottom:14px">Mesaj, belirlediğin gün ve saatte, panel kapalı olsa bile sunucu tarafından otomatik gönderilir. Her kişiye günde en fazla 1 kez gider — sunucu kime gönderildiğini takip eder, ara kesilme olsa bile tekrar göndermez. <b>24 saat kuralı</b> (bkz. yukarıdaki bilgi kutusu) burada da geçerlidir.</p>
+    <p class="hint" style="margin-bottom:14px">Mesaj, belirlediğin gün ve saatte, panel kapalı olsa bile sunucu tarafından otomatik gönderilir. Her kişiye günde en fazla 1 kez gider — sunucu kime gönderildiğini takip eder, ara kesilme olsa bile tekrar göndermez. Gönderilemeyen bir kişi en fazla 3 kez denenir, sonra o gün için bırakılır (altta kaç kişiye gidemediği görünür). <b>24 saat kuralı</b> (bkz. yukarıdaki bilgi kutusu) burada da geçerlidir.</p>
     <div style="max-height:60vh;overflow:auto">
       <div class="day-pick-row" style="margin-bottom:16px">${dayTabs}</div>
 
