@@ -164,6 +164,15 @@ th:first-child{border-top-left-radius:0}
 .day[aria-pressed="true"] .d-n,.day[aria-pressed="true"] .d-k{color:rgba(255,255,255,.82)}
 .day[aria-pressed="true"] .d-fill{background:#fff;opacity:.9}
 
+.swap-table{border-collapse:collapse;width:100%;min-width:760px}
+.swap-table th,.swap-table td{padding:5px;text-align:center}
+.swap-table thead th{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap}
+.swap-table tbody th{font-size:12px;color:var(--muted);white-space:nowrap;text-align:left;padding-right:10px}
+.swap-cell{display:block;width:100%;min-height:52px;border:1px solid var(--line);background:#fff;border-radius:var(--r-s);
+  padding:6px 7px;font-size:11.5px;line-height:1.3;cursor:pointer;transition:border-color .15s,background .15s;text-align:left;overflow:hidden}
+.swap-cell:hover{border-color:var(--blue-500)}
+.swap-cell.sel{border-color:var(--blue-600);background:var(--blue-50);box-shadow:0 0 0 2px var(--blue-500) inset}
+
 .meal-h{display:flex;align-items:center;gap:10px;padding:12px 15px;border-bottom:1px solid var(--line-2);background:var(--blue-50);border-radius:var(--r) var(--r) 0 0}
 .meal-h h4{font-size:14.5px;color:var(--blue-900)}
 .meal-h .time{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
@@ -5576,6 +5585,7 @@ function pagePlanEdit(){
     <button class="btn btn-sm" data-act="clear-day">Günü temizle</button>
     <button class="btn btn-sm btn-primary" data-act="ai-plan">🧠 Sıfırdan üret</button>
     <button class="btn btn-sm" data-act="ai-check">🛡 Çakışma denetimi</button>
+    <button class="btn btn-sm" data-act="reorder">🔀 Öğün yerlerini değiştir</button>
     <button class="btn btn-sm" data-act="doc-theme">🎨 Word teması</button>
     <button class="btn btn-sm btn-primary" data-act="paste-plan">📋 Listeden oluştur</button>
     <button class="btn btn-sm" data-act="batch-photo">🪄 Toplu görsel üret</button>
@@ -5657,6 +5667,50 @@ function pagePlanEdit(){
       <p style="margin:4px 0 0;color:var(--muted);font-size:12.5px">Şablon otomatik doldurulur: kapak, genel amaç, 7 gün, öğün kutuları ve eklediğiniz fotoğraflar yerleşir.</p></div>
     <button class="btn btn-primary" data-act="docx">${ic('down',15)} Word olarak indir</button>
   </div></section>`;
+}
+
+/* ══ Öğün yerlerini değiştir — tüm haftayı tek ekranda görüp öğün taşıma ══
+   Örn. Cuma kahvaltısını Pazar'a almak: iki hücreye sırayla tıklanır,
+   ikisinin içeriği (başlık/madde/püf noktası/fotoğraf) birbiriyle yer
+   değiştirir. Öğün adı/emojisi (Kahvaltı, Öğle…) sabit kalır — o, günün
+   değil, hücrenin sırasına bağlı; sadece içerik taşınır. */
+function reorderCellTxt(m){
+  if(m.title) return esc(m.title);
+  if(m.lines&&m.lines.length) return esc(m.lines[0])+(m.lines.length>1?' …':'');
+  return '<span style="color:var(--muted)">boş</span>';
+}
+function reorderGridHtml(p){
+  const sel=S.swapSel;
+  const head=p.days.map((d,i)=>`<th>${DAY_EMOJI[i]} ${esc(dShort(p,i))}</th>`).join('');
+  const rows=MEAL_PRESET.map((mp,mi)=>{
+    const cells=p.days.map((d,di)=>{
+      const m=d.meals[mi];
+      const isSel=sel&&sel.d===di&&sel.m===mi;
+      return `<td><button type="button" class="swap-cell${isSel?' sel':''}" data-swap-cell="${di}:${mi}">${reorderCellTxt(m)}</button></td>`;
+    }).join('');
+    return `<tr><th>${mp[1]} ${mp[0]}</th>${cells}</tr>`;
+  }).join('');
+  return `<p class="hint" style="margin:0 0 10px">Bir öğüne tıkla, sonra yerini değiştirmek istediğin öğüne tıkla — ikisi birbiriyle yer değiştirir. Öğün başlıkları (Kahvaltı, Öğle…) sabit kalır, sadece içindeki yemek taşınır.</p>
+    <div style="overflow:auto"><table class="swap-table"><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function openReorder(){
+  S.swapSel=null;
+  modal('🔀 Öğün yerlerini değiştir',reorderGridHtml(DB.plans.find(x=>x.id===S.plan)),'Kapat','close','1180px');
+}
+async function reorderPick(di,mi){
+  const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
+  if(!S.swapSel){ S.swapSel={d:di,m:mi}; return modal('🔀 Öğün yerlerini değiştir',reorderGridHtml(p),'Kapat','close','1180px'); }
+  const a=S.swapSel;
+  if(a.d===di&&a.m===mi){ S.swapSel=null; return modal('🔀 Öğün yerlerini değiştir',reorderGridHtml(p),'Kapat','close','1180px'); }
+  const ma=p.days[a.d].meals[a.m], mb=p.days[di].meals[mi];
+  const ka={title:ma.title,lines:ma.lines,tip:ma.tip,photo:ma.photo};
+  ma.title=mb.title; ma.lines=mb.lines; ma.tip=mb.tip; ma.photo=mb.photo;
+  mb.title=ka.title; mb.lines=ka.lines; mb.tip=ka.tip; mb.photo=ka.photo;
+  S.swapSel=null;
+  await save();
+  render();                                     // arkadaki sayfa (öğün kartları) da güncellensin
+  modal('🔀 Öğün yerlerini değiştir',reorderGridHtml(p),'Kapat','close','1180px');
+  toast('Yerleri değiştirildi ✓');
 }
 
 function pageFoods(){
@@ -7365,6 +7419,10 @@ document.addEventListener('click',async e=>{
   const np=t.closest('[data-newplan]'); if(np){ S.newPlanClient=np.dataset.newplan||S.client; return openModal('plan-new'); }
   const pl=t.closest('[data-plan]'); if(pl){ S.plan=pl.dataset.plan; S.day=0; S.page='planEdit'; return render(); }
   const dy=t.closest('[data-day]'); if(dy){ S.day=+dy.dataset.day; return render(); }
+  const swc=t.closest('[data-swap-cell]'); if(swc){
+    const [di,mi]=swc.dataset.swapCell.split(':').map(Number);
+    return reorderPick(di,mi);
+  }
   const am=t.closest('[data-addmeal]'); if(am) return openModal('meal');
   const ai=t.closest('[data-additem]'); if(ai){ S.mealIdx=+ai.dataset.additem; return openModal('item'); }
   const di=t.closest('[data-delitem]'); if(di){ const [m,i]=di.dataset.delitem.split(':').map(Number);
@@ -7668,6 +7726,7 @@ document.addEventListener('click',async e=>{
       pl.days[S.day].photo='';
       await save(); toast('Gün temizlendi'); return render();
     }
+    if(a==='reorder'){ openReorder(); return; }
     if(a==='save-tpl'){ return openModal('plan-tpl'); }
     if(a==='del-tpl'){
       const id=act.dataset.tpl; DB.templates=(DB.templates||[]).filter(t=>t.id!==id);
