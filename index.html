@@ -2147,9 +2147,9 @@ async function cloudBackupRestore(k){
    bu danışana özel, küçük bir "anlık görüntü" olarak buluttaki ayrı bir
    "shares/{token}" düğümüne yazılır (ana veri düğümünden tamamen ayrı,
    herkese okunur ama token'ı bilmeyen hiç kimse bu yolu tahmin edemez).
-   Haftada bir kendiliğinden geçersiz olur; dietisyen istediği an iptal
-   edebilir ya da süresini yeniden 7 güne uzatabilir. */
-const SHARE_DAYS=7;
+   Link kendiliğinden SİLİNMEZ/kapanmaz — yalnızca dietisyen "Linki iptal
+   et" dediğinde kapanır. "Verileri güncelle" aynı linki (aynı adresi)
+   koruyarak içindeki kilo/program bilgisini tazeler. */
 function shareToken(){
   if(window.crypto&&crypto.randomUUID) return crypto.randomUUID().replace(/-/g,'')+Math.random().toString(36).slice(2,8);
   let s=''; for(let i=0;i<40;i++) s+=Math.floor(Math.random()*36).toString(36);
@@ -2169,60 +2169,57 @@ function buildShareSnapshot(c){
     profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail}
   };
 }
-async function shareGenerate(){
-  const c=clientOf(S.client); if(!c) return;
+async function shareGenerate(cid){
+  const c=clientOf(cid||S.shareClient||S.client); if(!c) return;
   if(!cloudReady()||!CL().enabled){ toast('Önce Ayarlar → Bulut senkronizasyonu bölümünden buluta bağlanmalısın — link bulut üzerinden çalışır',6000); return; }
-  toast('Link oluşturuluyor…',5000);
+  const isNew=!c.shareToken;
+  toast(isNew?'Link oluşturuluyor…':'Link güncelleniyor…',5000);
   try{
-    const oldToken=c.shareToken;
-    const token=shareToken();
-    const expiresAt=Date.now()+SHARE_DAYS*86400000;
+    const token=c.shareToken||shareToken();           // link zaten varsa AYNI token/adres korunur
     const snap=buildShareSnapshot(c);
-    snap.createdAt=Date.now(); snap.expiresAt=expiresAt;
+    snap.createdAt=c.shareCreatedAt||Date.now();
     const t1=await cloudToken();
     const r=await fetch(`${CL().dbUrl}/shares/${token}.json?auth=${encodeURIComponent(t1)}`,
       {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
     if(!r.ok) throw new Error(cloudErr(r.status));
-    c.shareToken=token; c.shareExpiresAt=expiresAt; c.shareUpdatedAt=Date.now();
-    if(oldToken&&oldToken!==token){                   // eski link artık geçersiz — buluttan da sil
-      try{ const t2=await cloudToken(); await fetch(`${CL().dbUrl}/shares/${oldToken}.json?auth=${encodeURIComponent(t2)}`,{method:'DELETE'}); }catch(e){}
-    }
+    c.shareToken=token; c.shareCreatedAt=snap.createdAt; c.shareUpdatedAt=Date.now();
     await save();
-    toast('Link oluşturuldu ✓');
+    toast(isNew?'Link oluşturuldu ✓':'Link güncellendi ✓');
     modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
   }catch(err){ toast('Link oluşturulamadı: '+(err.message||''),8000); }
 }
-async function shareRevoke(){
-  const c=clientOf(S.client); if(!c||!c.shareToken) return;
+async function shareRevoke(cid){
+  const c=clientOf(cid||S.shareClient||S.client); if(!c||!c.shareToken) return;
   if(!confirm('Bu link iptal edilsin mi? Danışan artık bu linkten hiçbir şey göremeyecek.')) return;
   try{ const t=await cloudToken(); await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t)}`,{method:'DELETE'}); }catch(e){}
-  c.shareToken=''; c.shareExpiresAt=0;
+  c.shareToken=''; c.shareCreatedAt=0; c.shareExpiresAt=0;
   await save(); toast('Link iptal edildi');
   modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
 }
-function shareCopy(){
-  const c=clientOf(S.client); if(!c||!c.shareToken) return;
+function shareCopy(cid){
+  const c=clientOf(cid||S.shareClient||S.client); if(!c||!c.shareToken) return;
   const url=shareUrl(c.shareToken);
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(()=>toast('Link kopyalandı')).catch(()=>toast('Kopyalanamadı — kutudan elle seçip kopyalayın'));
   else toast('Kopyalanamadı — kutudan elle seçip kopyalayın');
 }
 function shareStatusHtml(c){
-  const active=c.shareToken&&c.shareExpiresAt&&Date.now()<c.shareExpiresAt;
-  if(!active){
-    return `<p class="hint" style="margin:0 0 14px">Bu danışan için henüz aktif bir takip linki yok. Oluşturduğunda danışan; kilo/ölçüm grafiğini, güncel beslenme programını ve bir sonraki randevusunu kendi linkinden görebilir, isterse Word veya PDF olarak indirebilir. Link ${SHARE_DAYS} gün geçerli olur, sonra kendiliğinden kapanır.</p>
+  if(!c.shareToken){
+    return `<p class="hint" style="margin:0 0 14px">Bu danışan için henüz bir takip linki yok. Oluşturduğunda danışan; kilo/ölçüm grafiğini, güncel beslenme programını ve bir sonraki randevusunu kendi linkinden görebilir, isterse Word veya PDF olarak indirebilir. Link, sen iptal edene kadar açık kalır — kendiliğinden silinmez.</p>
       <button class="btn btn-primary" data-act="share-gen">🔗 Link oluştur</button>`;
   }
-  const url=shareUrl(c.shareToken), daysLeft=Math.max(1,Math.ceil((c.shareExpiresAt-Date.now())/86400000));
-  return `<p class="hint" style="margin:0 0 10px">Bu link <b>${daysLeft} gün</b> sonra kendiliğinden geçersiz olacak. Danışan bu linkten kilo/ölçüm grafiğini ve güncel programını görebilir, isterse Word/PDF indirebilir — başka hiçbir veriye erişemez.</p>
+  const url=shareUrl(c.shareToken);
+  return `<p class="hint" style="margin:0 0 10px">Bu link <b>sen iptal edene kadar</b> açık kalır. Danışan bu linkten kilo/ölçüm grafiğini ve güncel programını görebilir, isterse Word/PDF indirebilir — başka hiçbir veriye erişemez.</p>
     <div class="field" style="margin-bottom:12px"><input readonly value="${esc(url)}" onclick="this.select()" style="font-family:var(--mono);font-size:12px;width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px"></div>
+    <p style="margin:0 0 10px;color:var(--muted);font-size:12px">Oluşturulma: ${trDT(c.shareCreatedAt)}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-sm btn-primary" data-act="share-copy">📋 Linki kopyala</button>
-      <button class="btn btn-sm" data-act="share-gen">🔄 Yenile · ${SHARE_DAYS} güne uzat</button>
+      <button class="btn btn-sm" data-act="share-gen">🔄 Verileri güncelle</button>
       <button class="btn btn-sm btn-danger" data-act="share-revoke">Linki iptal et</button>
     </div>`;
 }
-function openClientShare(){
-  const c=clientOf(S.client); if(!c) return;
+function openClientShare(cid){
+  const c=clientOf(cid||S.client); if(!c) return;
+  S.shareClient=c.id;
   modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
 }
 
@@ -5654,7 +5651,7 @@ function pageClient(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap" class="no-print">
       <button class="btn btn-sm" data-modal="client-edit">Bilgileri düzenle</button>
-      <button class="btn btn-sm" data-act="share-open">🔗 Danışan linki</button>
+      <button class="btn btn-sm" data-act="share-open" data-cid="${c.id}">🔗 Danışan linki</button>
       <button class="btn btn-sm" data-wa-quick-open="${c.id}">📱 WhatsApp gönder</button>
       <button class="btn btn-sm" data-arch-toggle="${c.id}">${c.archived?'Arşivden çıkar':'Arşivle'}</button>
       <button class="btn btn-sm ${c.invoiced?'':'btn-primary'}" data-inv-toggle="${c.id}">🧾 ${c.invoiced?'Faturayı geri al':'Fatura kesildi'}</button>
@@ -5797,6 +5794,7 @@ function pagePlanEdit(){
         <button class="btn btn-sm" data-act="scale">⚖ Kaloriyi ayarla</button>
         <button class="btn btn-sm" data-act="shopping">🛒 Alışveriş listesi</button>
         <button class="btn btn-sm" data-act="share">Paylaş</button>
+        ${c?`<button class="btn btn-sm" data-act="share-open" data-cid="${c.id}">🔗 Danışan linki</button>`:''}
         <button class="btn btn-sm btn-primary" data-act="docx">${ic('down',15)} Word olarak indir</button>
         <button class="btn btn-sm btn-primary" data-act="pdf">${ic('down',15)} PDF olarak indir</button>
       </div>
@@ -5904,6 +5902,7 @@ function pagePlanEdit(){
       <p style="margin:4px 0 0;color:var(--muted);font-size:12.5px">Şablon otomatik doldurulur: kapak, genel amaç, 7 gün, öğün kutuları ve eklediğiniz fotoğraflar yerleşir.</p></div>
     <button class="btn btn-primary" data-act="docx">${ic('down',15)} Word olarak indir</button>
     <button class="btn btn-primary" data-act="pdf">${ic('down',15)} PDF olarak indir</button>
+    ${c?`<button class="btn" data-act="share-open" data-cid="${c.id}">🔗 Danışan linki</button>`:''}
   </div></section>`;
 }
 
@@ -6098,6 +6097,17 @@ function pageSettings(){
            <p style="margin:12px 0 0;color:var(--muted);font-size:12px">Storage değil, <b>Realtime Database</b> kullanıyoruz; Storage artık ücretli plan istiyor.</p>
          </details>`}
       </div></section>
+    <section class="card" style="margin-bottom:16px">${(()=>{
+      const sc=DB.clients.filter(c=>c.shareToken).sort((a,b)=>(+b.shareCreatedAt||+b.shareUpdatedAt||0)-(+a.shareCreatedAt||+a.shareUpdatedAt||0));
+      return `<div class="card-h"><h3>🔗 Danışan takip linkleri</h3><div class="spacer"></div><span class="tag ${sc.length?'tag-ok':''}">${sc.length}</span></div>
+      <div class="card-b">
+      ${sc.length?`<div class="tw"><table><thead><tr><th>Danışan</th><th>Oluşturulma</th><th></th></tr></thead>
+        <tbody>${sc.map(c=>`<tr><td class="t-name">${esc(c.name)}</td><td class="num">${trDT(c.shareCreatedAt||c.shareUpdatedAt)}</td>
+          <td class="t-right"><button class="btn btn-sm" data-act="share-open" data-cid="${c.id}">Aç</button></td></tr>`).join('')}</tbody></table></div>`
+       :`<p style="color:var(--muted);font-size:13px;margin:0">Henüz oluşturulmuş bir takip linki yok. Bir danışanın dosyasından ya da program ekranından "🔗 Danışan linki" ile oluşturabilirsin.</p>`}
+      <p style="font-size:12px;color:var(--muted);margin:12px 0 0">Linkler sen "Linki iptal et" demeden kendiliğinden silinmez/kapanmaz.</p>
+      </div>`;
+    })()}</section>
     <section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Giriş şifresi</h3></div><div class="card-b">
       <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Uygulama her açıldığında sorulur. Şu anki şifre ${String(p.pin||'0508').length} haneli.</p>
       <div class="form-grid">
@@ -7992,7 +8002,7 @@ document.addEventListener('click',async e=>{
     if(a==='form-docx-blank'){ try{ exportFormDocx(true); }catch(err){ toast('Word dosyası oluşturulamadı'); } return; }
     if(a==='docx'){ try{ await exportDocx(); }catch(err){ console.error(err); toast('Word dosyası oluşturulamadı'); } return; }
     if(a==='pdf'){ try{ await exportPdf(); }catch(err){ console.error(err); toast('PDF oluşturulamadı: '+(err.message||'bilinmeyen hata')); } return; }
-    if(a==='share-open'){ openClientShare(); return; }
+    if(a==='share-open'){ openClientShare(act.dataset.cid); return; }
     if(a==='share-gen'){ await shareGenerate(); return; }
     if(a==='share-copy'){ shareCopy(); return; }
     if(a==='share-revoke'){ await shareRevoke(); return; }
@@ -8295,7 +8305,6 @@ async function bootShareView(token){
     const raw=await r.json();
     const snap=typeof raw==='string'?JSON.parse(raw):raw;
     if(!snap) return shareViewMsg('Bu bağlantı artık geçerli değil veya iptal edilmiş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
-    if(snap.expiresAt&&Date.now()>snap.expiresAt) return shareViewMsg('Bu bağlantının süresi dolmuş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
     renderShareView(snap);
   }catch(e){ shareViewMsg('Sayfa yüklenemedi — internet bağlantınızı kontrol edip sayfayı yenileyin.'); }
 }
