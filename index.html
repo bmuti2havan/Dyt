@@ -2370,6 +2370,7 @@ async function pullShareIntake(){
         if(e.type==='measure'){
           c.measures=c.measures||[];
           if(!c.measures.some(m=>m.id===rid)){ c.measures.push({id:rid,date:e.date||todayISO(),weight:e.weight,waist:e.waist,hip:e.hip,fat:e.fat,note:'📱 Danışan kendi girdi'}); changed=true; }
+          if(e.height&&(+e.height)!==(+c.height||0)){ c.height=e.height; changed=true; }
         }else if(e.type==='mealFeedback'){
           c.mealFeedback=c.mealFeedback||[];
           if(!c.mealFeedback.some(x=>x.id===rid)){ c.mealFeedback.push({id:rid,date:e.date||todayISO(),dayLabel:e.dayLabel||'',mealName:e.mealName||'',planName:e.planName||'',at:e.at||Date.now()}); changed=true; }
@@ -8331,7 +8332,7 @@ document.getElementById('keys').addEventListener('click',e=>{
 });
 document.getElementById('btnEnter').addEventListener('click',e=>{ e.preventDefault(); pinKey('ok'); });
 document.addEventListener('visibilitychange',()=>{
-  if(!document.hidden && document.getElementById('lock').hidden && cloudReady()){
+  if(DB && !document.hidden && document.getElementById('lock').hidden && cloudReady()){
     if(CL()) CL().enabled=true;
     cloudSync(false);
   }
@@ -8381,6 +8382,8 @@ function renderShareView(snap){
   const pts=(snap.measures||[]).filter(m=>m.date&&m.weight!=null);
   const first=pts[0], last=pts[pts.length-1];
   const diff=(first&&last&&pts.length>1)?(+last.weight-+first.weight):null;
+  let svHeightStored=''; try{ svHeightStored=localStorage.getItem('sv_height_'+window.__shareTok)||''; }catch(e){}
+  if(!svHeightStored && snap.height) svHeightStored=String(snap.height);
   const p=snap.plan;
   const planHtml=!p?'':`<section class="sv-card" style="margin-top:16px">
       <div class="sv-card-h"><h3>📋 Güncel programın: ${esc(p.name)}</h3></div>
@@ -8414,14 +8417,19 @@ function renderShareView(snap){
         ${diff!=null?`<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Başlangıçtan bu yana <b style="color:${diff<=0?'var(--ok)':'var(--warn)'}">${diff>0?'+':''}${n1(diff)} kg</b></p>`:''}
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">
           <b style="font-size:13px">Yeni ölçüm ekle</b>
+          <p class="hint" style="margin:4px 0 8px">Boyunu bir kez yazman yeterli — kilo-boy endeksini (BKİ) anında burada görürsün.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
             <input type="date" id="svMDate" value="${todayISO()}" style="flex:1;min-width:130px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
-            <input type="number" inputmode="decimal" id="svMWeight" placeholder="Kilo (kg)*" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+            <input type="number" inputmode="decimal" id="svMWeight" placeholder="Kilo (kg)*" value="${last?last.weight:''}" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <input type="number" inputmode="decimal" id="svMHeight" placeholder="Boyun (cm)" value="${esc(svHeightStored)}" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
             <input type="number" inputmode="decimal" id="svMWaist" placeholder="Bel (cm) — ops." style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
             <input type="number" inputmode="decimal" id="svMHip" placeholder="Kalça (cm) — ops." style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
           </div>
+          <div id="svBmiOut" style="margin-top:10px"></div>
           <button class="btn btn-sm btn-primary" id="svMeasureBtn" style="margin-top:10px">💾 Ölçümü kaydet</button>
         </div>
       </div>
@@ -8441,6 +8449,8 @@ function renderShareView(snap){
   </div>`;
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
+  ['svMWeight','svMHeight'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input',svUpdateBmi); });
+  svUpdateBmi();
   if(p){
     svShowDay(0);
     document.getElementById('svWordBtn').addEventListener('click',()=>svExport('docx'));
@@ -8491,14 +8501,24 @@ async function svSendDislike(btn){
     toast('Diyetisyenine iletildi');
   }catch(e){ btn.disabled=false; btn.textContent='👎 Bu öğünü sevmedim'; toast('Gönderilemedi, tekrar dene'); }
 }
+function svUpdateBmi(){
+  const out=document.getElementById('svBmiOut'); if(!out) return;
+  const w=+(document.getElementById('svMWeight').value||0), h=+(document.getElementById('svMHeight').value||0);
+  if(!w||!h){ out.innerHTML=''; return; }
+  const b=bmi(w,h); if(!b){ out.innerHTML=''; return; }
+  const lbl=bmiLabel(b);
+  out.innerHTML=`<span class="tag ${lbl[1]}" style="font-size:13px;padding:6px 10px">📐 Kilo-Boy Endeksin (BKİ): <b>${b.toFixed(1)}</b> · ${lbl[0]}</span>`;
+}
 async function svSubmitMeasure(){
   const date=document.getElementById('svMDate').value||todayISO();
   const weight=document.getElementById('svMWeight').value;
   if(!weight){ toast('Kilo girmen gerekiyor'); return; }
+  const height=document.getElementById('svMHeight').value;
   const waist=document.getElementById('svMWaist').value, hip=document.getElementById('svMHip').value;
   const btn=document.getElementById('svMeasureBtn'); btn.disabled=true; btn.textContent='Kaydediliyor…';
   try{
-    await svIntakePost({type:'measure',date,weight:+weight,waist:waist?+waist:null,hip:hip?+hip:null,at:Date.now()});
+    await svIntakePost({type:'measure',date,weight:+weight,height:height?+height:null,waist:waist?+waist:null,hip:hip?+hip:null,at:Date.now()});
+    if(height){ try{ localStorage.setItem('sv_height_'+window.__shareTok,height); }catch(e){} window.__shareSnap.height=+height; }
     window.__shareSnap.measures=window.__shareSnap.measures||[];
     window.__shareSnap.measures.push({date,weight:+weight,waist:waist?+waist:null,hip:hip?+hip:null});
     toast('Ölçüm kaydedildi ✓ — diyetisyenine iletildi');
