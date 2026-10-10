@@ -105,6 +105,11 @@ nav{padding:12px 12px 8px;overflow:auto;flex:1}
 .crumb{font-size:13px;color:var(--muted)}
 .crumb b{color:var(--ink);font-weight:600}
 .top-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.notif-badge{position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;font-size:10.5px;font-weight:700;min-width:17px;height:17px;border-radius:999px;display:flex;align-items:center;justify-content:center;padding:0 4px;line-height:1;border:2px solid #fff}
+.notif-panel{max-height:60vh;overflow:auto}
+.notif-row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line-2);cursor:pointer}
+.notif-row:hover{background:var(--blue-50)}
+.notif-row:last-child{border-bottom:none}
 .who{display:flex;align-items:center;gap:9px;padding-left:12px;border-left:1px solid var(--line)}
 .avatar{width:36px;height:36px;border-radius:12px;background:linear-gradient(140deg,var(--blue-500),var(--blue-700));color:#fff;display:grid;place-items:center;font-size:12.5px;font-weight:700;letter-spacing:.02em}
 .av{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;color:#fff;font-size:12px;font-weight:700;flex:0 0 34px}
@@ -705,6 +710,7 @@ main>*{animation:rise .22s ease both}
       <div class="top-right">
         <button class="btn btn-sm" data-act="print" id="btnPrint"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M7 9V3.6h10V9"/><rect x="3.6" y="9" width="16.8" height="7.6" rx="2"/><path d="M7 14.4h10v6H7z"/></svg> Yazdır</button>
         <button class="btn btn-sm" data-act="support" title="Bir şey çalışmıyorsa buradan bildir"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.8 1c0 1.6-2.3 1.9-2.3 3.4"/><path d="M12 17.2h.01"/></svg> Yardım</button>
+        <button class="btn btn-sm" data-act="notif" id="btnNotif" title="Danışan bildirimleri" style="position:relative">🔔 Bildirimler<span id="notifBadge" class="notif-badge" hidden>0</span></button>
         <button class="btn btn-sm" data-act="lock" title="Uygulamayı kilitle">Kilitle</button>
       <div class="who"><div class="avatar">AK</div><div><div style="font-size:13px;font-weight:600" id="whoName">Dyt. Ayşenur KORKMAZ</div><small>Diyetisyen</small></div></div>
       </div>
@@ -2390,6 +2396,7 @@ async function pullShareIntake(){
   const withToken=DB.clients.filter(c=>c.shareToken);
   if(!withToken.length) return;
   let changed=false;
+  const fresh=[]; // yeni gelen kayıtlar — tarayıcı bildirimi için
   for(const c of withToken){
     try{
       const t=await cloudToken();
@@ -2404,14 +2411,28 @@ async function pullShareIntake(){
         const rid='si-'+k;
         if(e.type==='measure'){
           c.measures=c.measures||[];
-          if(!c.measures.some(m=>m.id===rid)){ c.measures.push({id:rid,date:e.date||todayISO(),weight:e.weight,waist:e.waist,hip:e.hip,fat:e.fat,note:'📱 Danışan kendi girdi'}); changed=true; }
+          if(!c.measures.some(m=>m.id===rid)){ c.measures.push({id:rid,date:e.date||todayISO(),weight:e.weight,waist:e.waist,hip:e.hip,fat:e.fat,note:'📱 Danışan kendi girdi'}); changed=true; fresh.push({client:c.name,text:'⚖ yeni ölçüm girdi: '+e.weight+' kg'}); }
           if(e.height&&(+e.height)!==(+c.height||0)){ c.height=e.height; changed=true; }
         }else if(e.type==='mealFeedback'){
           c.mealFeedback=c.mealFeedback||[];
-          if(!c.mealFeedback.some(x=>x.id===rid)){ c.mealFeedback.push({id:rid,date:e.date||todayISO(),dayLabel:e.dayLabel||'',mealName:e.mealName||'',planName:e.planName||'',at:e.at||Date.now()}); changed=true; }
+          if(!c.mealFeedback.some(x=>x.id===rid)){ c.mealFeedback.push({id:rid,date:e.date||todayISO(),dayLabel:e.dayLabel||'',mealName:e.mealName||'',planName:e.planName||'',at:e.at||Date.now()}); changed=true; fresh.push({client:c.name,text:'👎 '+(e.mealName||'bir öğünü')+' sevmedi'}); }
         }else if(e.type==='journal'){
           c.journal=c.journal||[];
-          if(!c.journal.some(x=>x.id===rid)){ c.journal.push({id:rid,date:e.date||todayISO(),water:e.water,steps:e.steps,sleep:e.sleep,at:e.at||Date.now()}); changed=true; }
+          if(!c.journal.some(x=>x.id===rid)){
+            const cheated=e.cheated===true?true:e.cheated===false?false:null;
+            c.journal.push({id:rid,date:e.date||todayISO(),water:e.water,steps:e.steps,sleep:e.sleep,cheated,at:e.at||Date.now()}); changed=true;
+            const parts=[]; if(e.water!=null&&e.water!=='') parts.push('💧'+e.water); if(e.steps!=null&&e.steps!=='') parts.push('🚶'+e.steps); if(e.sleep!=null&&e.sleep!=='') parts.push('😴'+e.sleep+'sa');
+            if(cheated===true) parts.push('🍬 kaçamak yaptı'); else if(cheated===false) parts.push('✅ kaçamak yapmadı');
+            fresh.push({client:c.name,text:'📝 günü işaretledi: '+(parts.join(' · ')||'—')});
+          }
+        }else if(e.type==='visit'){
+          c.visits=c.visits||[];
+          if(!c.visits.some(x=>x.id===rid)){
+            const vd=e.date||todayISO();
+            c.visits.push({id:rid,date:vd,at:e.at||Date.now()}); changed=true;
+            const today_n=c.visits.filter(v=>v.date===vd).length;
+            fresh.push({client:c.name,text:'🔗 takip linkine girdi (bugün '+today_n+'. kez)'});
+          }
         }
       });
       const t2=await cloudToken();
@@ -2422,8 +2443,22 @@ async function pullShareIntake(){
     await save({noCloud:true});
     await cloudPushMerged();
     toast('Danışanlardan yeni bilgi geldi 📬',4000);
+    notifyFresh(fresh);
+    paintNotifBadge();
     if(!userIsBusy()) render();
   }
+}
+function notifyFresh(fresh){
+  if(!fresh||!fresh.length) return;
+  try{
+    if(typeof Notification==='undefined'||Notification.permission!=='granted') return;
+    if(fresh.length===1){
+      new Notification('📬 '+fresh[0].client,{body:fresh[0].text});
+    }else{
+      const byClient={}; fresh.forEach(f=>{ (byClient[f.client]=byClient[f.client]||[]).push(f.text); });
+      new Notification('📬 Danışanlardan yeni bildirim ('+fresh.length+')',{body:Object.keys(byClient).map(k=>k+': '+byClient[k].join(', ')).join('\n').slice(0,300)});
+    }
+  }catch(e){}
 }
 function paintSave(t,c){ const d=document.getElementById('saveDot'), s=document.getElementById('saveTxt'); if(d){d.style.color=c;} if(s){s.textContent=t;} }
 
@@ -5291,6 +5326,7 @@ function pageClientControl(c){
   const dayDiff=nx? Math.ceil((new Date(nx.when)-new Date())/86400000) : null;
   const notices=[...(c.mealFeedback||[]).map(x=>({...x,kind:'mf'})),...(c.journal||[]).map(x=>({...x,kind:'j'}))]
     .sort((a,b)=>(+b.at||0)-(+a.at||0)).slice(0,8);
+  const todayVisits=(c.visits||[]).filter(v=>v.date===todayISO()).length;
   return `
   <div class="kpi">
     <div class="kpi-c"><div class="kpi-l">Başlangıç kilosu</div>
@@ -5373,13 +5409,14 @@ function pageClientControl(c){
 
       <section class="card"><div class="card-h"><h3>📬 Danışan bildirimleri</h3>${notices.length?`<div class="spacer"></div><span class="tag tag-warn">${notices.length}</span>`:''}</div>
         <div class="card-b">
+        ${todayVisits?`<div style="font-size:12.5px;color:var(--muted);margin-bottom:10px">🔗 Bugün takip linkine <b>${todayVisits}</b> kez girdi.</div>`:''}
         ${notices.length?`<div style="display:grid;gap:8px">${notices.map(n=>`
           <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line-2)">
             <span style="font-size:16px">${n.kind==='mf'?'👎':'📝'}</span>
             <div style="flex:1;min-width:0">
               <div style="font-size:13px">${n.kind==='mf'
                 ?`<b>${esc(n.dayLabel||'')}</b> ${esc(n.mealName||'')} öğününü sevmedi`
-                :`${n.water!=null&&n.water!==''?'💧 '+esc(n.water)+' bardak':''}${n.steps!=null&&n.steps!==''?' · 🚶 '+esc(n.steps)+' adım':''}${n.sleep!=null&&n.sleep!==''?' · 😴 '+esc(n.sleep)+' saat uyku':''}`}</div>
+                :`${n.water!=null&&n.water!==''?'💧 '+esc(n.water)+' bardak':''}${n.steps!=null&&n.steps!==''?' · 🚶 '+esc(n.steps)+' adım':''}${n.sleep!=null&&n.sleep!==''?' · 😴 '+esc(n.sleep)+' saat uyku':''}${n.cheated===true?' · <b style="color:var(--danger)">🍬 kaçamak yaptı</b>':n.cheated===false?' · <b style="color:var(--ok)">✅ kaçamak yapmadı</b>':''}`}</div>
               <div style="font-size:11.5px;color:var(--muted)">${trDT(n.at)}</div>
             </div>
             <button class="x" data-dismiss-notice="${n.kind}:${n.id}" title="Kapat">✕</button>
@@ -7744,6 +7781,42 @@ function render(){
   document.getElementById('crumb').innerHTML=cr;
   document.getElementById('view').innerHTML=`<div class="page">${PAGES[S.page]()}</div>`;
   window.scrollTo(0,0);
+  paintNotifBadge();
+}
+/* ══ Danışan bildirimleri: üstteki 🔔 rozeti ve tıklayınca açılan liste ══
+   "Bildirim" = (a) rozet sayısı her render'da güncellenir, (b) izin verilmişse
+   yeni kayıt geldiğinde tarayıcı bildirimi (Notification API) de gönderilir. */
+function allClientNotices(){
+  const out=[];
+  (DB.clients||[]).forEach(c=>{
+    (c.mealFeedback||[]).forEach(x=>out.push({client:c.name,clientId:c.id,kind:'mf',at:x.at,text:`<b>${esc(x.dayLabel||'')}</b> ${esc(x.mealName||'')} öğününü sevmedi`}));
+    (c.journal||[]).forEach(x=>{
+      const parts=[]; if(x.water!=null&&x.water!=='') parts.push('💧 '+esc(x.water)+' bardak'); if(x.steps!=null&&x.steps!=='') parts.push('🚶 '+esc(x.steps)+' adım'); if(x.sleep!=null&&x.sleep!=='') parts.push('😴 '+esc(x.sleep)+' saat uyku');
+      if(x.cheated===true) parts.push('🍬 kaçamak yaptı'); else if(x.cheated===false) parts.push('✅ kaçamak yapmadı');
+      out.push({client:c.name,clientId:c.id,kind:'j',at:x.at,text:parts.join(' · ')||'Günü işaretledi'});
+    });
+  });
+  return out.sort((a,b)=>(+b.at||0)-(+a.at||0));
+}
+function paintNotifBadge(){
+  const b=document.getElementById('notifBadge'); if(!b) return;
+  const n=allClientNotices().length;
+  if(n){ b.hidden=false; b.textContent=n>99?'99+':n; } else b.hidden=true;
+}
+function openNotifPanel(){
+  if(typeof Notification!=='undefined' && Notification.permission==='default'){ try{ Notification.requestPermission(); }catch(e){} }
+  const list=allClientNotices();
+  const todayVisits=(DB.clients||[]).reduce((s,c)=>s+(c.visits||[]).filter(v=>v.date===todayISO()).length,0);
+  const body=`${todayVisits?`<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px">🔗 Danışanlar bugün takip linklerine toplam <b>${todayVisits}</b> kez girdi.</p>`:''}
+    <div class="notif-panel">${list.length?list.map(n=>`<div class="notif-row" data-notif-go="${n.clientId}">
+      <span style="font-size:16px">${n.kind==='mf'?'👎':'📝'}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px"><b>${esc(n.client)}</b> — ${n.text}</div>
+      <div style="font-size:11px;color:var(--muted)">${trDT(n.at)}</div></div></div>`).join('')
+      :`<p style="margin:0;color:var(--muted);font-size:13.5px">Şu an bekleyen danışan bildirimi yok.</p>`}</div>`;
+  modal('🔔 Danışan bildirimleri',body,'Kapat','close','460px');
+  document.querySelectorAll('[data-notif-go]').forEach(r=>r.addEventListener('click',()=>{
+    S.page='client'; S.client=r.dataset.notifGo; S.tab='kontrol'; closeModal(); render();
+  }));
 }
 
 let _mdOnBg=false;
@@ -8061,6 +8134,7 @@ document.addEventListener('click',async e=>{
     const a=act.dataset.act;
     if(a==='print') window.print();
     if(a==='support'){ openSupportModal(); return; }
+    if(a==='notif'){ openNotifPanel(); return; }
     if(a==='lock'){ lockApp(); return; }
     if(a==='cloud-connect'){
       const api=val('cl-api')||CLOUD_API, bk=(val('cl-bucket')||CLOUD_DB).replace(/\/+$/,''), ml=val('cl-mail'), ps=val('cl-pass');
@@ -8345,7 +8419,7 @@ function unlock(){
   try{ render(); paintSave('Hazır','var(--ok)');
        setTimeout(()=>toast(rnd(UNLOCK_WELCOME)),500);
        if(cloudReady()){ if(CL()) CL().enabled=true; cloudSync(false);
-         setInterval(()=>{ if(!document.hidden && cloudReady() && document.getElementById('lock').hidden) cloudSync(false); },60000); }
+         setInterval(()=>{ if(cloudReady() && document.getElementById('lock').hidden) cloudSync(false); },60000); }
        if(trashPurge()>0) save({noCloud:true});
        setTimeout(dailyBackupCheck,1500); }
   catch(err){
@@ -8432,6 +8506,8 @@ async function bootShareView(token){
     const snap=typeof raw==='string'?JSON.parse(raw):raw;
     if(!snap) return shareViewMsg('Bu bağlantı artık geçerli değil veya iptal edilmiş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
     renderShareView(snap);
+    // Diyetisyenine "bugün linke kaç kez girdi" bilgisi düşsün diye sessizce kaydet (sayfa açılışını engellemez)
+    svIntakePost({type:'visit',date:todayISO(),at:Date.now()}).catch(()=>{});
   }catch(e){ shareViewMsg('Sayfa yüklenemedi — internet bağlantınızı kontrol edip sayfayı yenileyin.'); }
 }
 function renderShareView(snap){
@@ -8506,6 +8582,13 @@ function renderShareView(snap){
     </section>
     <section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>📝 Bugünü işaretle</h3></div>
       <div style="padding:16px">
+        <div style="margin-bottom:14px">
+          <h4 class="sv-sub" style="margin-bottom:8px">🍬 Bugün kaçamak yaptın mı?</h4>
+          <div style="display:flex;gap:8px">
+            <button type="button" class="btn btn-sm" id="svCheatYes" data-sv-cheat="1" aria-pressed="false" style="flex:1;justify-content:center">Evet, yaptım</button>
+            <button type="button" class="btn btn-sm" id="svCheatNo" data-sv-cheat="0" aria-pressed="false" style="flex:1;justify-content:center">Hayır, uydum</button>
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
           <div class="field"><label>💧 Su</label><input type="number" inputmode="numeric" id="svJWater" placeholder="bardak"></div>
           <div class="field"><label>🚶 Adım</label><input type="number" inputmode="numeric" id="svJSteps" placeholder="adım"></div>
@@ -8520,6 +8603,12 @@ function renderShareView(snap){
   </div>`;
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
+  window.__svCheat=null;
+  document.querySelectorAll('[data-sv-cheat]').forEach(b=>b.addEventListener('click',()=>{
+    window.__svCheat=b.dataset.svCheat==='1';
+    document.querySelectorAll('[data-sv-cheat]').forEach(x=>{ x.setAttribute('aria-pressed','false'); x.classList.remove('btn-primary'); });
+    b.setAttribute('aria-pressed','true'); b.classList.add('btn-primary');
+  }));
   ['svMWeight','svMHeight'].forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener('input',svUpdateBmi); });
   svUpdateBmi();
   if(p){
@@ -8598,10 +8687,11 @@ async function svSubmitMeasure(){
 }
 async function svSubmitJournal(){
   const water=document.getElementById('svJWater').value, steps=document.getElementById('svJSteps').value, sleep=document.getElementById('svJSleep').value;
-  if(!water&&!steps&&!sleep){ toast('En az bir alanı doldurmalısın'); return; }
+  const cheated=window.__svCheat;
+  if(!water&&!steps&&!sleep&&cheated==null){ toast('En az bir alanı doldur ya da kaçamak sorusunu yanıtla'); return; }
   const btn=document.getElementById('svJournalBtn'); btn.disabled=true; btn.textContent='Kaydediliyor…';
   try{
-    await svIntakePost({type:'journal',date:todayISO(),water:water?+water:null,steps:steps?+steps:null,sleep:sleep?+sleep:null,at:Date.now()});
+    await svIntakePost({type:'journal',date:todayISO(),water:water?+water:null,steps:steps?+steps:null,sleep:sleep?+sleep:null,cheated:cheated==null?null:cheated,at:Date.now()});
     btn.textContent='✓ Kaydedildi'; toast('Diyetisyenine iletildi');
   }catch(e){ btn.disabled=false; btn.textContent='💾 Günü kaydet'; toast('Gönderilemedi, tekrar dene'); }
 }
