@@ -39,6 +39,14 @@ button{cursor:pointer}
 
 .app{display:flex;min-height:100vh}
 body{background:radial-gradient(1200px 600px at 78% -10%, #E7F1FB 0%, transparent 60%), var(--canvas)}
+#shareView{min-height:100vh;background:var(--canvas)}
+.sv-wrap{max-width:640px;margin:0 auto;padding:28px 20px 50px}
+.sv-top{display:flex;align-items:center;gap:12px}
+.sv-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.sv-card-h{padding:14px 16px;border-bottom:1px solid var(--line-2)}
+.sv-card-h h3{font-size:14.5px}
+.sv-day[aria-pressed="true"]{background:var(--dayc,var(--blue-600));border-color:var(--dayc,var(--blue-600));color:#fff}
+.sv-day[aria-pressed="true"] .d-n,.sv-day[aria-pressed="true"] .d-k{color:rgba(255,255,255,.82)}
 .rail{width:262px;flex:0 0 262px;background:linear-gradient(185deg,#FFFFFF 0%,#F3F9FE 100%);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
 .i{flex:0 0 auto;vertical-align:-3px}
 .brand{padding:20px 18px 16px;border-bottom:1px solid var(--line-2);display:flex;gap:12px;align-items:center}
@@ -688,6 +696,7 @@ main>*{animation:rise .22s ease both}
     <div class="lock-err" id="lockErr"></div>
   </div>
 </div>
+<div id="shareView" hidden></div>
 <div id="modalRoot"></div>
 <div id="toastRoot"></div>
 
@@ -2015,7 +2024,8 @@ const FB_RULES=`{
   "rules": {
     "diyetpro":         { "$uid": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" } },
     "diyetpro_backups": { "$uid": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" } },
-    "diyetfoto":        { "$uid": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" } }
+    "diyetfoto":        { "$uid": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" } },
+    "shares":           { "$token": { ".read": true, ".write": "auth != null" } }
   }
 }`;
 async function cloudBackupBase(){
@@ -2128,6 +2138,92 @@ async function cloudBackupRestore(k){
     await save();                                  // updatedAt şimdiye çekilir; sonraki eşitleme bu sürümü buluta yazar
     closeModal(); S.page='panel'; render(); toast('Yedek geri yüklendi ✓',6000);
   }catch(err){ toast('Geri yüklenemedi: '+err.message,10000); }
+}
+
+/* ══════════════ Danışan takip linki ══════════════
+   Danışana, panele hiç girmeden kendi kilo/ölçüm grafiğini, güncel
+   programını ve bir sonraki randevusunu görebileceği; isterse Word/PDF
+   indirebileceği ayrı bir link verir. Diğer hiçbir veriye erişemez: link
+   bu danışana özel, küçük bir "anlık görüntü" olarak buluttaki ayrı bir
+   "shares/{token}" düğümüne yazılır (ana veri düğümünden tamamen ayrı,
+   herkese okunur ama token'ı bilmeyen hiç kimse bu yolu tahmin edemez).
+   Haftada bir kendiliğinden geçersiz olur; dietisyen istediği an iptal
+   edebilir ya da süresini yeniden 7 güne uzatabilir. */
+const SHARE_DAYS=7;
+function shareToken(){
+  if(window.crypto&&crypto.randomUUID) return crypto.randomUUID().replace(/-/g,'')+Math.random().toString(36).slice(2,8);
+  let s=''; for(let i=0;i<40;i++) s+=Math.floor(Math.random()*36).toString(36);
+  return s;
+}
+const shareUrl=tok=>location.origin+location.pathname+'?v='+tok;
+function buildShareSnapshot(c){
+  const act=plansOf(c.id).find(p=>p.status==='Aktif')||[...plansOf(c.id)].sort((a,b)=>new Date(b.start)-new Date(a.start))[0]||null;
+  let plan=null;
+  if(act){ migratePlan(act); plan=JSON.parse(JSON.stringify(act)); delete plan.privnote; } // 🔒 özel not asla paylaşılmaz
+  const nx=nextApptOf(c.id);
+  return {
+    name:c.name, clientId:c.id,
+    measures:(c.measures||[]).filter(m=>m.date&&m.weight!=null).map(m=>({date:m.date,weight:m.weight,waist:m.waist,hip:m.hip,fat:m.fat})),
+    nextAppt: nx? {when:nx.when,type:nx.type} : null,
+    plan,
+    profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail}
+  };
+}
+async function shareGenerate(){
+  const c=clientOf(S.client); if(!c) return;
+  if(!cloudReady()||!CL().enabled){ toast('Önce Ayarlar → Bulut senkronizasyonu bölümünden buluta bağlanmalısın — link bulut üzerinden çalışır',6000); return; }
+  toast('Link oluşturuluyor…',5000);
+  try{
+    const oldToken=c.shareToken;
+    const token=shareToken();
+    const expiresAt=Date.now()+SHARE_DAYS*86400000;
+    const snap=buildShareSnapshot(c);
+    snap.createdAt=Date.now(); snap.expiresAt=expiresAt;
+    const t1=await cloudToken();
+    const r=await fetch(`${CL().dbUrl}/shares/${token}.json?auth=${encodeURIComponent(t1)}`,
+      {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
+    if(!r.ok) throw new Error(cloudErr(r.status));
+    c.shareToken=token; c.shareExpiresAt=expiresAt; c.shareUpdatedAt=Date.now();
+    if(oldToken&&oldToken!==token){                   // eski link artık geçersiz — buluttan da sil
+      try{ const t2=await cloudToken(); await fetch(`${CL().dbUrl}/shares/${oldToken}.json?auth=${encodeURIComponent(t2)}`,{method:'DELETE'}); }catch(e){}
+    }
+    await save();
+    toast('Link oluşturuldu ✓');
+    modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
+  }catch(err){ toast('Link oluşturulamadı: '+(err.message||''),8000); }
+}
+async function shareRevoke(){
+  const c=clientOf(S.client); if(!c||!c.shareToken) return;
+  if(!confirm('Bu link iptal edilsin mi? Danışan artık bu linkten hiçbir şey göremeyecek.')) return;
+  try{ const t=await cloudToken(); await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t)}`,{method:'DELETE'}); }catch(e){}
+  c.shareToken=''; c.shareExpiresAt=0;
+  await save(); toast('Link iptal edildi');
+  modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
+}
+function shareCopy(){
+  const c=clientOf(S.client); if(!c||!c.shareToken) return;
+  const url=shareUrl(c.shareToken);
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(()=>toast('Link kopyalandı')).catch(()=>toast('Kopyalanamadı — kutudan elle seçip kopyalayın'));
+  else toast('Kopyalanamadı — kutudan elle seçip kopyalayın');
+}
+function shareStatusHtml(c){
+  const active=c.shareToken&&c.shareExpiresAt&&Date.now()<c.shareExpiresAt;
+  if(!active){
+    return `<p class="hint" style="margin:0 0 14px">Bu danışan için henüz aktif bir takip linki yok. Oluşturduğunda danışan; kilo/ölçüm grafiğini, güncel beslenme programını ve bir sonraki randevusunu kendi linkinden görebilir, isterse Word veya PDF olarak indirebilir. Link ${SHARE_DAYS} gün geçerli olur, sonra kendiliğinden kapanır.</p>
+      <button class="btn btn-primary" data-act="share-gen">🔗 Link oluştur</button>`;
+  }
+  const url=shareUrl(c.shareToken), daysLeft=Math.max(1,Math.ceil((c.shareExpiresAt-Date.now())/86400000));
+  return `<p class="hint" style="margin:0 0 10px">Bu link <b>${daysLeft} gün</b> sonra kendiliğinden geçersiz olacak. Danışan bu linkten kilo/ölçüm grafiğini ve güncel programını görebilir, isterse Word/PDF indirebilir — başka hiçbir veriye erişemez.</p>
+    <div class="field" style="margin-bottom:12px"><input readonly value="${esc(url)}" onclick="this.select()" style="font-family:var(--mono);font-size:12px;width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-primary" data-act="share-copy">📋 Linki kopyala</button>
+      <button class="btn btn-sm" data-act="share-gen">🔄 Yenile · ${SHARE_DAYS} güne uzat</button>
+      <button class="btn btn-sm btn-danger" data-act="share-revoke">Linki iptal et</button>
+    </div>`;
+}
+function openClientShare(){
+  const c=clientOf(S.client); if(!c) return;
+  modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
 }
 
 /* ══════════════ Bulutla eşitleme = BİRLEŞTİRME (üzerine yazmaz, silmez) ══════════════
@@ -5558,6 +5654,7 @@ function pageClient(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap" class="no-print">
       <button class="btn btn-sm" data-modal="client-edit">Bilgileri düzenle</button>
+      <button class="btn btn-sm" data-act="share-open">🔗 Danışan linki</button>
       <button class="btn btn-sm" data-wa-quick-open="${c.id}">📱 WhatsApp gönder</button>
       <button class="btn btn-sm" data-arch-toggle="${c.id}">${c.archived?'Arşivden çıkar':'Arşivle'}</button>
       <button class="btn btn-sm ${c.invoiced?'':'btn-primary'}" data-inv-toggle="${c.id}">🧾 ${c.invoiced?'Faturayı geri al':'Fatura kesildi'}</button>
@@ -7895,6 +7992,10 @@ document.addEventListener('click',async e=>{
     if(a==='form-docx-blank'){ try{ exportFormDocx(true); }catch(err){ toast('Word dosyası oluşturulamadı'); } return; }
     if(a==='docx'){ try{ await exportDocx(); }catch(err){ console.error(err); toast('Word dosyası oluşturulamadı'); } return; }
     if(a==='pdf'){ try{ await exportPdf(); }catch(err){ console.error(err); toast('PDF oluşturulamadı: '+(err.message||'bilinmeyen hata')); } return; }
+    if(a==='share-open'){ openClientShare(); return; }
+    if(a==='share-gen'){ await shareGenerate(); return; }
+    if(a==='share-copy'){ shareCopy(); return; }
+    if(a==='share-revoke'){ await shareRevoke(); return; }
     if(a==='save-form'){
       const c2=clientOf(S.client);
       Object.assign(c2,{name:val('fm-name')||c2.name,age:val('fm-age'),city:val('fm-city'),height:val('fm-height'),
@@ -8172,7 +8273,110 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='Enter') pinTry();
 });
 
+/* ══════════════ Danışan görünümü (?v=token) ══════════════
+   Bu uygulamanın normal paneli hiç yüklenmeden, danışanın kendi linkiyle
+   açtığı ayrı, salt-okunur bir sayfa. DB/localStorage/PIN'e hiç dokunmaz;
+   sadece buluttaki "shares/{token}" anlık görüntüsünü okur (token'ı
+   bilmeyen biri bu yoldan hiçbir şey göremez — veri yolu ana panelin
+   verisinden tamamen ayrı). */
+function shareViewMsg(msg){
+  document.getElementById('shareView').innerHTML=`<div class="sv-wrap"><div class="sv-card" style="text-align:center;padding:50px 24px"><div style="font-size:34px;margin-bottom:10px">🔒</div><p style="color:var(--muted);max-width:360px;margin:0 auto">${esc(msg)}</p></div></div>`;
+}
+async function bootShareView(token){
+  document.querySelector('.app').style.display='none';
+  const lockEl=document.getElementById('lock');
+  lockEl.hidden=true; lockEl.style.display='none';   // #lock için CSS display:grid, hidden niteliğini eziyor — satır içi stille de kapatılmalı
+  document.title='Danışan Takip Sayfası';
+  const root=document.getElementById('shareView'); root.hidden=false;
+  root.innerHTML='<div class="sv-wrap"><p style="color:var(--muted);text-align:center;padding:60px 0">Yükleniyor…</p></div>';
+  try{
+    const r=await fetch(CLOUD_DB+'/shares/'+encodeURIComponent(token)+'.json');
+    if(!r.ok) throw new Error('İstek başarısız ('+r.status+')');
+    const raw=await r.json();
+    const snap=typeof raw==='string'?JSON.parse(raw):raw;
+    if(!snap) return shareViewMsg('Bu bağlantı artık geçerli değil veya iptal edilmiş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
+    if(snap.expiresAt&&Date.now()>snap.expiresAt) return shareViewMsg('Bu bağlantının süresi dolmuş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
+    renderShareView(snap);
+  }catch(e){ shareViewMsg('Sayfa yüklenemedi — internet bağlantınızı kontrol edip sayfayı yenileyin.'); }
+}
+function renderShareView(snap){
+  window.__shareSnap=snap;
+  const pts=(snap.measures||[]).filter(m=>m.date&&m.weight!=null);
+  const first=pts[0], last=pts[pts.length-1];
+  const diff=(first&&last&&pts.length>1)?(+last.weight-+first.weight):null;
+  const p=snap.plan;
+  const planHtml=!p?'':`<section class="sv-card" style="margin-top:16px">
+      <div class="sv-card-h"><h3>📋 Güncel programın: ${esc(p.name)}</h3></div>
+      <div style="padding:16px">
+        ${p.sub?`<p style="color:var(--muted);margin:0 0 12px">${esc(p.sub)}</p>`:''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          <button class="btn btn-sm btn-primary" id="svWordBtn">⬇ Word olarak indir</button>
+          <button class="btn btn-sm btn-primary" id="svPdfBtn">⬇ PDF olarak indir</button>
+        </div>
+        <div class="days" style="margin-bottom:14px">${p.days.map((d,i)=>{
+          const f=d.meals.filter(m=>m.lines.length||m.title).length;
+          return `<button class="day sv-day" data-sv-day="${i}" aria-pressed="${i===0}" style="--dayc:${DAY_WEB[i]}">
+            <div class="d-n">${DAY_EMOJI[i]} ${esc(DAY_FULL[((+p.firstDay||0)+i)%7])}</div><div class="d-d">${i+1}</div>
+            <div class="d-k">${f}/5</div></button>`;}).join('')}</div>
+        <div id="svDayBody"></div>
+      </div>
+    </section>`;
+  document.getElementById('shareView').innerHTML=`<div class="sv-wrap">
+    <header class="sv-top">
+      ${snap.profile&&snap.profile.logo?`<img src="${snap.profile.logo}" style="height:40px">`:''}
+      <div><b>${esc(snap.profile?snap.profile.name:'')}</b>${snap.profile&&snap.profile.clinic?`<div style="font-size:12px;color:var(--muted)">${esc(snap.profile.clinic)}</div>`:''}</div>
+    </header>
+    <h1 style="margin:18px 0 4px">Merhaba ${esc(snap.name)} 👋</h1>
+    <p style="color:var(--muted);margin:0 0 20px">Gelişimini ve güncel programını burada takip edebilirsin.</p>
+    ${snap.nextAppt?`<section class="sv-card" style="margin-bottom:16px"><div style="padding:16px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:22px">📅</span><div><b>Sıradaki randevun</b><div style="color:var(--muted);font-size:13.5px">${trDT(snap.nextAppt.when)} · ${esc(snap.nextAppt.type||'')}</div></div>
+    </div></section>`:''}
+    <section class="sv-card"><div class="sv-card-h"><h3>⚖ Gelişim grafiğin</h3></div>
+      <div style="padding:16px">
+        ${pts.length>1?lineChart(pts):`<p style="color:var(--muted);margin:0">Henüz grafik oluşturacak kadar ölçüm yok.</p>`}
+        ${diff!=null?`<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Başlangıçtan bu yana <b style="color:${diff<=0?'var(--ok)':'var(--warn)'}">${diff>0?'+':''}${n1(diff)} kg</b></p>`:''}
+      </div>
+    </section>
+    ${planHtml}
+    <p style="text-align:center;color:var(--muted);font-size:11.5px;margin:28px 0 10px">Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
+  </div>`;
+  if(p){
+    svShowDay(0);
+    document.getElementById('svWordBtn').addEventListener('click',()=>svExport('docx'));
+    document.getElementById('svPdfBtn').addEventListener('click',()=>svExport('pdf'));
+    document.querySelectorAll('[data-sv-day]').forEach(b=>b.addEventListener('click',()=>{
+      document.querySelectorAll('[data-sv-day]').forEach(x=>x.setAttribute('aria-pressed','false'));
+      b.setAttribute('aria-pressed','true');
+      svShowDay(+b.dataset.svDay);
+    }));
+  }
+}
+function svShowDay(i){
+  const p=window.__shareSnap.plan, d=p.days[i], host=document.getElementById('svDayBody'); if(!host) return;
+  const filled=d.meals.filter(m=>m.lines.length||m.title);
+  host.innerHTML=filled.length?filled.map(m=>{
+    const st=MEAL_STYLE[m.name]||{web:'#4C9A73',webbg:'#F5F7F6'};
+    return `<div class="card" style="border-left:4px solid ${st.web};margin-bottom:10px">
+      <div style="background:${st.webbg};padding:8px 14px;font-weight:700;color:${st.web};font-size:12.5px">${m.emoji} ${esc(m.name).toLocaleUpperCase('tr')}</div>
+      <div style="padding:10px 14px">
+        ${m.title?`<div style="font-weight:700;margin-bottom:5px">${esc(m.title)}</div>`:''}
+        ${m.lines.length?`<ul style="margin:0;padding-left:16px;font-size:13px;line-height:1.6">${m.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
+        ${m.tip?`<div style="margin-top:6px;color:var(--muted);font-size:12px;font-style:italic">${esc(m.tip)}</div>`:''}
+      </div>
+    </div>`;
+  }).join(''):`<p style="color:var(--muted)">Bu günde öğün girilmemiş.</p>`;
+}
+async function svExport(kind){
+  const snap=window.__shareSnap; if(!snap.plan) return;
+  DB={profile:snap.profile||{}, clients:[{id:snap.plan.clientId||'c', name:snap.name}], plans:[snap.plan]};
+  S.plan=snap.plan.id;
+  try{ if(kind==='docx') await exportDocx(); else await exportPdf(); }
+  catch(e){ toast('İndirilemedi: '+(e.message||'')); }
+}
+
 (async()=>{
+  const shareTok=new URLSearchParams(location.search).get('v');
+  if(shareTok){ return bootShareView(shareTok); }
   try{ await pvOpen(); }catch(e){}
   try{ await loadDB(); }catch(err){ DB=seed(); }
   if(DB.profile.pin===undefined||DB.profile.pin==='') DB.profile.pin='0508';
