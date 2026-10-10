@@ -786,7 +786,7 @@ async function sendWAFile(to, fileUrl, fileName, caption, meta){
    kaldırıldı — tüm WhatsApp gönderimleri artık yalnızca elle,
    WhatsApp sayfasından tetiklenir.) */
 
-function todayStr(d){ return new Date(d||Date.now()).toISOString().slice(0,10); }
+function todayStr(d){ return localISODate(d?new Date(d):new Date()); }
 
 async function autoBackupCheck(){
   if(typeof cloudReady!=='function' || !cloudReady()) return; // bulut girişi yoksa yedek alamayız
@@ -1820,12 +1820,19 @@ async function trashRestore(id){
       L.push(d); }
     else if(it.type==='food'){
       if(!DB.foods.some(x=>x.id===d.id)) DB.foods.push(d);
+      if(Array.isArray(DB.removedSeedFoods)) DB.removedSeedFoods=DB.removedSeedFoods.filter(n=>n!==d.n);
       if(typeof dropFoodIndex==='function') dropFoodIndex();
     }
     else if(it.type==='tpl'){ DB.templates=DB.templates||[]; if(!DB.templates.some(x=>x.id===d.id)) DB.templates.push(d); }
     else return toast('Bu kayıt geri alınamıyor');
   }catch(e){ return toast('Geri alınamadı'); }
   DB.trash.splice(i,1);
+  /* Buluttaki başka bir cihaz bu silmeyi henüz görmediyse, eşitlendiğinde
+     bu kaydı yanlışlıkla yeniden "silinmiş" saymaması için not düşülüyor
+     (bkz. mergeDB / tombDeleted). */
+  if(!DB.restoredLog) DB.restoredLog={};
+  const rid=trashEntityId(it);
+  if(rid) DB.restoredLog[rid]=Date.now();
   await save(); toast((TRASH_LBL[it.type]||'Kayıt')+' geri alındı'); render();
 }
 
@@ -1931,6 +1938,12 @@ async function cloudPhotoPull(hashes){
 }
 const phRefsIn=raw=>{ const out=new Set(); const re=/ph:\/\/([A-Za-z0-9]+)/g; let m; while((m=re.exec(raw))) out.add(m[1]); return out; };
 async function cloudPush(){
+  // HAM / ÜZERİNE YAZAN gönderim — bu cihazın tüm verisini olduğu gibi buluta yazar.
+  // Önceden merge edilmiş bir DB için güvenlidir (örn. cloudSync kendi
+  // birleştirmesini zaten yaptıktan sonra). Genel kullanımda (her
+  // kayıttan sonra) bunun yerine cloudPushMerged() kullanılmalı — aksi
+  // halde bu cihaz, başka bir cihazın arada yaptığı bir değişikliği
+  // (örn. bir silmeyi) habersizce geri alabilir.
   const at=DB.updatedAt;                       // yazılan verinin sürümü (aynı anda hesaplanır)
   const L=PV.ok? dbLight() : {raw:JSON.stringify(DB),found:new Map()};
   const r=await fetch(await cloudUrl(),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(L.raw)});
@@ -1939,13 +1952,36 @@ async function cloudPush(){
   if(L.found.size) cloudPhotoPush([...L.found.keys()]).catch(()=>{});
 }
 
+/* ÖNEMLİ — önceden buluta "olduğu gibi" (ham) yazılıyordu. Bu, iki cihaz
+   art arda kısa sürede kaydettiğinde VERİ KAYBINA yol açabiliyordu: Cihaz
+   A bir danışanı silip buluta yazdıktan hemen sonra, henüz o değişikliği
+   görmemiş Cihaz B herhangi bir düzenleme yapıp kaydederse, B'nin eski
+   (silinen danışanı hâlâ içeren) anlık görüntüsü buluta yazılır ve A'nın
+   silmesi sessizce geri alınır. cloudPushMerged() önce buluttan okur,
+   bu cihazdaki veriyle birleştirir (silinen kayıtlar çöp kutusu/tombstone
+   ile korunur — bkz. mergeDB), sonucu bu cihaza da kaydeder ve ANCAK
+   SONRA buluta yazar. */
+async function cloudPushMerged(){
+  let remote=null;
+  try{ remote=await cloudPull(); }catch(e){ /* okunamazsa eski davranışa düş: olduğu gibi yaz */ }
+  if(remote){
+    const diff=syncDiff(DB,remote);
+    const keepCloud=DB.cloud;
+    DB=mergeDB(DB,remote); DB.cloud=keepCloud;
+    if(PV.ok) phHydrate(DB);
+    await save({noCloud:true});
+    if(diff.onlyB && !userIsBusy()) render();
+  }
+  await cloudPush();
+}
+
 /* Bir dosya/fotoğraf yüklendikten hemen sonra 800ms'lik bekleme olmadan buluta gönderir.
    Bulut bağlı değilse ya da gönderim başarısız olursa bunu açıkça söyler; sessizce geçmez. */
 async function forceCloudBackup(){
   if(!cloudReady()||!CL().enabled) return ' · sadece bu cihazda kaydedildi (buluta bağlı değilsin)';
   try{
     clearTimeout(pushTimer);
-    await cloudPush();
+    await cloudPushMerged();
     paintSync('Buluta kaydedildi · '+new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),'var(--ok)');
     return ' · buluta yedeklendi ✓';
   }catch(err){
@@ -1959,7 +1995,7 @@ function cloudPushSoon(){
   clearTimeout(pushTimer);
   paintSync('Eşitlenecek…','var(--warn)');
   pushTimer=setTimeout(async()=>{
-    try{ paintSync('Eşitleniyor…','var(--warn)'); await cloudPush();
+    try{ paintSync('Eşitleniyor…','var(--warn)'); await cloudPushMerged();
       paintSync('Buluta kaydedildi · '+new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}),'var(--ok)');
       try{ localStorage.setItem(KEY, PV.ok? dbLight().raw : JSON.stringify(DB)); }catch(e){}
     }catch(err){ paintSync('Bulut hatası: '+err.message,'var(--danger)'); }
@@ -2087,16 +2123,54 @@ async function cloudBackupRestore(k){
 
 /* ══════════════ Bulutla eşitleme = BİRLEŞTİRME (üzerine yazmaz, silmez) ══════════════
    Bu cihazdaki ve buluttaki kayıtlar id'lerine göre birleştirilir. Yalnız bir tarafta olan kayıt korunur;
-   iki tarafta da olan kayıtta daha yeni kaydedilen taraf kazanır (içindeki ölçüm/not gibi alt listeler yine birleşir). */
+   iki tarafta da olan kayıtta daha yeni kaydedilen taraf kazanır (içindeki ölçüm/not gibi alt listeler yine birleşir).
+
+   ÖNEMLİ — silinen kayıtların "dirilmesi" sorunu: id-birleştirme SADECE EKLER,
+   hiçbir zaman çıkarmaz (bilerek — bir cihazın henüz görmediği yeni kaydı
+   yanlışlıkla silmemesi için). Ama bu, bir cihazda silinen bir danışanın,
+   henüz o silmeyi görmemiş başka bir cihaz eşitlendiğinde GERİ GELMESİNE
+   yol açabilir. Çözüm: çöp kutusu (DB.trash) zaten her silmeyi id + zaman
+   damgasıyla kaydediyor — bunu "mezar taşı" (tombstone) olarak kullanıyoruz.
+   Birleştirme sırasında bir id yalnız bir tarafta varsa ve o id çöp
+   kutusunda (iki tarafın birleşimi) bir silinme kaydıyla eşleşiyorsa,
+   GERİ EKLENMEZ — silinmiş kabul edilir. Geri Al (trashRestore) ise
+   DB.restoredLog'a o id için YENİ bir zaman damgası yazar; bu damga
+   silinme damgasından daha yeniyse kayıt yine de korunur (geri almak
+   silinme bilgisinden "kazanır"). */
 const isPlain=v=>v&&typeof v==='object'&&!Array.isArray(v);
 const hasIds=a=>Array.isArray(a)&&a.length>0&&a.every(x=>isPlain(x)&&x.id!==undefined&&x.id!==null);
+function trashEntityId(t){
+  if(!t||!t.data) return null;
+  if(t.type==='client') return t.data.client&&t.data.client.id;
+  return t.data.id;
+}
+function deletedAtMap(trashArr){
+  const m={};
+  (trashArr||[]).forEach(t=>{ const id=trashEntityId(t); if(id==null) return; const at=+t.at||0; if(!m[id]||at>m[id]) m[id]=at; });
+  return m;
+}
+function maxMap(a,b){
+  const o={}; new Set([...Object.keys(a||{}),...Object.keys(b||{})]).forEach(k=>{ o[k]=Math.max(+((a||{})[k])||0,+((b||{})[k])||0); });
+  return o;
+}
+let CUR_TOMB=null;                          // mergeDB çalışırken geçici olarak dolu olur (senkron, iç içe çağrı yok)
+function tombDeleted(id){
+  if(!CUR_TOMB||id==null) return false;
+  const d=CUR_TOMB.delAt[id]||0, r=CUR_TOMB.restoredAt[id]||0;
+  return d>0 && d>r;
+}
 function mergeVal(a,b,prefB){              // a = bu cihaz, b = bulut
   if(a===undefined) return b;
   if(b===undefined) return a;
   if(Array.isArray(a)&&Array.isArray(b)){
     if((hasIds(a)||!a.length)&&(hasIds(b)||!b.length)){
-      const out=a.slice(), idx=new Map(out.map((x,i)=>[x.id,i]));
-      b.forEach(y=>{ if(idx.has(y.id)){ const i=idx.get(y.id); out[i]=mergeVal(out[i],y,prefB); } else { idx.set(y.id,out.length); out.push(y); } });
+      const bIds=new Set(b.map(x=>x.id));
+      const out=a.filter(x=>bIds.has(x.id)||!tombDeleted(x.id));   // sadece bu tarafta olan ama silinmiş olan kaydı çıkar
+      const idx=new Map(out.map((x,i)=>[x.id,i]));
+      b.forEach(y=>{
+        if(idx.has(y.id)){ const i=idx.get(y.id); out[i]=mergeVal(out[i],y,prefB); }
+        else if(!tombDeleted(y.id)){ idx.set(y.id,out.length); out.push(y); }   // sadece buluttaki ama silinmiş olanı ekleme
+      });
       return out;
     }
     return prefB? b : a;                   // sırası önemli listeler (günler, öğünler…): yeni olan taraf
@@ -2108,7 +2182,10 @@ function mergeVal(a,b,prefB){              // a = bu cihaz, b = bulut
 }
 function mergeDB(local,remote){
   const prefB=(+remote.updatedAt||0)>(+local.updatedAt||0);
+  CUR_TOMB={ delAt:maxMap(deletedAtMap(local.trash),deletedAtMap(remote.trash)), restoredAt:maxMap(local.restoredLog,remote.restoredLog) };
   const m=mergeVal(local,remote,prefB);
+  m.restoredLog=CUR_TOMB.restoredAt;
+  CUR_TOMB=null;
   m.seq=Math.max(+local.seq||1,+remote.seq||1);
   if(local.receiptNo||remote.receiptNo) m.receiptNo=Math.max(+local.receiptNo||0,+remote.receiptNo||0);
   if(Array.isArray(m.waLog)){ m.waLog.sort((x,y)=>String(y.time||'').localeCompare(String(x.time||''))); if(m.waLog.length>300) m.waLog.length=300; }
@@ -2171,7 +2248,13 @@ const uid=p=>p+(DB.seq++)+'-'+Date.now().toString(36).slice(-4);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n1=n=>Number(n||0).toFixed(1).replace(/\.0$/,'');
 const kc=n=>Math.round(Number(n)||0);
-const todayISO=()=>new Date().toISOString().slice(0,10);
+/* ÖNEMLİ: toISOString() her zaman UTC'ye çevirir. Türkiye (UTC+3) gibi
+   saat farkı olan yerlerde new Date().toISOString().slice(0,10) gece
+   00:00-02:59 arası BİR ÖNCEKİ günü döndürür (ör. yerel 01:30'da "dün"
+   olur). localISODate() bunun yerine tarayıcının kendi yerel takvim
+   alanlarını (getFullYear/getMonth/getDate) okur — gerçek "bugün"ü verir. */
+function localISODate(d){ d=d||new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+const todayISO=()=>localISODate();
 const trDate=s=>{ if(!s) return '—'; const d=new Date(s); return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'short',year:'numeric'}); };
 const trDT=s=>{ if(!s) return '—'; const d=new Date(s); return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'short'})+' · '+d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}); };
 
@@ -3981,8 +4064,15 @@ function migrateFoods(){
       if(f.gi===undefined) f.gi=0; if(f.g===undefined) f.g=100; f.u=f.u||{}; normUnits(f); }
     changed=true;
   });
-  /* Kütüphanede olmayan yeni besinleri ekle */
+  /* Kütüphanede olmayan yeni besinleri ekle — ama kasıtlı olarak silinmiş
+     (çöp kutusuna taşınmış) hazır besinleri GERİ EKLEME. Çöp kutusu 10
+     günde kendiliğinden boşaldığı için oraya bakmak yeterli değil; bu
+     yüzden silinen hazır besin adları DB.removedSeedFoods'ta kalıcı
+     olarak tutuluyor. */
+  if(!Array.isArray(DB.removedSeedFoods)) DB.removedSeedFoods=[];
+  const removedNames=new Set(DB.removedSeedFoods);
   SEED_FOODS.forEach(ref=>{
+    if(removedNames.has(ref.n)) return;
     if(!DB.foods.some(f=>f.n===ref.n)){ DB.foods.push(Object.assign({},ref,{id:uid('f')})); changed=true; }
   });
   if(changed) dropFoodIndex();
@@ -6476,7 +6566,7 @@ function pageSearch(){
 const ymOf=d=>String(d).slice(0,7);
 const isoOf=d=>String(d).slice(0,10);
 const trMonth=ym=>{const [y,m]=ym.split('-');return new Date(+y,+m-1,1).toLocaleDateString('tr-TR',{month:'long',year:'numeric'});};
-const shiftYM=(ym,n)=>{const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return d.toISOString().slice(0,7);};
+const shiftYM=(ym,n)=>{const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
 const hhmm=w=>new Date(w).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
 const apptsOf=iso=>DB.appts.filter(a=>isoOf(a.when)===iso).sort((a,b)=>new Date(a.when)-new Date(b.when));
 const payOf=a=>(a.pay&&+a.pay.amount)||0;
@@ -7295,7 +7385,15 @@ document.addEventListener('click',async e=>{
     DB.appts=DB.appts.filter(x=>x.id!==da.dataset.delAppt); await save(); toast('Çöp kutusuna taşındı'); return render(); }
   const df=t.closest('[data-del-food]'); if(df){
     const it=DB.foods.find(x=>x.id===df.dataset.delFood);
-    if(it) trashPush('food',it.n,it);
+    if(it){
+      trashPush('food',it.n,it);
+      // Hazır besin kütüphanesinden biriyse adını kalıcı olarak hatırla ki
+      // bir sonraki açılışta migrateFoods() onu otomatik geri eklemesin.
+      if(SEED_FOODS.some(s=>s.n===it.n)){
+        if(!Array.isArray(DB.removedSeedFoods)) DB.removedSeedFoods=[];
+        if(!DB.removedSeedFoods.includes(it.n)) DB.removedSeedFoods.push(it.n);
+      }
+    }
     DB.foods=DB.foods.filter(x=>x.id!==df.dataset.delFood); dropFoodIndex(); await save(); toast('Çöp kutusuna taşındı'); return render(); }
   const ef=t.closest('[data-edit-food]'); if(ef){ S.editFood=ef.dataset.editFood; return openModal('food-edit'); }
   const fv=t.closest('[data-foodview]'); if(fv){ S.foodView=fv.dataset.foodview; return render(); }
@@ -7764,8 +7862,21 @@ document.addEventListener('change',async e=>{
 document.getElementById('importFile').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f) return;
   const r=new FileReader();
-  r.onload=async()=>{ try{ const d=JSON.parse(r.result); if(!d.clients) throw 0; DB=d; logoUpgrade(); await save(); S.page='panel'; render(); toast('Yedek yüklendi'); }
-    catch(err){ toast('Dosya okunamadı'); } };
+  r.onload=async()=>{
+    try{
+      const d=JSON.parse(r.result); if(!d.clients) throw 0;
+      if(!confirm('"'+f.name+'" dosyası yüklenecek ve şu anki tüm veriler onunla değişecek.\n\nÖnce şu anki halinin bir kopyası bilgisayarına indirilir. Devam edilsin mi?')){ e.target.value=''; return; }
+      // Yanlış dosya seçilirse diye, üzerine yazmadan hemen önce mevcut
+      // halin bir güvenlik kopyasını indir (bulut geri yüklemeyle aynı desen).
+      const bk=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(bk);
+      a.download='diyet-yedek-yuklemeden-once-'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.json'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+      const keepCloud=DB.cloud;                     // bu dosya başka bir cihazdan geldiyse eski/boş bulut bilgisini taşımasın
+      DB=normalizeRestored(d); DB.cloud=keepCloud; logoUpgrade(); await save(); S.page='panel'; render(); toast('Yedek yüklendi');
+    }
+    catch(err){ toast('Dosya okunamadı — geçerli bir yedek dosyası değil'); }
+  };
   r.readAsText(f); e.target.value='';
 });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
