@@ -47,6 +47,28 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #E7F1FB 0%, transparen
 .sv-card-h h3{font-size:14.5px}
 .sv-day[aria-pressed="true"]{background:var(--dayc,var(--blue-600));border-color:var(--dayc,var(--blue-600));color:#fff}
 .sv-day[aria-pressed="true"] .d-n,.sv-day[aria-pressed="true"] .d-k{color:rgba(255,255,255,.82)}
+.sv-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--blue-700) 0%,var(--blue-500) 55%,#4FA6E0 100%);color:#fff;border-radius:18px;padding:22px}
+.sv-hero::before{content:'';position:absolute;right:-56px;top:-76px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.09)}
+.sv-hero::after{content:'';position:absolute;left:-34px;bottom:-66px;width:170px;height:170px;border-radius:50%;background:rgba(255,255,255,.07)}
+.sv-hero>*{position:relative;z-index:1}
+.sv-brand{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.sv-brand img{height:32px;border-radius:7px;background:#fff;padding:3px}
+.sv-brand b{display:block;font-size:13px}
+.sv-brand span{display:block;font-size:11px;color:#CFE6F8}
+.sv-hero h1{color:#fff;font-size:22px;margin:0}
+.sv-hero p{margin:6px 0 0;color:#D9EDFB;font-size:13.5px;max-width:52ch}
+.sv-appt{display:flex;align-items:center;gap:11px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.22);font-size:13px}
+.sv-appt b{font-family:var(--mono);color:#fff}
+.sv-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:16px 0}
+.sv-kpi-c{background:#fff;border:1px solid var(--line);border-radius:var(--r-s);padding:12px 8px;text-align:center}
+.sv-kpi-c .l{font-size:10.5px;color:var(--muted)}
+.sv-kpi-c .v{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--blue-900);margin-top:3px}
+.sv-kpi-c .v small{font-size:10.5px;font-weight:400;color:var(--muted)}
+.sv-sub{font-family:var(--serif);font-size:15px;margin:0 0 4px}
+.sv-dislike{font-size:12px;padding:6px 11px;border-radius:999px}
+.sv-dislike:not([disabled]):hover{border-color:#EFD3CF;background:var(--danger-bg);color:var(--danger)}
+.sv-foot{display:flex;align-items:center;justify-content:center;gap:6px;margin:26px 0 8px;color:var(--muted);font-size:11.5px}
+@media(max-width:380px){.sv-kpi-c .v{font-size:14.5px}}
 .rail{width:262px;flex:0 0 262px;background:linear-gradient(185deg,#FFFFFF 0%,#F3F9FE 100%);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
 .i{flex:0 0 auto;vertical-align:-3px}
 .brand{padding:20px 18px 16px;border-bottom:1px solid var(--line-2);display:flex;gap:12px;align-items:center}
@@ -807,7 +829,7 @@ async function sendWAFile(to, fileUrl, fileName, caption, meta){
 function todayStr(d){ return localISODate(d?new Date(d):new Date()); }
 
 async function autoBackupCheck(){
-  if(typeof cloudReady!=='function' || !cloudReady()) return; // bulut girişi yoksa yedek alamayız
+  if(!DB || typeof cloudReady!=='function' || !cloudReady()) return; // bulut girişi yoksa / danışan linki görünümünde yedek alamayız
   const hh = new Date().getHours();
   const slot = hh===12 ? 'noon' : (hh===18 ? 'evening' : null);
   if(!slot) return;
@@ -8401,51 +8423,55 @@ function renderShareView(snap){
         <div id="svDayBody"></div>
       </div>
     </section>`;
+  const mood=diff==null?'Gelişimini ve güncel programını burada takip edebilirsin.'
+    :diff<=0?`Harika gidiyorsun — başlangıçtan bu yana <b>${n1(Math.abs(diff))} kg</b> verdin 💪`
+    :`Değişim doğal bir süreç; diyetisyeninle birlikte devam ediyorsun.`;
+  const kpiHtml=pts.length?`<div class="sv-kpi">
+      <div class="sv-kpi-c"><div class="l">Başlangıç</div><div class="v">${n1(first.weight)}<small> kg</small></div></div>
+      <div class="sv-kpi-c"><div class="l">Güncel</div><div class="v">${n1(last.weight)}<small> kg</small></div></div>
+      <div class="sv-kpi-c"><div class="l">Fark</div><div class="v" style="color:${diff==null?'var(--ink-2)':diff<=0?'var(--ok)':'var(--warn)'}">${diff==null?'—':(diff>0?'+':'')+n1(diff)+' kg'}</div></div>
+    </div>`:'';
   document.getElementById('shareView').innerHTML=`<div class="sv-wrap">
-    <header class="sv-top">
-      ${snap.profile&&snap.profile.logo?`<img src="${snap.profile.logo}" style="height:40px">`:''}
-      <div><b>${esc(snap.profile?snap.profile.name:'')}</b>${snap.profile&&snap.profile.clinic?`<div style="font-size:12px;color:var(--muted)">${esc(snap.profile.clinic)}</div>`:''}</div>
-    </header>
-    <h1 style="margin:18px 0 4px">Merhaba ${esc(snap.name)} 👋</h1>
-    <p style="color:var(--muted);margin:0 0 20px">Gelişimini ve güncel programını burada takip edebilirsin.</p>
-    ${snap.nextAppt?`<section class="sv-card" style="margin-bottom:16px"><div style="padding:16px;display:flex;align-items:center;gap:12px">
-      <span style="font-size:22px">📅</span><div><b>Sıradaki randevun</b><div style="color:var(--muted);font-size:13.5px">${trDT(snap.nextAppt.when)} · ${esc(snap.nextAppt.type||'')}</div></div>
-    </div></section>`:''}
-    <section class="sv-card"><div class="sv-card-h"><h3>⚖ Gelişim grafiğin</h3></div>
+    <div class="sv-hero">
+      <div class="sv-brand">
+        ${snap.profile&&snap.profile.logo?`<img src="${snap.profile.logo}">`:''}
+        <div><b>${esc(snap.profile?snap.profile.name:'')}</b>${snap.profile&&snap.profile.clinic?`<span>${esc(snap.profile.clinic)}</span>`:''}</div>
+      </div>
+      <h1>Merhaba ${esc(snap.name)} 👋</h1>
+      <p>${mood}</p>
+      ${snap.nextAppt?`<div class="sv-appt"><span style="font-size:19px">📅</span><div>Sıradaki randevun<br><b>${trDT(snap.nextAppt.when)}</b> · ${esc(snap.nextAppt.type||'')}</div></div>`:''}
+    </div>
+    ${kpiHtml}
+    <section class="sv-card" style="margin-top:${kpiHtml?'0':'16px'}"><div class="sv-card-h"><h3>⚖ Gelişim grafiğin</h3></div>
       <div style="padding:16px">
         ${pts.length>1?lineChart(pts):`<p style="color:var(--muted);margin:0">Henüz grafik oluşturacak kadar ölçüm yok.</p>`}
-        ${diff!=null?`<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Başlangıçtan bu yana <b style="color:${diff<=0?'var(--ok)':'var(--warn)'}">${diff>0?'+':''}${n1(diff)} kg</b></p>`:''}
-        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">
-          <b style="font-size:13px">Yeni ölçüm ekle</b>
-          <p class="hint" style="margin:4px 0 8px">Boyunu bir kez yazman yeterli — kilo-boy endeksini (BKİ) anında burada görürsün.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-            <input type="date" id="svMDate" value="${todayISO()}" style="flex:1;min-width:130px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
-            <input type="number" inputmode="decimal" id="svMWeight" placeholder="Kilo (kg)*" value="${last?last.weight:''}" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line-2)">
+          <h4 class="sv-sub">Yeni ölçüm ekle</h4>
+          <p class="hint" style="margin:0 0 12px">Boyunu bir kez yazman yeterli — kilo-boy endeksini (BKİ) anında burada görürsün.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field"><label>Tarih</label><input type="date" id="svMDate" value="${todayISO()}"></div>
+            <div class="field"><label>Kilo (kg)</label><input type="number" inputmode="decimal" id="svMWeight" value="${last?last.weight:''}" placeholder="örn. 68.5"></div>
+            <div class="field"><label>Boy (cm)</label><input type="number" inputmode="decimal" id="svMHeight" value="${esc(svHeightStored)}" placeholder="örn. 170"></div>
+            <div class="field"><label>Bel (cm) <span style="font-weight:400;color:var(--muted)">— ops.</span></label><input type="number" inputmode="decimal" id="svMWaist" placeholder="—"></div>
+            <div class="field" style="grid-column:1/-1"><label>Kalça (cm) <span style="font-weight:400;color:var(--muted)">— ops.</span></label><input type="number" inputmode="decimal" id="svMHip" placeholder="—"></div>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-            <input type="number" inputmode="decimal" id="svMHeight" placeholder="Boyun (cm)" value="${esc(svHeightStored)}" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
-            <input type="number" inputmode="decimal" id="svMWaist" placeholder="Bel (cm) — ops." style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
-            <input type="number" inputmode="decimal" id="svMHip" placeholder="Kalça (cm) — ops." style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
-          </div>
-          <div id="svBmiOut" style="margin-top:10px"></div>
-          <button class="btn btn-sm btn-primary" id="svMeasureBtn" style="margin-top:10px">💾 Ölçümü kaydet</button>
+          <div id="svBmiOut" style="margin-top:12px"></div>
+          <button class="btn btn-primary" id="svMeasureBtn" style="margin-top:12px;width:100%;justify-content:center">💾 Ölçümü kaydet</button>
         </div>
       </div>
     </section>
     <section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>📝 Bugünü işaretle</h3></div>
       <div style="padding:16px">
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <input type="number" inputmode="numeric" id="svJWater" placeholder="💧 Su (bardak)" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
-          <input type="number" inputmode="numeric" id="svJSteps" placeholder="🚶 Adım" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
-          <input type="number" inputmode="decimal" id="svJSleep" placeholder="😴 Uyku (saat)" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+          <div class="field"><label>💧 Su</label><input type="number" inputmode="numeric" id="svJWater" placeholder="bardak"></div>
+          <div class="field"><label>🚶 Adım</label><input type="number" inputmode="numeric" id="svJSteps" placeholder="adım"></div>
+          <div class="field"><label>😴 Uyku</label><input type="number" inputmode="decimal" id="svJSleep" placeholder="saat"></div>
         </div>
-        <button class="btn btn-sm btn-primary" id="svJournalBtn" style="margin-top:10px">💾 Günü kaydet</button>
+        <button class="btn btn-primary" id="svJournalBtn" style="margin-top:12px;width:100%;justify-content:center">💾 Günü kaydet</button>
       </div>
     </section>
     ${planHtml}
-    <p style="text-align:center;color:var(--muted);font-size:11.5px;margin:28px 0 10px">Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
+    <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
@@ -8477,7 +8503,7 @@ function svShowDay(i){
         ${m.tip?`<div style="margin-top:6px;color:var(--muted);font-size:12px;font-style:italic">${esc(m.tip)}</div>`:''}
       </div>
       <div style="padding:0 14px 12px">
-        <button class="btn btn-sm" data-sv-dislike="${i}:${mi}" ${sent?'disabled':''} style="${sent?'opacity:.6':''}">${sent?'✓ Bildirildi':'👎 Bu öğünü sevmedim'}</button>
+        <button class="btn btn-sm sv-dislike" data-sv-dislike="${i}:${mi}" ${sent?'disabled':''}>${sent?'✓ Bildirildi':'👎 Bu öğünü sevmedim'}</button>
       </div>
     </div>`;
   }).join(''):`<p style="color:var(--muted)">Bu günde öğün girilmemiş.</p>`;
