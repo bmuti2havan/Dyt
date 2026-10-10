@@ -69,6 +69,17 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #E7F1FB 0%, transparen
 .sv-dislike:not([disabled]):hover{border-color:#EFD3CF;background:var(--danger-bg);color:var(--danger)}
 .sv-foot{display:flex;align-items:center;justify-content:center;gap:6px;margin:26px 0 8px;color:var(--muted);font-size:11.5px}
 @media(max-width:380px){.sv-kpi-c .v{font-size:14.5px}}
+@media(min-width:860px){
+  .sv-wrap{max-width:880px;padding:48px 24px 70px}
+  .sv-hero{padding:32px 36px}
+  .sv-hero h1{font-size:27px}
+  .sv-hero p{font-size:14.5px}
+  .sv-kpi{grid-template-columns:repeat(3,1fr);gap:14px}
+  .sv-kpi-c{padding:18px 16px}
+  .sv-kpi-c .v{font-size:21px}
+  .sv-card-h h3{font-size:16px}
+  .days{flex-wrap:wrap;overflow:visible}
+}
 .rail{width:262px;flex:0 0 262px;background:linear-gradient(185deg,#FFFFFF 0%,#F3F9FE 100%);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
 .i{flex:0 0 auto;vertical-align:-3px}
 .brand{padding:20px 18px 16px;border-bottom:1px solid var(--line-2);display:flex;gap:12px;align-items:center}
@@ -2184,11 +2195,13 @@ function buildShareSnapshot(c){
   let plan=null;
   if(act){ migratePlan(act); plan=JSON.parse(JSON.stringify(act)); delete plan.privnote; } // 🔒 özel not asla paylaşılmaz
   const nx=nextApptOf(c.id);
+  const notes=(c.notes||[]).filter(n=>n.visible).sort((a,b)=>new Date(b.date)-new Date(a.date))
+    .map(n=>({date:n.date,type:n.type,text:n.text}));
   return {
     name:c.name, clientId:c.id,
     measures:(c.measures||[]).filter(m=>m.date&&m.weight!=null).map(m=>({date:m.date,weight:m.weight,waist:m.waist,hip:m.hip,fat:m.fat})),
     nextAppt: nx? {when:nx.when,type:nx.type} : null,
-    plan,
+    plan, notes,
     profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail}
   };
 }
@@ -3156,7 +3169,7 @@ rangeNote,
 '- Ölçüm geçmişindeki kilo/bel gidişatını dikkate al: kilo artıyorsa porsiyon ve kalori daha sıkı kontrollü olsun, hedefe yaklaşıyorsa mevcut yaklaşımı koru ve pekiştir.',
 '- "lines" içinde her satır tek besin + ev ölçüsü olsun. Örnek: "4 yemek kaşığı yoğurt", "1 küçük şeftali", "2 tam ceviz".',
 '- "title" öğünün iştah açıcı kısa adı. Ara öğünlerde title boş kalabilir.',
-'- "tip" o öğün için 1 cümlelik hazırlanış tarifi veya püf noktası. '+TONE_TXT(tone),
+'- "tip" o öğünün hazırlanış talimatı. Basit bir öğünse kısa tut, ama birden fazla adım gerektiriyorsa tüm adımları yaz — tek cümleye sıkıştırıp kısaltma. '+TONE_TXT(tone),
 '- "sub" o günün tek cümlelik teması.',
 '- Türkçe yaz.',
 '',
@@ -3223,13 +3236,17 @@ async function runGen(){
   }catch(e){ drawGen('error',e.message); }
 }
 function normDays(j,limit){
+  // NOT: bu sınırlar yalnızca bozuk/aşırı uzun model çıktısına karşı bir
+  // güvenlik payı — tarifleri/hazırlanışı kısaltmak için değil. Önceden
+  // tip 220, lines 14 karakter/satırla sınırlıydı ve pastedilen tam
+  // tarifleri kesiyordu; payları olabildiğince geniş tutuyoruz.
   return (j.days||[]).slice(0,limit).map(d=>({
-    sub:String(d.sub||'').slice(0,120),
+    sub:String(d.sub||'').slice(0,240),
     meals:(d.meals||[]).map(m=>({
       slot:Math.max(0,Math.min(MEAL_PRESET.length-1,+m.slot||0)),
-      title:String(m.title||'').slice(0,90),
-      lines:(Array.isArray(m.lines)?m.lines:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,14),
-      tip:String(m.tip||'').slice(0,220)
+      title:String(m.title||'').slice(0,160),
+      lines:(Array.isArray(m.lines)?m.lines:[]).map(x=>String(x).trim()).filter(Boolean).slice(0,40),
+      tip:String(m.tip||'').slice(0,4000)
     }))
   }));
 }
@@ -3445,7 +3462,7 @@ rangeNote,
 '- Metindeki besinleri, porsiyonları ve miktarları AYNEN koru. Yeni besin uydurma, miktar değiştirme.',
 '- "lines" içinde her satır tek bir besin ve ev ölçüsü olsun. Örnek: "2 yemek kaşığı yulaf", "1 küçük şeftali", "2 tam ceviz".',
 '- "title" o öğünün iştah açıcı kısa adı olsun. Örnek: "Şeftalili Yoğurt Kâsesi". Öğün boşsa title ve lines boş bırak.',
-'- "tip" alanı o öğün için 1 cümlelik samimi hazırlanış tarifi veya püf noktası olsun. '+t,
+'- "tip" alanına metindeki hazırlanış/tarif talimatını OLDUĞU GİBİ aktar — kısaltma, özetleme, tek cümleye indirme. Metinde adım adım bir tarif varsa adımların TAMAMINI yaz. Metinde hazırlanışla ilgili bir şey yoksa kısa bir püf noktası ekleyebilirsin. '+t,
 '- "sub" o günün tek cümlelik teması olsun.',
 '- Türkçe yaz. Tırnak içinde kaçış karakterlerine dikkat et.',
 '',
@@ -5714,7 +5731,7 @@ function pageClient(){
     body=`<section class="card"><div class="card-h"><h3>Görüşme notları</h3><div class="spacer"></div><button class="btn btn-sm btn-primary" data-modal="note">${ic('plus',15)} Not ekle</button></div>
       ${ns.length? ns.map(n=>`<div style="padding:14px 16px;border-bottom:1px solid var(--line-2)">
         <div style="display:flex;gap:10px;align-items:center"><b class="num" style="font-size:12.5px">${trDate(n.date)}</b>
-        <span class="tag tag-blue">${esc(n.type)}</span><div class="spacer"></div>
+        <span class="tag tag-blue">${esc(n.type)}</span>${n.visible?`<span class="tag tag-ok" title="Danışan takip linkinden görebilir">👁 Danışan görüyor</span>`:''}<div class="spacer"></div>
         <button class="btn btn-sm" data-edit-note="${n.id}">Düzenle</button>
         <button class="x" data-del-note="${n.id}" title="Sil">✕</button></div>
         <p style="margin:8px 0 0;white-space:pre-wrap">${esc(n.text)}</p>
@@ -5755,19 +5772,31 @@ function pageClient(){
 
 function pagePlans(){
   const ps=DB.plans, flt=S.season||'';
+  const view=S.planView||'all';
   const keyOf=x=>seasonOf(x.season)?x.season:'none';
   const inF=x=>!flt||keyOf(x)===flt;
   const cnt=k=>ps.filter(x=>keyOf(x)===k).length;
-  const shown=ps.filter(inF);
   const allT=tplAll(), tpls=allT.filter(inF);
+  const oldPs=ps.filter(p=>p.status==='Tamamlandı');
+  const recentPs=[...ps].sort((a,b)=>new Date(b.start)-new Date(a.start));
+  const base = view==='old'? oldPs : view==='recent'? recentPs : ps;
+  const shown = view==='tpl'? [] : base.filter(inF);
+  const showTplSection = (view==='all'||view==='tpl') && tpls.length;
+  const showTable = view!=='tpl';
   const sw=t=>{ const th=DOC_THEMES[t.theme]; return th? th.strip.slice(0,7).map(c=>`<i style="background:#${c}"></i>`).join('') : '<i style="background:#E4EAF0"></i>'; };
   return `<div class="page-head"><div><h1>Beslenme programları</h1><p>Danışana özel hazırlanan 7 günlük programlar. Yazdırıp PDF olarak paylaşabilirsiniz.</p></div>
   <div class="spacer"></div>${DB.clients.length?`<button class="btn btn-primary" data-newplan="">${ic('plus',15)} Yeni program</button>`:''}</div>
+  ${(ps.length||allT.length)?`<div class="chip-row" style="margin-bottom:8px">
+    <button class="chip" data-plan-view="all" aria-pressed="${view==='all'}">Tümü (${ps.length})</button>
+    <button class="chip" data-plan-view="tpl" aria-pressed="${view==='tpl'}">📑 Şablon liste (${allT.length})</button>
+    <button class="chip" data-plan-view="old" aria-pressed="${view==='old'}">🗄 Eski liste (${oldPs.length})</button>
+    <button class="chip" data-plan-view="recent" aria-pressed="${view==='recent'}">🕐 Son listeler</button>
+  </div>`:''}
   ${(ps.length||allT.length)?`<div class="chip-row">
     <button class="chip" data-season-f="" aria-pressed="${!flt}">Tümü (${ps.length})</button>
     ${SEASONS.map(x=>`<button class="chip" data-season-f="${x.k}" aria-pressed="${flt===x.k}">${x.em} ${x.ad} (${cnt(x.k)})</button>`).join('')}
     <button class="chip" data-season-f="none" aria-pressed="${flt==='none'}">Mevsimsiz (${cnt('none')})</button></div>`:''}
-  ${tpls.length?`<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Şablonlarım</h3>
+  ${showTplSection?`<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Şablonlarım</h3>
     <div class="spacer"></div><span class="tag">${tpls.length}</span></div>
     ${tpls.map(t=>{ const th=DOC_THEMES[t.theme]; return `<div class="tpl-row">
       <span class="tpl-sw" title="${th?esc(th.ad)+' teması':'Renk seçilmemiş'}">${sw(t)}</span>
@@ -5779,7 +5808,8 @@ function pagePlans(){
       <button class="x" data-tpl-drop="${t.id}" title="Şablonu sil">✕</button></div>`; }).join('')}
     <div class="card-b" style="padding-top:12px;color:var(--muted);font-size:12.5px">Yeni program oluştururken şablonu seçersen içerik, Word renkleri ve not hazır gelir.</div>
   </section>`:''}
-  ${shown.length? `<section class="card"><div class="tw"><table><thead><tr><th>Program</th><th>Danışan</th><th>Mevsim</th><th>Başlangıç</th><th class="t-right">Dolu öğün</th><th>Durum</th><th></th></tr></thead><tbody>
+  ${view==='tpl' && !tpls.length?`<section class="card"><div class="empty"><div class="eic">${ic('plus',24)}</div><h4>Henüz şablon yok</h4><p>Bir programı açıp "☆ Şablon yap" dediğinde burada listelenir.</p></div></section>`:''}
+  ${showTable && shown.length? `<section class="card"><div class="tw"><table><thead><tr><th>Program</th><th>Danışan</th><th>Mevsim</th><th>Başlangıç</th><th class="t-right">Dolu öğün</th><th>Durum</th><th></th></tr></thead><tbody>
     ${shown.map(p=>{const c=clientOf(p.clientId);migratePlan(p);const f=p.days.reduce((a,d)=>a+d.meals.filter(m=>m.lines.length).length,0);const nt=planNote(p);
     return `<tr><td><div class="t-name">${esc(p.name)}</div>${nt?`<div class="t-sub priv-snip" title="${esc(nt)}">🔒 ${esc(oneLine(nt,110))}</div>`:''}</td><td>${esc(c?c.name:'—')}</td>
     <td><select class="season-sel" data-plan-season="${p.id}" title="Mevsim">${seasonOpts(p.season||'')}</select></td>
@@ -5787,7 +5817,7 @@ function pagePlans(){
     <td><span class="tag ${p.status==='Aktif'?'tag-ok':'tag-warn'}"><i class="dot"></i>${esc(p.status)}</span></td>
     <td class="t-right"><button class="btn btn-sm" data-plan="${p.id}">Aç</button></td></tr>`}).join('')}
   </tbody></table></div></section>`
-  : (ps.length
+  : (!showTable? '' : ps.length
     ? `<section class="card"><div class="empty"><h4>Bu grupta program yok</h4><p>Tablodaki mevsim kutusundan bir programın mevsimini değiştirebilir ya da <b>Tümü</b>’ne dönebilirsin.</p></div></section>`
     : `<section class="card"><div class="empty"><div class="eic">${ic('plus',24)}</div><h4>Program yok</h4><p>${DB.clients.length?'Bir danışan seçip 7 günlük program oluşturun.':'Önce bir danışan ekleyin; program her zaman bir kişiye bağlı hazırlanır.'}</p>
   <button class="btn btn-primary" ${DB.clients.length?'data-newplan=""':'data-modal="client"'}>${DB.clients.length?'+ Yeni program oluştur':'+ Önce danışan ekle'}</button></div></section>`)}`;
@@ -5956,7 +5986,7 @@ function pagePlanEdit(){
             <textarea rows="7" data-f="lines:${mi}" placeholder="4 yemek kaşığı yoğurt&#10;2 yemek kaşığı yulaf&#10;1 küçük şeftali">${esc((m.lines||[]).join('\n'))}</textarea>
             <span class="hint">Alt satıra geçtiğinizde otomatik kaydedilir. Kalori girmenize gerek yok.</span></div>
           <div class="field" style="margin-top:12px"><label>Hazırlanışı / püf noktası — isteğe bağlı</label>
-            <textarea rows="2" data-f="tip:${mi}" placeholder="Örn. Yulafı yoğurdun içinde 5 dakika beklet, şeftaliyi en üste diz.">${esc(m.tip||'')}</textarea>
+            <textarea rows="4" data-f="tip:${mi}" placeholder="Örn. Yulafı yoğurdun içinde 5 dakika beklet, şeftaliyi en üste diz. Birden fazla adım varsa hepsini yazabilirsin.">${esc(m.tip||'')}</textarea>
             <span class="hint">Danışana giden Word ve yazdırma çıktısında öğünün altında görünür.</span></div>
           <div class="quickadd no-print">
             <input class="qa-amt" data-qa-amt="${mi}" placeholder="1 su bardağı" list="amtlist">
@@ -6551,7 +6581,9 @@ function openModal(kind){
     <div class="field"><label>Tür</label><select id="n-type">${TYPES.map(x=>`<option ${n0&&n0.type===x?'selected':''}>${x}</option>`).join('')}</select></div>
     <div class="field full"><label>Not *</label><textarea id="n-text" rows="8" placeholder="Danışanın aktardıkları, gözlemler, verilen öneriler ve bir sonraki adım">${n0?esc(n0.text||''):''}</textarea>
       <button class="btn btn-sm" data-note-tidy="1" style="margin-top:8px">✨ Toparla</button>
-      <span class="hint">Dağınık yazdığın notu Gemini başlıklara ayırıp düzeltir.</span></div></div>`,
+      <span class="hint">Dağınık yazdığın notu Gemini başlıklara ayırıp düzeltir.</span></div>
+    <div class="field full"><label><input type="checkbox" id="n-visible" ${n0&&n0.visible?'checked':''} style="width:auto;margin-right:8px">👁 Danışan bu notu kendi takip linkinden görebilsin</label>
+      <span class="hint">İşaretlemezsen not her zamanki gibi sadece sende kalır.</span></div></div>`,
     n0?'Değişikliği kaydet':'Notu kaydet', n0?'note-edit':'note');
   }
   if(kind==='lab') return modal('Laboratuvar sonucu ekle',labForm(),'Sonucu kaydet','lab','640px');
@@ -6783,7 +6815,8 @@ async function handleOk(act){
   }
   if(act==='note'){
     if(!val('n-text')) return toast('Not boş olamaz');
-    c.notes=c.notes||[]; c.notes.push({id:uid('n'),date:val('n-date')||todayISO(),type:val('n-type'),text:val('n-text')});
+    const nVisible=!!(document.getElementById('n-visible')&&document.getElementById('n-visible').checked);
+    c.notes=c.notes||[]; c.notes.push({id:uid('n'),date:val('n-date')||todayISO(),type:val('n-type'),text:val('n-text'),visible:nVisible});
     toast('Not kaydedildi');
   }
   if(act==='note-edit'){
@@ -6791,6 +6824,7 @@ async function handleOk(act){
     const n0=(c.notes||[]).find(x=>x.id===S.editNote);
     if(!n0) return toast('Not bulunamadı');
     n0.date=val('n-date')||n0.date; n0.type=val('n-type')||n0.type; n0.text=val('n-text');
+    n0.visible=!!(document.getElementById('n-visible')&&document.getElementById('n-visible').checked);
     n0.edited=Date.now();
     toast('Not güncellendi');
   }
@@ -7972,6 +8006,7 @@ document.addEventListener('click',async e=>{
     cc.docs=(cc.docs||[]).filter(x=>x.id!==ddel.dataset.docDel);
     await save(); toast('Belge silindi'); render(); return; }
   const sfl=t.closest('[data-season-f]'); if(sfl){ S.season=sfl.dataset.seasonF; return render(); }
+  const plv=t.closest('[data-plan-view]'); if(plv){ S.planView=plv.dataset.planView; return render(); }
   const tde=t.closest('[data-tpl-edit]'); if(tde){ S.editTpl=tde.dataset.tplEdit; return openModal('tpl-edit'); }
   const tdr=t.closest('[data-tpl-drop]'); if(tdr){
     const T=tplGet(tdr.dataset.tplDrop); if(!T) return;
@@ -8407,6 +8442,15 @@ function renderShareView(snap){
   let svHeightStored=''; try{ svHeightStored=localStorage.getItem('sv_height_'+window.__shareTok)||''; }catch(e){}
   if(!svHeightStored && snap.height) svHeightStored=String(snap.height);
   const p=snap.plan;
+  const notesHtml=!(snap.notes&&snap.notes.length)?'':`<section class="sv-card" style="margin-top:16px">
+      <div class="sv-card-h"><h3>📝 Diyetisyeninden notlar</h3></div>
+      <div style="padding:4px 16px 8px">
+        ${snap.notes.map(n=>`<div style="padding:12px 0;border-bottom:1px solid var(--line-2)">
+          <div style="display:flex;gap:8px;align-items:center"><b class="num" style="font-size:12px">${trDate(n.date)}</b><span class="tag tag-blue" style="font-size:11px">${esc(n.type||'')}</span></div>
+          <p style="margin:6px 0 0;white-space:pre-wrap;font-size:13.5px">${esc(n.text)}</p>
+        </div>`).join('')}
+      </div>
+    </section>`;
   const planHtml=!p?'':`<section class="sv-card" style="margin-top:16px">
       <div class="sv-card-h"><h3>📋 Güncel programın: ${esc(p.name)}</h3></div>
       <div style="padding:16px">
@@ -8470,6 +8514,7 @@ function renderShareView(snap){
         <button class="btn btn-primary" id="svJournalBtn" style="margin-top:12px;width:100%;justify-content:center">💾 Günü kaydet</button>
       </div>
     </section>
+    ${notesHtml}
     ${planHtml}
     <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
