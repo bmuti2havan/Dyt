@@ -2025,7 +2025,8 @@ const FB_RULES=`{
     "diyetpro":         { "$uid": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" } },
     "diyetpro_backups": { "$uid": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" } },
     "diyetfoto":        { "$uid": { ".read": "$uid === auth.uid", ".write": "$uid === auth.uid" } },
-    "shares":           { "$token": { ".read": true, ".write": "auth != null" } }
+    "shares":           { "$token": { ".read": true, ".write": "auth != null",
+                            "intake": { ".write": true } } }
   }
 }`;
 async function cloudBackupBase(){
@@ -2337,11 +2338,56 @@ async function cloudSync(showToast){
       else if(diff.onlyB) toast('Bulutta yeni kayıtlar vardı, eklendi ('+diff.onlyB+')',4000);
       if(showToast || (diff.onlyB && !userIsBusy())) render();
     }
+    await pullShareIntake();
   }catch(err){
     paintSync('Bulut hatası: '+err.message,'var(--danger)');
     if(showToast) toast(err.message,8000);
   }
   syncing=false;
+}
+/* ══ Danışan linkinden gelenler (ölçüm / öğün bildirimi / günlük) ══
+   Danışan kendi linkinde bir şey gönderdiğinde "shares/{token}/intake"
+   düğümüne (herkese açık yazma izinli, salt bu alt yol) kaydedilir.
+   Her eşitlemede buradan okunup danışanın kaydına işlenir, sonra bulutta
+   bu kuyruk temizlenir (tekrar işlenmesin diye) — kayıt kimlikleri
+   Firebase anahtarından türetildiği için iki kez işlense bile çoğalmaz. */
+async function pullShareIntake(){
+  const withToken=DB.clients.filter(c=>c.shareToken);
+  if(!withToken.length) return;
+  let changed=false;
+  for(const c of withToken){
+    try{
+      const t=await cloudToken();
+      const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}/intake.json?auth=${encodeURIComponent(t)}`);
+      if(!r.ok) continue;
+      const data=await r.json();
+      if(!data) continue;
+      const keys=Object.keys(data);
+      if(!keys.length) continue;
+      keys.forEach(k=>{
+        const e=data[k]; if(!e||!e.type) return;
+        const rid='si-'+k;
+        if(e.type==='measure'){
+          c.measures=c.measures||[];
+          if(!c.measures.some(m=>m.id===rid)){ c.measures.push({id:rid,date:e.date||todayISO(),weight:e.weight,waist:e.waist,hip:e.hip,fat:e.fat,note:'📱 Danışan kendi girdi'}); changed=true; }
+        }else if(e.type==='mealFeedback'){
+          c.mealFeedback=c.mealFeedback||[];
+          if(!c.mealFeedback.some(x=>x.id===rid)){ c.mealFeedback.push({id:rid,date:e.date||todayISO(),dayLabel:e.dayLabel||'',mealName:e.mealName||'',planName:e.planName||'',at:e.at||Date.now()}); changed=true; }
+        }else if(e.type==='journal'){
+          c.journal=c.journal||[];
+          if(!c.journal.some(x=>x.id===rid)){ c.journal.push({id:rid,date:e.date||todayISO(),water:e.water,steps:e.steps,sleep:e.sleep,at:e.at||Date.now()}); changed=true; }
+        }
+      });
+      const t2=await cloudToken();
+      await fetch(`${CL().dbUrl}/shares/${c.shareToken}/intake.json?auth=${encodeURIComponent(t2)}`,{method:'DELETE'});
+    }catch(e){ /* sessiz geç — bir sonraki eşitlemede tekrar denenir */ }
+  }
+  if(changed){
+    await save({noCloud:true});
+    await cloudPushMerged();
+    toast('Danışanlardan yeni bilgi geldi 📬',4000);
+    if(!userIsBusy()) render();
+  }
 }
 function paintSave(t,c){ const d=document.getElementById('saveDot'), s=document.getElementById('saveTxt'); if(d){d.style.color=c;} if(s){s.textContent=t;} }
 
@@ -5203,6 +5249,8 @@ function pageClientControl(c){
     prog=Math.max(0,Math.min(100,Math.round((startW-nowW)/(startW-tgt)*100)));
   }
   const dayDiff=nx? Math.ceil((new Date(nx.when)-new Date())/86400000) : null;
+  const notices=[...(c.mealFeedback||[]).map(x=>({...x,kind:'mf'})),...(c.journal||[]).map(x=>({...x,kind:'j'}))]
+    .sort((a,b)=>(+b.at||0)-(+a.at||0)).slice(0,8);
   return `
   <div class="kpi">
     <div class="kpi-c"><div class="kpi-l">Başlangıç kilosu</div>
@@ -5281,6 +5329,22 @@ function pageClientControl(c){
             <p>${esc(String(lastNote.text||'').slice(0,420))}${String(lastNote.text||'').length>420?'…':''}</p></div>
           ${notes.length>1?`<button class="btn btn-sm" data-tab="not" style="margin-top:10px">Tüm notlar (${notes.length})</button>`:''}`
         :`<p style="margin:0;color:var(--muted);font-size:13.5px">Henüz not yok. Her görüşmenin kararlarını yazarsan sonraki kontrolde kaldığın yerden devam edersin.</p>`}
+        </div></section>
+
+      <section class="card"><div class="card-h"><h3>📬 Danışan bildirimleri</h3>${notices.length?`<div class="spacer"></div><span class="tag tag-warn">${notices.length}</span>`:''}</div>
+        <div class="card-b">
+        ${notices.length?`<div style="display:grid;gap:8px">${notices.map(n=>`
+          <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line-2)">
+            <span style="font-size:16px">${n.kind==='mf'?'👎':'📝'}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px">${n.kind==='mf'
+                ?`<b>${esc(n.dayLabel||'')}</b> ${esc(n.mealName||'')} öğününü sevmedi`
+                :`${n.water!=null&&n.water!==''?'💧 '+esc(n.water)+' bardak':''}${n.steps!=null&&n.steps!==''?' · 🚶 '+esc(n.steps)+' adım':''}${n.sleep!=null&&n.sleep!==''?' · 😴 '+esc(n.sleep)+' saat uyku':''}`}</div>
+              <div style="font-size:11.5px;color:var(--muted)">${trDT(n.at)}</div>
+            </div>
+            <button class="x" data-dismiss-notice="${n.kind}:${n.id}" title="Kapat">✕</button>
+          </div>`).join('')}</div>`
+         :`<p style="margin:0;color:var(--muted);font-size:13.5px">Danışanın takip linkinden gönderdiği öğün/günlük bildirimleri burada görünür.</p>`}
         </div></section>
 
       <section class="card"><div class="card-h"><h3>Ödeme ve paket</h3><div class="spacer"></div>
@@ -7680,6 +7744,9 @@ document.addEventListener('click',async e=>{
     const it=c.measures.find(x=>x.id===dm.dataset.delMeasure);
     if(it) trashPush('measure',(c.name||'')+' · '+trDate(it.date)+(it.weight?' · '+it.weight+' kg':''),it,{clientId:c.id});
     c.measures=c.measures.filter(x=>x.id!==dm.dataset.delMeasure); await save(); toast('Çöp kutusuna taşındı'); return render(); }
+  const dno=t.closest('[data-dismiss-notice]'); if(dno){ const c=clientOf(S.client); const [kind,nid]=dno.dataset.dismissNotice.split(':');
+    if(kind==='mf') c.mealFeedback=(c.mealFeedback||[]).filter(x=>x.id!==nid); else c.journal=(c.journal||[]).filter(x=>x.id!==nid);
+    await save(); return render(); }
   const en=t.closest('[data-edit-note]'); if(en){ S.editNote=en.dataset.editNote; return openModal('note-edit'); }
   const dn=t.closest('[data-del-note]'); if(dn){ const c=clientOf(S.client);
     const it=c.notes.find(x=>x.id===dn.dataset.delNote);
@@ -8293,6 +8360,7 @@ function shareViewMsg(msg){
   document.getElementById('shareView').innerHTML=`<div class="sv-wrap"><div class="sv-card" style="text-align:center;padding:50px 24px"><div style="font-size:34px;margin-bottom:10px">🔒</div><p style="color:var(--muted);max-width:360px;margin:0 auto">${esc(msg)}</p></div></div>`;
 }
 async function bootShareView(token){
+  window.__shareTok=token;
   document.querySelector('.app').style.display='none';
   const lockEl=document.getElementById('lock');
   lockEl.hidden=true; lockEl.style.display='none';   // #lock için CSS display:grid, hidden niteliğini eziyor — satır içi stille de kapatılmalı
@@ -8344,11 +8412,35 @@ function renderShareView(snap){
       <div style="padding:16px">
         ${pts.length>1?lineChart(pts):`<p style="color:var(--muted);margin:0">Henüz grafik oluşturacak kadar ölçüm yok.</p>`}
         ${diff!=null?`<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">Başlangıçtan bu yana <b style="color:${diff<=0?'var(--ok)':'var(--warn)'}">${diff>0?'+':''}${n1(diff)} kg</b></p>`:''}
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)">
+          <b style="font-size:13px">Yeni ölçüm ekle</b>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <input type="date" id="svMDate" value="${todayISO()}" style="flex:1;min-width:130px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+            <input type="number" inputmode="decimal" id="svMWeight" placeholder="Kilo (kg)*" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            <input type="number" inputmode="decimal" id="svMWaist" placeholder="Bel (cm) — ops." style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+            <input type="number" inputmode="decimal" id="svMHip" placeholder="Kalça (cm) — ops." style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+          </div>
+          <button class="btn btn-sm btn-primary" id="svMeasureBtn" style="margin-top:10px">💾 Ölçümü kaydet</button>
+        </div>
+      </div>
+    </section>
+    <section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>📝 Bugünü işaretle</h3></div>
+      <div style="padding:16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="number" inputmode="numeric" id="svJWater" placeholder="💧 Su (bardak)" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+          <input type="number" inputmode="numeric" id="svJSteps" placeholder="🚶 Adım" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+          <input type="number" inputmode="decimal" id="svJSleep" placeholder="😴 Uyku (saat)" style="flex:1;min-width:100px;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px">
+        </div>
+        <button class="btn btn-sm btn-primary" id="svJournalBtn" style="margin-top:10px">💾 Günü kaydet</button>
       </div>
     </section>
     ${planHtml}
     <p style="text-align:center;color:var(--muted);font-size:11.5px;margin:28px 0 10px">Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
+  document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
+  document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
   if(p){
     svShowDay(0);
     document.getElementById('svWordBtn').addEventListener('click',()=>svExport('docx'));
@@ -8362,9 +8454,11 @@ function renderShareView(snap){
 }
 function svShowDay(i){
   const p=window.__shareSnap.plan, d=p.days[i], host=document.getElementById('svDayBody'); if(!host) return;
-  const filled=d.meals.filter(m=>m.lines.length||m.title);
-  host.innerHTML=filled.length?filled.map(m=>{
+  const filled=d.meals.map((m,mi)=>({m,mi})).filter(x=>x.m.lines.length||x.m.title);
+  const tok=window.__shareTok;
+  host.innerHTML=filled.length?filled.map(({m,mi})=>{
     const st=MEAL_STYLE[m.name]||{web:'#4C9A73',webbg:'#F5F7F6'};
+    let sent=false; try{ sent=!!localStorage.getItem('sv_mf_'+tok+'_'+i+'_'+mi); }catch(e){}
     return `<div class="card" style="border-left:4px solid ${st.web};margin-bottom:10px">
       <div style="background:${st.webbg};padding:8px 14px;font-weight:700;color:${st.web};font-size:12.5px">${m.emoji} ${esc(m.name).toLocaleUpperCase('tr')}</div>
       <div style="padding:10px 14px">
@@ -8372,8 +8466,53 @@ function svShowDay(i){
         ${m.lines.length?`<ul style="margin:0;padding-left:16px;font-size:13px;line-height:1.6">${m.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
         ${m.tip?`<div style="margin-top:6px;color:var(--muted);font-size:12px;font-style:italic">${esc(m.tip)}</div>`:''}
       </div>
+      <div style="padding:0 14px 12px">
+        <button class="btn btn-sm" data-sv-dislike="${i}:${mi}" ${sent?'disabled':''} style="${sent?'opacity:.6':''}">${sent?'✓ Bildirildi':'👎 Bu öğünü sevmedim'}</button>
+      </div>
     </div>`;
   }).join(''):`<p style="color:var(--muted)">Bu günde öğün girilmemiş.</p>`;
+  host.querySelectorAll('[data-sv-dislike]').forEach(b=>b.addEventListener('click',()=>svSendDislike(b)));
+}
+async function svIntakePost(entry){
+  const tok=window.__shareTok;
+  const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
+  if(!r.ok) throw new Error('Gönderilemedi ('+r.status+')');
+  return r.json();
+}
+async function svSendDislike(btn){
+  const [i,mi]=btn.dataset.svDislike.split(':').map(Number);
+  const p=window.__shareSnap.plan, m=p.days[i].meals[mi];
+  const dayLabel=DAY_FULL[((+p.firstDay||0)+i)%7];
+  btn.disabled=true; btn.textContent='Gönderiliyor…';
+  try{
+    await svIntakePost({type:'mealFeedback',date:todayISO(),day:i,dayLabel,mealName:m.name,planName:p.name,at:Date.now()});
+    btn.textContent='✓ Bildirildi'; btn.style.opacity='.6';
+    try{ localStorage.setItem('sv_mf_'+window.__shareTok+'_'+i+'_'+mi,'1'); }catch(e){}
+    toast('Diyetisyenine iletildi');
+  }catch(e){ btn.disabled=false; btn.textContent='👎 Bu öğünü sevmedim'; toast('Gönderilemedi, tekrar dene'); }
+}
+async function svSubmitMeasure(){
+  const date=document.getElementById('svMDate').value||todayISO();
+  const weight=document.getElementById('svMWeight').value;
+  if(!weight){ toast('Kilo girmen gerekiyor'); return; }
+  const waist=document.getElementById('svMWaist').value, hip=document.getElementById('svMHip').value;
+  const btn=document.getElementById('svMeasureBtn'); btn.disabled=true; btn.textContent='Kaydediliyor…';
+  try{
+    await svIntakePost({type:'measure',date,weight:+weight,waist:waist?+waist:null,hip:hip?+hip:null,at:Date.now()});
+    window.__shareSnap.measures=window.__shareSnap.measures||[];
+    window.__shareSnap.measures.push({date,weight:+weight,waist:waist?+waist:null,hip:hip?+hip:null});
+    toast('Ölçüm kaydedildi ✓ — diyetisyenine iletildi');
+    renderShareView(window.__shareSnap);
+  }catch(e){ btn.disabled=false; btn.textContent='💾 Ölçümü kaydet'; toast('Gönderilemedi, tekrar dene'); }
+}
+async function svSubmitJournal(){
+  const water=document.getElementById('svJWater').value, steps=document.getElementById('svJSteps').value, sleep=document.getElementById('svJSleep').value;
+  if(!water&&!steps&&!sleep){ toast('En az bir alanı doldurmalısın'); return; }
+  const btn=document.getElementById('svJournalBtn'); btn.disabled=true; btn.textContent='Kaydediliyor…';
+  try{
+    await svIntakePost({type:'journal',date:todayISO(),water:water?+water:null,steps:steps?+steps:null,sleep:sleep?+sleep:null,at:Date.now()});
+    btn.textContent='✓ Kaydedildi'; toast('Diyetisyenine iletildi');
+  }catch(e){ btn.disabled=false; btn.textContent='💾 Günü kaydet'; toast('Gönderilemedi, tekrar dene'); }
 }
 async function svExport(kind){
   const snap=window.__shareSnap; if(!snap.plan) return;
