@@ -4027,6 +4027,145 @@ async function exportDocx(share){
   toast(share?'Paylaşım desteklenmiyor, dosya indirildi':'Word dosyası indirildi');
 }
 
+/* ══════════════ PDF olarak indir ══════════════
+   Bu uygulama her şeyi (Word çıktısı dahil) dışarıdan kütüphane kullanmadan
+   kendi başına üretiyor, ama gerçek bir PDF ikili dosyasını sıfırdan
+   üretmek (yazı tipi gömme, sayfalama…) çok daha büyük bir iş — hataya açık
+   ve "hatasız" hedefiyle çelişir. Onun yerine, ekranda zaten doğru
+   görünen aynı tasarımı (html2canvas) resme çevirip jsPDF ile çok sayfalı
+   bir PDF'e yerleştiriyoruz — yazı seçilemez ama görünüm %100 ekrandakiyle
+   aynı olur ve satır satır yeniden kodlamaya gerek kalmaz. Bu iki küçük
+   kütüphane yalnız PDF butonuna basıldığında, internetten bir kerelik
+   indiriliyor (uygulamanın geri kalanı hâlâ tamamen kendi başına çalışır).
+*/
+function loadScriptOnce(src){
+  return new Promise((resolve,reject)=>{
+    let ex=document.querySelector('script[src="'+src+'"]');
+    /* Önceki denemede başarısız olmuş bir <script> etiketi DOM'da kalmış
+       olabilir — onun load/error olayı zaten bir kere (o zamanki deneme
+       için) ateşlendi ve tekrar ateşlenmez. Üstüne yeni bir dinleyici
+       eklemek sonsuza kadar beklemeye (zaman aşımına) yol açar; bu yüzden
+       bozuk etiketi atıp sıfırdan bir tane daha ekliyoruz. */
+    if(ex&&ex.dataset.failed==='1'){ ex.remove(); ex=null; }
+    if(ex){
+      if(ex.dataset.loaded==='1') return resolve();
+      ex.addEventListener('load',()=>resolve());
+      ex.addEventListener('error',()=>reject(new Error('Kütüphane yüklenemedi')));
+      return;
+    }
+    const s=document.createElement('script');
+    s.src=src;
+    s.onload=()=>{ s.dataset.loaded='1'; resolve(); };
+    s.onerror=()=>{ s.dataset.failed='1'; reject(new Error('Kütüphane yüklenemedi — internet bağlantınızı kontrol edin')); };
+    document.head.appendChild(s);
+  });
+}
+let _pdfLibsPromise=null;
+function ensurePdfLibs(){
+  if(window.jspdf&&window.html2canvas) return Promise.resolve();
+  if(_pdfLibsPromise) return _pdfLibsPromise;
+  _pdfLibsPromise=Promise.race([
+    (async()=>{
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    })(),
+    new Promise((_,rej)=>setTimeout(()=>rej(new Error('PDF kütüphanesi yüklenemedi (zaman aşımı) — internet bağlantınızı kontrol edin')),20000))
+  ]).catch(err=>{ _pdfLibsPromise=null; throw err; });
+  return _pdfLibsPromise;
+}
+function pdfCoverHtml(p,c){
+  const T=themeOf(p), brand='#'+T.brand, bodyC='#'+T.body;
+  const boxFill='#'+(T.kutu?T.kutu.fill:'EFF7FD'), boxLine='#'+(T.kutu?T.kutu.line:'BFD9EE');
+  let h=`<div style="padding:40px 46px 26px;text-align:center;border-bottom:3px solid ${brand}">
+    ${DB.profile.logo?`<img src="${DB.profile.logo}" style="height:54px;margin-bottom:12px">`:''}
+    <div style="font-family:Georgia,'Times New Roman',serif;font-size:28px;font-weight:700;color:${brand};letter-spacing:.02em">${esc(p.name).toLocaleUpperCase('tr')}</div>
+    ${p.sub?`<div style="font-size:15px;color:${bodyC};margin-top:8px;font-style:italic">${esc(p.sub)}</div>`:''}
+    <div style="font-size:12.5px;color:#8a8a8a;margin-top:10px">${c?esc(c.name)+' · ':''}${trDate(p.start)}</div>
+  </div>`;
+  if((p.purpose||[]).length){
+    h+=`<div style="margin:22px 46px;padding:16px 20px;background:${boxFill};border:1px solid ${boxLine};border-radius:10px">
+      <div style="font-weight:700;color:${brand};font-size:15px;margin-bottom:7px">💠 Genel amaç</div>
+      <ul style="margin:0;padding-left:17px;color:${bodyC};font-size:12.5px;line-height:1.6">${p.purpose.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+      ${p.closing?`<div style="margin-top:9px;font-weight:700;color:${brand};font-size:12.5px">${esc(p.closing)}</div>`:''}
+    </div>`;
+  }
+  return h;
+}
+function pdfDayHtml(p,i){
+  const d=p.days[i];
+  const filled=d.meals.filter(m=>m.lines.length||m.title);
+  if(!filled.length) return '';
+  let h=`<div style="padding:30px 46px 0">
+    <div style="display:flex;align-items:center;gap:9px;padding:9px 16px;background:${DAY_WEB[i]};border-radius:10px;color:#fff">
+      <span style="font-size:17px">${DAY_EMOJI[i]}</span>
+      <span style="font-weight:700;font-size:14px;letter-spacing:.02em">${esc(dFull(p,i)).toLocaleUpperCase('tr')}</span>
+      ${d.sub?`<span style="opacity:.85;font-size:11.5px">— ${esc(d.sub)}</span>`:''}
+    </div>
+  </div>`;
+  if(d.photo) h+=`<div style="margin:0 46px"><img src="${d.photo}" style="width:100%;max-height:210px;object-fit:cover;border-radius:0 0 10px 10px;display:block"></div>`;
+  d.meals.forEach(m=>{
+    if(!m.lines.length&&!m.title) return;
+    const st=MEAL_STYLE[m.name]||{web:'#4C9A73',webbg:'#F5F7F6'};
+    h+=`<div style="margin:9px 46px 0;border:1px solid #E2E6EA;border-left:4px solid ${st.web};border-radius:8px;overflow:hidden">
+      <div style="background:${st.webbg};padding:7px 14px;font-weight:700;color:${st.web};font-size:12px;letter-spacing:.03em">${m.emoji} ${esc(m.name).toLocaleUpperCase('tr')}</div>
+      <div style="padding:9px 14px;display:flex;gap:12px">
+        <div style="flex:1;min-width:0">
+          ${m.title?`<div style="font-weight:700;color:#222;font-size:12.5px;margin-bottom:4px">${esc(m.title)}</div>`:''}
+          ${m.lines.length?`<ul style="margin:0;padding-left:15px;color:#444;font-size:11.5px;line-height:1.55">${m.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
+          ${m.tip?`<div style="margin-top:5px;color:#777;font-size:10.5px;font-style:italic">${esc(m.tip)}</div>`:''}
+        </div>
+        ${m.photo?`<img src="${m.photo}" style="width:104px;height:104px;object-fit:cover;border-radius:8px;flex:0 0 auto">`:''}
+      </div>
+    </div>`;
+  });
+  return h;
+}
+function pdfWaitImgs(host){
+  const imgs=[...host.querySelectorAll('img')];
+  return Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(res=>{ img.onload=res; img.onerror=res; })));
+}
+async function pdfRenderChunk(html){
+  const host=document.createElement('div');
+  host.style.cssText='position:fixed;left:-99999px;top:0;width:820px;background:#fff;font-family:Calibri,Arial,sans-serif';
+  host.innerHTML=html+`<div style="height:20px"></div>`;
+  document.body.appendChild(host);
+  try{
+    await pdfWaitImgs(host);
+    return await window.html2canvas(host,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:820});
+  } finally{ host.remove(); }
+}
+function pdfAddCanvas(doc,canvas,startNewPage){
+  const pageW=210,pageH=297;                  // A4, mm
+  const imgW=pageW, imgH=canvas.height*imgW/canvas.width;
+  const imgData=canvas.toDataURL('image/jpeg',0.92);
+  let heightLeft=imgH, position=0, firstOfChunk=true;
+  while(heightLeft>0){
+    if(startNewPage||!firstOfChunk) doc.addPage();
+    doc.addImage(imgData,'JPEG',0,position,imgW,imgH,undefined,'FAST');
+    heightLeft-=pageH; position-=pageH; firstOfChunk=false;
+  }
+}
+async function exportPdf(){
+  const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
+  migratePlan(p);
+  const c=clientOf(p.clientId);
+  const dolu=p.days.some((d,i)=>pdfDayHtml(p,i));
+  if(!dolu) return toast('Önce en az bir öğün doldurmalısın');
+  toast('PDF hazırlanıyor…',8000);
+  await ensurePdfLibs();
+  const chunks=[pdfCoverHtml(p,c)];
+  p.days.forEach((d,i)=>{ const h=pdfDayHtml(p,i); if(h) chunks.push(h); });
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF('p','mm','a4');
+  for(let i=0;i<chunks.length;i++){
+    const canvas=await pdfRenderChunk(chunks[i]);
+    pdfAddCanvas(doc,canvas,i>0);
+  }
+  const fname=((c?c.name+' - ':'')+p.name).replace(/[\\/:*?"<>|]/g,'').slice(0,80)+'.pdf';
+  doc.save(fname);
+  toast('PDF indirildi ✓');
+}
+
 /* ══════════════ Öğün analizi — yalnızca panelde görünür ══════════════ */
 /* Danışana giden Word ve yazdırma çıktısı bu bölümden etkilenmez. */
 
@@ -5562,6 +5701,7 @@ function pagePlanEdit(){
         <button class="btn btn-sm" data-act="shopping">🛒 Alışveriş listesi</button>
         <button class="btn btn-sm" data-act="share">Paylaş</button>
         <button class="btn btn-sm btn-primary" data-act="docx">${ic('down',15)} Word olarak indir</button>
+        <button class="btn btn-sm btn-primary" data-act="pdf">${ic('down',15)} PDF olarak indir</button>
       </div>
     </div>
   </div>
@@ -5663,9 +5803,10 @@ function pagePlanEdit(){
     </div></div></section>
 
   <section class="card no-print" style="margin-top:14px;border-color:var(--blue-500)"><div class="card-b" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-    <div style="flex:1;min-width:220px"><b>Word dosyası olarak indir</b>
+    <div style="flex:1;min-width:220px"><b>Word veya PDF olarak indir</b>
       <p style="margin:4px 0 0;color:var(--muted);font-size:12.5px">Şablon otomatik doldurulur: kapak, genel amaç, 7 gün, öğün kutuları ve eklediğiniz fotoğraflar yerleşir.</p></div>
     <button class="btn btn-primary" data-act="docx">${ic('down',15)} Word olarak indir</button>
+    <button class="btn btn-primary" data-act="pdf">${ic('down',15)} PDF olarak indir</button>
   </div></section>`;
 }
 
@@ -7753,6 +7894,7 @@ document.addEventListener('click',async e=>{
     if(a==='form-docx'){ try{ exportFormDocx(false); }catch(err){ console.error(err); toast('Word dosyası oluşturulamadı'); } return; }
     if(a==='form-docx-blank'){ try{ exportFormDocx(true); }catch(err){ toast('Word dosyası oluşturulamadı'); } return; }
     if(a==='docx'){ try{ await exportDocx(); }catch(err){ console.error(err); toast('Word dosyası oluşturulamadı'); } return; }
+    if(a==='pdf'){ try{ await exportPdf(); }catch(err){ console.error(err); toast('PDF oluşturulamadı: '+(err.message||'bilinmeyen hata')); } return; }
     if(a==='save-form'){
       const c2=clientOf(S.client);
       Object.assign(c2,{name:val('fm-name')||c2.name,age:val('fm-age'),city:val('fm-city'),height:val('fm-height'),
