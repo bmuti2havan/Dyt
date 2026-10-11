@@ -8862,7 +8862,7 @@ async function svArticlePdf(id){
     const snap=window.__shareSnap||{};
     const brand='#9C3F60';
     const html=`<div style="padding:40px 46px 20px;text-align:center;border-bottom:3px solid ${brand}">
-      <div style="font-size:30px">${art.emoji}</div>
+      ${snap.profile&&snap.profile.logo?`<img src="${snap.profile.logo}" style="height:56px;margin-bottom:10px">`:`<div style="font-size:30px">${art.emoji}</div>`}
       <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:${brand};margin-top:8px">${esc(art.title)}</div>
       <div style="font-size:12px;color:#8a8a8a;margin-top:8px">${esc((snap.profile&&snap.profile.name)||'Diyetisyen Bilgilendirme Kitapçığı')}</div>
     </div>
@@ -8880,11 +8880,22 @@ async function svArticlePdf(id){
 function svArticleDocx(id){
   const art=SV_ARTICLES.find(a=>a.id===id); if(!art) return;
   const snap=window.__shareSnap||{};
-  let body=wP(art.title,{align:'center',b:true,size:34,color:'9C3F60',after:70});
+  const media=[], rels=[]; let imgId=1;
+  const addImg=(d)=>{ if(!isPhoto(d)) return null; const nm='image'+imgId+'.jpeg', rid='rId'+(100+imgId);
+    media.push({name:'word/media/'+nm,data:b64u8(d)});
+    rels.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${nm}"/>`);
+    imgId++; return rid; };
+  let body='';
+  if(snap.profile&&snap.profile.logo){
+    const r=addImg(snap.profile.logo);
+    if(r){ const ra=logoAspect(snap.profile.logo)||1.49; let lw=1900000, lh=Math.round(lw/ra); if(lh>706500){ lh=706500; lw=Math.round(lh*ra); }
+      body+=wImg(r,imgId,lw,lh); }
+  }
+  body+=wP(art.title,{align:'center',b:true,size:34,color:'9C3F60',after:70});
   body+=wP((snap.profile&&snap.profile.name)||'Diyetisyen Bilgilendirme Kitapçığı',{align:'center',i:true,size:18,color:'7A5362',after:200});
   body+=svArtBlocksDocx(art.blocks);
   body+=wP('Bu yazı genel bilgilendirme amaçlıdır, tıbbi tanı veya tedavi yerine geçmez. Kişisel durumunuzla ilgili sorularınızı diyetisyeninizle paylaşın.',{size:15,i:true,color:'9a9a9a',before:260});
-  packDocx(body,[],[],art.title);
+  packDocx(body,media,rels,art.title);
 }
 function svArticlesLibHtml(){
   const cats=[...new Set(SV_ARTICLES.map(a=>a.cat))];
