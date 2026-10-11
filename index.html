@@ -79,6 +79,10 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-bday-confetti{position:absolute;inset:-10% -10%;font-size:22px;line-height:2.4;opacity:.22;letter-spacing:8px;white-space:normal;
   transform:rotate(-6deg);animation:sv-bday-fall 9s linear infinite}
 @keyframes sv-bday-fall{0%{transform:translateY(-6%) rotate(-6deg)}100%{transform:translateY(6%) rotate(-6deg)}}
+.sv-chat-log{display:flex;flex-direction:column;gap:8px;margin-bottom:10px;max-height:320px;overflow-y:auto;scroll-behavior:smooth}
+.sv-chat-msg{max-width:85%;padding:9px 13px;border-radius:14px;font-size:13.5px;line-height:1.5;white-space:pre-wrap}
+.sv-chat-user{align-self:flex-end;background:var(--blue-600);color:#fff;border-bottom-right-radius:4px}
+.sv-chat-bot{align-self:flex-start;background:var(--blue-50);color:var(--ink);border:1px solid var(--blue-100);border-bottom-left-radius:4px}
 @media(min-width:860px){
   .sv-wrap{max-width:880px;padding:48px 24px 70px}
   .sv-hero{padding:32px 36px}
@@ -8754,6 +8758,7 @@ function renderShareView(snap){
       <div class="sv-kpi-c"><div class="l">Fark</div><div class="v" style="color:${diff==null?'var(--ink-2)':diff<=0?'var(--ok)':'var(--warn)'}">${diff==null?'—':(diff>0?'+':'')+n1(diff)+' kg'}</div></div>
     </div>`:'';
   document.getElementById('shareView').innerHTML=`<div class="sv-wrap">
+    ${svChatHtml()}
     ${svBirthdayHtml(snap)}
     <div class="sv-hero">
       <div class="sv-brand">
@@ -8826,6 +8831,8 @@ function renderShareView(snap){
   document.querySelectorAll('[data-sv-cert]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svDownloadCert(b.dataset.svCert); }));
   { const tb=document.getElementById('svTransformBtn'); if(tb) tb.addEventListener('click',svDownloadTransformCard); }
   { const tc=document.getElementById('svTaskChk'); if(tc) tc.addEventListener('change',svSubmitTaskDone); }
+  { const sb=document.getElementById('svChatSend'); if(sb) sb.addEventListener('click',svChatSend); }
+  { const si=document.getElementById('svChatInput'); if(si) si.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); svChatSend(); } }); }
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
   window.__svCheat=null;
@@ -8875,6 +8882,63 @@ function svMotivationHtml(snap){
       <div style="font-family:var(--serif);font-size:13.5px;color:var(--blue-700);font-weight:600">— ${esc(imza)}</div>
     </div>
   </section>`;
+}
+/* ══════════════ 🌸 Diyet Asistanın (yapay zekâ sohbet) ══════════════
+   Danışanın sorularını, Anthropic API anahtarını ASLA tarayıcıya
+   göndermeyen bir Netlify fonksiyonu (ask-assistant.js) üzerinden
+   yanıtlar — anahtar yalnızca sunucu tarafında, Netlify'ın ortam
+   değişkeninde tutulur. */
+function svChatHtml(){
+  return `<section class="sv-card sv-assistant" style="margin-bottom:16px">
+    <div class="sv-card-h"><h3>🌸 Diyet Asistanın</h3></div>
+    <div style="padding:14px 16px 16px">
+      <p class="hint" style="margin:0 0 10px">Beslenmenle ilgili merak ettiğin bir şey mi var? Sor, hemen yanıtlayayım. Yapay zekâ destekliyim; tıbbi tavsiye yerine geçmem — ciddi ya da programını değiştirecek bir konu olursa diyetisyenine yazmanı öneririm.</p>
+      <div id="svChatLog" class="sv-chat-log"></div>
+      <div style="display:flex;gap:8px">
+        <input id="svChatInput" placeholder="Örn. Akşam acıktığımda ne atıştırabilirim?" style="flex:1">
+        <button class="btn btn-primary" id="svChatSend" type="button">Gönder</button>
+      </div>
+    </div>
+  </section>`;
+}
+function svChatContext(snap){
+  const parts=[];
+  if(snap.name) parts.push('Ad: '+snap.name);
+  const pts=(snap.measures||[]).filter(m=>m.date&&m.weight!=null);
+  if(pts.length) parts.push('Güncel kilo: '+pts[pts.length-1].weight+' kg'+(pts.length>1?(' (başlangıç: '+pts[0].weight+' kg)'):''));
+  if(snap.targetWeight) parts.push('Hedef kilo: '+snap.targetWeight+' kg');
+  if(snap.plan&&snap.plan.name) parts.push('Güncel program: '+snap.plan.name);
+  if(snap.nextAppt&&snap.nextAppt.when) parts.push('Sıradaki randevu: '+trDT(snap.nextAppt.when));
+  if(snap.profile&&snap.profile.name) parts.push('Diyetisyeni: '+snap.profile.name);
+  return parts.join(' · ');
+}
+function svChatAppend(role,text){
+  const log=document.getElementById('svChatLog'); if(!log) return null;
+  const div=document.createElement('div');
+  div.className='sv-chat-msg '+(role==='user'?'sv-chat-user':'sv-chat-bot');
+  div.textContent=text;
+  log.appendChild(div); log.scrollTop=log.scrollHeight;
+  return div;
+}
+async function svChatSend(){
+  const inp=document.getElementById('svChatInput'); if(!inp) return;
+  const q=(inp.value||'').trim(); if(!q) return;
+  const btn=document.getElementById('svChatSend');
+  window.__svChatHistory=window.__svChatHistory||[];
+  inp.value=''; svChatAppend('user',q);
+  const histSoFar=window.__svChatHistory.slice();
+  window.__svChatHistory.push({role:'user',text:q});
+  btn.disabled=true; inp.disabled=true;
+  const typing=svChatAppend('bot','…');
+  try{
+    const r=await fetch('/.netlify/functions/ask-assistant',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:window.__shareTok, question:q, context:svChatContext(window.__shareSnap||{}), history:histSoFar})});
+    const data=await r.json().catch(()=>({}));
+    if(typing) typing.remove();
+    if(!r.ok||!data.text){ svChatAppend('bot', data.error||'Şu an cevap veremiyorum, az sonra tekrar dener misin?'); }
+    else{ svChatAppend('bot', data.text); window.__svChatHistory.push({role:'assistant',text:data.text}); }
+  }catch(e){ if(typing) typing.remove(); svChatAppend('bot','Bağlantı sorunu oldu, tekrar dener misin?'); }
+  btn.disabled=false; inp.disabled=false; inp.focus();
 }
 /* ══════════════ Doğum günü kutlaması ══════════════ */
 function svIsBirthdayToday(snap){
