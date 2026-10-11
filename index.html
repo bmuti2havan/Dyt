@@ -74,6 +74,11 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-art[open] summary{border-bottom:1px solid var(--line-2)}
 .sv-art[open] .sv-art-car{transform:rotate(180deg);display:inline-block}
 @media(max-width:380px){.sv-kpi-c .v{font-size:14.5px}}
+.sv-bday{position:relative;overflow:hidden;border-radius:var(--r);padding:24px 20px;text-align:center;color:#fff;margin-bottom:16px;
+  background:linear-gradient(135deg,var(--blue-900) 0%,var(--blue-700) 50%,var(--blue-500) 100%);box-shadow:var(--shadow-lg)}
+.sv-bday-confetti{position:absolute;inset:-10% -10%;font-size:22px;line-height:2.4;opacity:.22;letter-spacing:8px;white-space:normal;
+  transform:rotate(-6deg);animation:sv-bday-fall 9s linear infinite}
+@keyframes sv-bday-fall{0%{transform:translateY(-6%) rotate(-6deg)}100%{transform:translateY(6%) rotate(-6deg)}}
 @media(min-width:860px){
   .sv-wrap{max-width:880px;padding:48px 24px 70px}
   .sv-hero{padding:32px 36px}
@@ -2216,11 +2221,15 @@ function buildShareSnapshot(c){
   // Danışana özel olarak atanmış eğitim kitapçıkları (kendi yüklediğin Word/PDF'ler)
   const booklets=(c.assignedBooklets||[]).map(id=>(DB.library||[]).find(b=>b.id===id)).filter(Boolean)
     .map(b=>({id:b.id,name:b.name,type:b.type,data:b.data}));
+  const mn=clientMoney(c.id);
   return {
     name:c.name, clientId:c.id,
     measures:(c.measures||[]).filter(m=>m.date&&m.weight!=null).map(m=>({date:m.date,weight:m.weight,waist:m.waist,hip:m.hip,fat:m.fat})),
     nextAppt: nx? {when:nx.when,type:nx.type} : null,
     plan, pastPlans, notes, booklets,
+    birthday: c.birthday||null, targetWeight: c.targetWeight||null,
+    pkg: mn.total? {done:mn.done,total:mn.total} : null,
+    weeklyTask: c.weeklyTask||null,
     profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail}
   };
 }
@@ -2261,7 +2270,8 @@ function shareStatusHtml(c){
   if(!c.shareToken){
     return `<p class="hint" style="margin:0 0 14px">Bu danışan için henüz bir takip linki yok. Oluşturduğunda danışan; kilo/ölçüm grafiğini, güncel beslenme programını ve bir sonraki randevusunu kendi linkinden görebilir, isterse Word veya PDF olarak indirebilir. Link, sen iptal edene kadar açık kalır — kendiliğinden silinmez.</p>
       <button class="btn btn-primary" data-act="share-gen">🔗 Link oluştur</button>
-      ${shareBookletsHtml(c)}`;
+      ${shareBookletsHtml(c)}
+      ${shareWeeklyTaskHtml(c)}`;
   }
   const url=shareUrl(c.shareToken);
   return `<p class="hint" style="margin:0 0 10px">Bu link <b>sen iptal edene kadar</b> açık kalır. Danışan bu linkten kilo/ölçüm grafiğini ve güncel programını görebilir, isterse Word/PDF indirebilir — başka hiçbir veriye erişemez.</p>
@@ -2272,7 +2282,19 @@ function shareStatusHtml(c){
       <button class="btn btn-sm" data-act="share-gen">🔄 Verileri güncelle</button>
       <button class="btn btn-sm btn-danger" data-act="share-revoke">Linki iptal et</button>
     </div>
-    ${shareBookletsHtml(c)}`;
+    ${shareBookletsHtml(c)}
+    ${shareWeeklyTaskHtml(c)}`;
+}
+/* Danışana atanan haftalık mini görev — metni her değiştirdiğinde link
+   zaten açıksa danışan sayfası anında güncellenir. */
+function shareWeeklyTaskHtml(c){
+  const t=c.weeklyTask;
+  return `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px">🎯 Bu haftanın mini görevi</div>
+    ${t?`<p style="margin:0 0 8px;font-size:13px;color:var(--ink-2)">Şu an aktif: <b>${esc(t.text)}</b> <span style="color:var(--muted);font-size:11px">(${trDT(t.setAt)})</span></p>`:''}
+    <div class="field" style="margin-bottom:8px"><input id="task-text-${c.id}" placeholder="Örn. Bu hafta günde 2L su iç"></div>
+    <button class="btn btn-sm btn-primary" type="button" data-act="task-save" data-cid="${c.id}">${t?'🔄 Görevi güncelle':'💾 Görev ata'}</button>
+  </div>`;
 }
 /* Danışana özel atanan eğitim kitapçıkları (kendi yüklediği Word/PDF'ler) —
    kütüphaneden seçip işaretlemek yeter, link zaten açıksa anında güncellenir. */
@@ -2472,6 +2494,12 @@ async function pullShareIntake(){
             const parts=[]; if(e.water!=null&&e.water!=='') parts.push('💧'+e.water); if(e.steps!=null&&e.steps!=='') parts.push('🚶'+e.steps); if(e.sleep!=null&&e.sleep!=='') parts.push('😴'+e.sleep+'sa');
             if(cheated===true) parts.push('🍬 kaçamak yaptı'); else if(cheated===false) parts.push('✅ kaçamak yapmadı');
             fresh.push({client:c.name,text:'📝 günü işaretledi: '+(parts.join(' · ')||'—')});
+          }
+        }else if(e.type==='taskDone'){
+          c.taskLog=c.taskLog||[];
+          if(!c.taskLog.some(x=>x.id===rid)){
+            c.taskLog.push({id:rid,taskId:e.taskId,taskText:e.taskText||'',at:e.at||Date.now()}); changed=true;
+            fresh.push({client:c.name,text:'🎯 haftalık görevi tamamladı: '+(e.taskText||'')});
           }
         }else if(e.type==='visit'){
           c.visits=c.visits||[];
@@ -6473,6 +6501,7 @@ function clientForm(c){
     <div class="field full"><label>Ad soyad *</label><input id="c-name" value="${esc(c.name||'')}" placeholder="Örn. Elif Demir"></div>
     <div class="field"><label>Cinsiyet</label><select id="c-sex"><option value="K" ${c.sex==='K'?'selected':''}>Kadın</option><option value="E" ${c.sex==='E'?'selected':''}>Erkek</option></select></div>
     <div class="field"><label>Yaş</label><input id="c-age" type="number" min="1" max="120" value="${esc(c.age||'')}"></div>
+    <div class="field"><label>Doğum günü</label><input id="c-bday" type="date" value="${esc(c.birthday||'')}" placeholder="Takip linkinde özel kutlama için"></div>
     <div class="field"><label>Boy (cm)</label><input id="c-height" type="number" step="0.5" value="${esc(c.height||'')}"></div>
     <div class="field"><label>Başlangıç kilosu (kg)</label><input id="c-weight" type="number" step="0.1" value="${esc(c.weight||'')}"></div>
     <div class="field"><label>Hedef kilo (kg)</label><input id="c-target" type="number" step="0.1" value="${esc(c.targetWeight||'')}" placeholder="Kontrol ekranındaki ilerleme çubuğu için"></div>
@@ -6500,7 +6529,7 @@ function clientForm(c){
   </div>`;
 }
 function readClient(){
-  return {name:val('c-name'),sex:val('c-sex'),age:val('c-age'),height:val('c-height'),weight:val('c-weight'),
+  return {name:val('c-name'),sex:val('c-sex'),age:val('c-age'),birthday:val('c-bday'),height:val('c-height'),weight:val('c-weight'),
     pal:val('c-pal'),goal:val('c-goal'),targetWeight:val('c-target'),kcalTarget:val('c-kcal'),pTarget:val('c-p'),kTarget:val('c-k'),yTarget:val('c-y'),
     phone:val('c-phone'),mail:val('c-mail'),allergy:val('c-allergy'),health:val('c-health'),
     city:val('c-city'),job:val('c-job'),meds:val('c-meds'),note:val('c-note'),
@@ -8276,6 +8305,16 @@ document.addEventListener('click',async e=>{
       else { modal('🔗 Danışan takip linki', shareStatusHtml(c2), 'Kapat','close','540px'); }
       return;
     }
+    if(a==='task-save'){
+      const c2=clientOf(act.dataset.cid); if(!c2) return;
+      const inp=document.getElementById('task-text-'+c2.id); const text=(inp&&inp.value||'').trim();
+      if(!text) return toast('Önce görev metnini yaz');
+      c2.weeklyTask={id:uid('wt'),text,setAt:Date.now()};
+      await save();
+      if(c2.shareToken){ await shareGenerate(c2.id); }
+      else { modal('🔗 Danışan takip linki', shareStatusHtml(c2), 'Kapat','close','540px'); }
+      return;
+    }
     if(a==='lib-del'){
       const lid=act.dataset.lid;
       if(!confirm('Bu kitapçık silinsin mi? Atanmış olduğu danışanların sayfasından da kalkar.')) return;
@@ -8678,6 +8717,7 @@ function renderShareView(snap){
       <div class="sv-kpi-c"><div class="l">Fark</div><div class="v" style="color:${diff==null?'var(--ink-2)':diff<=0?'var(--ok)':'var(--warn)'}">${diff==null?'—':(diff>0?'+':'')+n1(diff)+' kg'}</div></div>
     </div>`:'';
   document.getElementById('shareView').innerHTML=`<div class="sv-wrap">
+    ${svBirthdayHtml(snap)}
     <div class="sv-hero">
       <div class="sv-brand">
         ${snap.profile&&snap.profile.logo?`<img src="${snap.profile.logo}">`:''}
@@ -8688,9 +8728,14 @@ function renderShareView(snap){
       ${snap.nextAppt?`<div class="sv-appt"><span style="font-size:19px">📅</span><div>Sıradaki randevun<br><b>${trDT(snap.nextAppt.when)}</b> · ${esc(snap.nextAppt.type||'')}</div></div>`:''}
     </div>
     ${kpiHtml}
-    <section class="sv-card" style="margin-top:${kpiHtml?'0':'16px'}"><div class="sv-card-h"><h3>⚖ Gelişim grafiğin</h3></div>
+    ${svAchievementHtml(snap)}
+    ${svCertsHtml(snap)}
+    ${svWeeklyTaskHtml(snap)}
+    ${svPkgHtml(snap)}
+    <section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>⚖ Gelişim grafiğin</h3></div>
       <div style="padding:16px">
         ${pts.length>1?lineChart(pts):`<p style="color:var(--muted);margin:0">Henüz grafik oluşturacak kadar ölçüm yok.</p>`}
+        ${pts.length>1?`<button class="btn btn-sm" id="svTransformBtn" type="button" style="margin-top:12px;width:100%;justify-content:center">🖼 Paylaşılabilir ilerleme kartı oluştur</button>`:''}
         <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line-2)">
           <h4 class="sv-sub">Yeni ölçüm ekle</h4>
           <p class="hint" style="margin:0 0 12px">Boyunu bir kez yazman yeterli — kilo-boy endeksini (BKİ) anında burada görürsün.</p>
@@ -8741,6 +8786,9 @@ function renderShareView(snap){
   document.querySelectorAll('[data-sv-booklet]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svDownloadBooklet(+b.dataset.svBooklet); }));
   document.querySelectorAll('[data-sv-art-docx]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticleDocx(b.dataset.svArtDocx); }));
   document.querySelectorAll('[data-sv-art-pdf]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticlePdf(b.dataset.svArtPdf); }));
+  document.querySelectorAll('[data-sv-cert]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svDownloadCert(b.dataset.svCert); }));
+  { const tb=document.getElementById('svTransformBtn'); if(tb) tb.addEventListener('click',svDownloadTransformCard); }
+  { const tc=document.getElementById('svTaskChk'); if(tc) tc.addEventListener('change',svSubmitTaskDone); }
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
   window.__svCheat=null;
@@ -8790,6 +8838,215 @@ function svMotivationHtml(snap){
       <div style="font-family:var(--serif);font-size:13.5px;color:var(--blue-700);font-weight:600">— ${esc(imza)}</div>
     </div>
   </section>`;
+}
+/* ══════════════ Doğum günü kutlaması ══════════════ */
+function svIsBirthdayToday(snap){
+  if(!snap.birthday) return false;
+  const parts=String(snap.birthday).split('-'); if(parts.length<3) return false;
+  const now=new Date();
+  return (+parts[1])===(now.getMonth()+1) && (+parts[2])===now.getDate();
+}
+function svBirthdayHtml(snap){
+  if(!svIsBirthdayToday(snap)) return '';
+  const ad=(snap.name||'').trim().split(/\s+/)[0]||'canım';
+  return `<div class="sv-bday">
+    <div class="sv-bday-confetti">🎉 🎈 🎊 🎂 ✨ 🎉 🎈 🎊 🎂 ✨ 🎉 🎈 🎊 🎂 ✨</div>
+    <div style="position:relative;z-index:1">
+      <div style="font-size:34px">🎂</div>
+      <div style="font-weight:700;font-size:18px;margin-top:8px">İyi ki doğdun, ${esc(ad)}!</div>
+      <div style="font-size:13.5px;margin-top:5px;opacity:.95">Bugün senin günün — kendine güzel bir şey söylemeyi unutma. Seninle gurur duyuyoruz. 🌸</div>
+    </div>
+  </div>`;
+}
+/* ══════════════ Veriye dayalı "bu haftaki başarın" cümlesi ══════════════ */
+function svAchievementHtml(snap){
+  const pts=(snap.measures||[]).filter(m=>m.date&&m.weight!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(pts.length<2) return '';
+  const first=pts[0], last=pts[pts.length-1];
+  const diff=(+last.weight)-(+first.weight);
+  const prev=pts.length>=2?pts[pts.length-2]:null;
+  const recentDiff=prev?(+last.weight-+prev.weight):0;
+  const absDiff=n1(Math.abs(diff));
+  let msg;
+  if(diff<-0.1){
+    msg = pts.length>=4
+      ? `${pts.length} ölçümdür istikrarla takip ediyorsun ve toplamda <b>${absDiff} kg</b> verdin — bu gerçek bir emek! 💪`
+      : `Başlangıca göre <b>${absDiff} kg</b> verdin, çok iyi gidiyor. 👏`;
+    if(recentDiff<-0.05) msg += ` En son ölçümünde de <b>${n1(Math.abs(recentDiff))} kg</b> daha verdin.`;
+  } else if(diff>0.1){
+    msg = `Son dönemde biraz dalgalanma oldu, bu tamamen normal — istikrarla devam ettikçe eğri düzelecek. 🌱`;
+  } else {
+    msg = `Kilon stabil kalıyor — bu da başlı başına bir başarı, dengeyi koruyorsun. ✨`;
+  }
+  return `<section class="sv-card" style="margin-top:16px;background:linear-gradient(135deg,var(--blue-50),#fff);border:1px solid var(--blue-100)">
+    <div style="padding:18px 20px;text-align:center">
+      <div style="font-size:19px;margin-bottom:6px">📊</div>
+      <p style="margin:0;font-size:14px;line-height:1.65;color:var(--ink)">${msg}</p>
+    </div>
+  </section>`;
+}
+/* ══════════════ Seans paketi ilerleme çubuğu ══════════════ */
+function svPkgHtml(snap){
+  const pkg=snap.pkg; if(!pkg||!pkg.total) return '';
+  const pct=Math.max(0,Math.min(100,Math.round((pkg.done/pkg.total)*100)));
+  return `<section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>🗓 Seans paketin</h3></div>
+    <div style="padding:16px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--ink-2);margin-bottom:8px">
+        <span><b>${pkg.done}</b> / ${pkg.total} seans tamamlandı</span><span>%${pct}</span>
+      </div>
+      <div style="height:10px;border-radius:6px;background:var(--line-2);overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--blue-600),var(--blue-500));border-radius:6px"></div>
+      </div>
+    </div>
+  </section>`;
+}
+/* ══════════════ Haftalık mini görev ══════════════ */
+function svWeeklyTaskHtml(snap){
+  const t=snap.weeklyTask; if(!t||!t.id) return '';
+  const tok=window.__shareTok||'';
+  let done=false; try{ done=localStorage.getItem('sv_task_'+tok+'_'+t.id)==='1'; }catch(e){}
+  return `<section class="sv-card" style="margin-top:16px;border:1px solid var(--blue-100)"><div class="sv-card-h"><h3>🎯 Bu Haftanın Mini Görevin</h3></div>
+    <div style="padding:14px 16px 18px">
+      <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+        <input type="checkbox" id="svTaskChk" ${done?'checked disabled':''} style="width:20px;height:20px;margin-top:2px;accent-color:var(--blue-600)">
+        <span style="font-size:14.5px;line-height:1.5${done?';text-decoration:line-through;color:var(--muted)':''}">${esc(t.text)}</span>
+      </label>
+      ${done?`<p style="margin:10px 0 0;color:var(--ok);font-size:12.5px">✓ Tamamladın, harikasın!</p>`:''}
+    </div>
+  </section>`;
+}
+async function svSubmitTaskDone(){
+  const snap=window.__shareSnap, t=snap&&snap.weeklyTask; if(!t) return;
+  const chk=document.getElementById('svTaskChk'); if(!chk||!chk.checked) return;
+  chk.disabled=true;
+  try{
+    await svIntakePost({type:'taskDone',taskId:t.id,taskText:t.text,at:Date.now()});
+    try{ localStorage.setItem('sv_task_'+window.__shareTok+'_'+t.id,'1'); }catch(e){}
+    toast('Harika! Diyetisyenine iletildi 🎉');
+    renderShareView(snap);
+  }catch(e){ chk.disabled=false; chk.checked=false; toast('Gönderilemedi, tekrar dene'); }
+}
+/* ══════════════ Paylaşılabilir transformasyon kartı (canvas → JPEG) ══════════════ */
+function svRoundRect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function svDrawSparkline(ctx,pts,x,y,w,h,color){
+  if(pts.length<2) return;
+  const ws=pts.map(p=>+p.weight);
+  const min=Math.min(...ws), max=Math.max(...ws), pad=(max-min)*0.2||1;
+  const lo=min-pad, hi=max+pad;
+  const px=i=>x+(i/(pts.length-1))*w, py=v=>y+h-((v-lo)/(hi-lo))*h;
+  ctx.strokeStyle=color; ctx.lineWidth=7; ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.beginPath();
+  pts.forEach((p,i)=>{ const X=px(i),Y=py(+p.weight); if(i===0) ctx.moveTo(X,Y); else ctx.lineTo(X,Y); });
+  ctx.stroke();
+  [0,pts.length-1].forEach(i=>{
+    ctx.beginPath(); ctx.arc(px(i),py(+pts[i].weight),10,0,7); ctx.fillStyle='#fff'; ctx.fill();
+    ctx.lineWidth=5; ctx.strokeStyle=color; ctx.stroke();
+  });
+}
+function svDownloadTransformCard(){
+  const snap=window.__shareSnap||{};
+  const pts=(snap.measures||[]).filter(m=>m.date&&m.weight!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(pts.length<2){ toast('Kart oluşturmak için en az 2 ölçüm gerekiyor'); return; }
+  const first=pts[0], last=pts[pts.length-1];
+  const diff=(+last.weight)-(+first.weight), lost=diff<0;
+  const W=1080,H=1350;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const x=cv.getContext('2d');
+  const g=x.createLinearGradient(0,0,W,H);
+  g.addColorStop(0,'#5C2238'); g.addColorStop(0.55,'#9C3F60'); g.addColorStop(1,'#D98CA0');
+  x.fillStyle=g; x.fillRect(0,0,W,H);
+  x.globalAlpha=.08; x.fillStyle='#fff';
+  x.beginPath(); x.arc(120,120,180,0,7); x.fill();
+  x.beginPath(); x.arc(W-100,H-140,220,0,7); x.fill();
+  x.globalAlpha=1;
+  x.fillStyle='rgba(255,255,255,.92)'; x.textAlign='center'; x.font='600 30px Georgia, serif';
+  x.fillText((snap.profile&&(snap.profile.clinic||snap.profile.name))||'', W/2, 110);
+  svRoundRect(x,64,220,W-128,H-440,36); x.fillStyle='#fff'; x.fill();
+  x.fillStyle='#3A222B'; x.font='700 46px Georgia, serif'; x.textAlign='center';
+  x.fillText(snap.name||'', W/2, 320);
+  x.fillStyle='#A4818C'; x.font='400 26px Arial';
+  x.fillText('İlerleme Yolculuğu', W/2, 364);
+  const cols=[['BAŞLANGIÇ', n1(first.weight)+' kg'], ['GÜNCEL', n1(last.weight)+' kg'], [lost?'VERDİĞİN':'FARK', (lost?'':(diff>0?'+':''))+n1(Math.abs(diff))+' kg']];
+  const colW=(W-128)/3, startX=64;
+  cols.forEach((c,i)=>{
+    const cx=startX+colW*i+colW/2;
+    x.fillStyle='#9C3F60'; x.font='700 64px Georgia, serif'; x.fillText(c[1], cx, 520);
+    x.fillStyle='#A4818C'; x.font='600 22px Arial'; x.fillText(c[0], cx, 560);
+  });
+  x.strokeStyle='#EAD0D9'; x.lineWidth=2; x.beginPath(); x.moveTo(110,600); x.lineTo(W-110,600); x.stroke();
+  svDrawSparkline(x, pts, 110, 630, W-220, 170, '#C15678');
+  x.fillStyle='#7A5362'; x.font='500 22px Arial'; x.textAlign='center';
+  x.fillText(trDate(first.date)+'  →  '+trDate(last.date), W/2, 860);
+  x.fillStyle='#fff'; x.font='italic 500 27px Georgia, serif'; x.textAlign='center';
+  x.fillText('Her adım değerli. 🌸', W/2, H-120);
+  x.font='400 20px Arial'; x.fillStyle='rgba(255,255,255,.85)';
+  x.fillText((snap.profile&&snap.profile.name)||'', W/2, H-70);
+  cv.toBlob(b=>{
+    if(!b){ toast('Kart oluşturulamadı'); return; }
+    const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+    a.download='Ilerleme-Karti-'+String(snap.name||'').replace(/[\\/:*?"<>|]/g,'')+'.jpg'; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    toast('Kart indirildi — paylaşabilirsin ✓');
+  },'image/jpeg',0.95);
+}
+/* ══════════════ Başarı rozeti / sertifika (otomatik, PDF) ══════════════ */
+function svCertEligible(snap){
+  const pts=(snap.measures||[]).filter(m=>m.date&&m.weight!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  if(pts.length<2) return [];
+  const first=pts[0], last=pts[pts.length-1];
+  const diff=(+last.weight)-(+first.weight);
+  const days=Math.round((new Date(last.date)-new Date(first.date))/86400000);
+  const out=[];
+  if(diff<=-5) out.push({id:'5kg',title:'İlk 5 Kiloluk Başarı',text:(Math.abs(diff)).toFixed(1).replace('.',',')+' kg vererek önemli bir eşiği geçtin. Bu, emeğinin ve kararlılığının bir sonucu.'});
+  if(days>=30 && pts.length>=3) out.push({id:'1ay',title:'1 Aylık Düzenli Takip',text:days+' gündür istikrarla ölçümlerini paylaşıyorsun. Süreklilik, kalıcı sonucun en önemli anahtarıdır.'});
+  if(snap.targetWeight){
+    const tgt=+snap.targetWeight;
+    const reached=(first.weight>tgt && last.weight<=tgt)||(first.weight<tgt && last.weight>=tgt)||Math.abs(last.weight-tgt)<=0.5;
+    if(reached) out.push({id:'hedef',title:'Hedefe Ulaştın!',text:'Belirlediğin '+n1(tgt)+' kg hedefine ulaştın. Tebrikler, bu büyük bir başarı!'});
+  }
+  return out;
+}
+function svCertsHtml(snap){
+  const certs=svCertEligible(snap); if(!certs.length) return '';
+  return `<section class="sv-card" style="margin-top:16px;border:1px solid var(--blue-100)"><div class="sv-card-h"><h3>🏅 Kazandığın Rozetler</h3></div>
+    <div style="padding:14px 16px 16px">
+      <p class="hint" style="margin:0 0 12px">Tebrikler, aşağıdaki başarıları kazandın — sertifikanı indirip saklayabilir ya da paylaşabilirsin.</p>
+      <div style="display:grid;gap:8px">
+        ${certs.map(c=>`<button class="btn" type="button" data-sv-cert="${c.id}" style="justify-content:space-between;width:100%"><span>🏅 ${esc(c.title)}</span><span>⬇ PDF</span></button>`).join('')}
+      </div>
+    </div>
+  </section>`;
+}
+async function svDownloadCert(id){
+  const snap=window.__shareSnap||{};
+  const c=svCertEligible(snap).find(x=>x.id===id); if(!c) return;
+  toast('Sertifika hazırlanıyor…',8000);
+  try{
+    await ensurePdfLibs();
+    const brand='#9C3F60';
+    const html=`<div style="padding:70px 60px;text-align:center;border:10px solid ${brand}">
+      <div style="font-size:14px;letter-spacing:4px;color:#A4818C;text-transform:uppercase;margin-bottom:18px">Başarı Sertifikası</div>
+      <div style="font-size:48px;margin-bottom:10px">🏅</div>
+      <div style="font-family:Georgia,'Times New Roman',serif;font-size:29px;font-weight:700;color:${brand};margin-bottom:14px">${esc(c.title)}</div>
+      <div style="font-family:Georgia,'Times New Roman',serif;font-size:23px;color:#3A222B;margin-bottom:22px">${esc(snap.name||'')}</div>
+      <div style="font-size:15px;color:#555;max-width:480px;margin:0 auto 30px;line-height:1.7">${esc(c.text)}</div>
+      <div style="font-size:12px;color:#999;margin-bottom:34px">${trDate(todayISO())}</div>
+      <div style="display:inline-block;border-top:2px solid ${brand};padding-top:8px;min-width:220px">
+        <div style="font-family:Georgia,'Times New Roman',serif;font-size:16px;color:${brand}">${esc((snap.profile&&snap.profile.name)||'')}</div>
+        <div style="font-size:11px;color:#999;margin-top:2px">${esc((snap.profile&&snap.profile.clinic)||'')}</div>
+      </div>
+    </div>`;
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('p','mm','a4');
+    const canvas=await pdfRenderChunk(html);
+    pdfAddCanvas(doc,canvas,false);
+    doc.save(('Sertifika - '+c.title).replace(/[\\/:*?"<>|]/g,'').slice(0,80)+'.pdf');
+    toast('Sertifika indirildi ✓');
+  }catch(err){ toast('Sertifika oluşturulamadı: '+(err.message||''),6000); }
 }
 /* ══════════════ Danışan Bilgilendirme Kitapçığı ══════════════
    Danışan linkinden okunabilen / Word-PDF indirilebilen kısa, sade
