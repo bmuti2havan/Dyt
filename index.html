@@ -69,6 +69,10 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-dislike:not([disabled]):hover{border-color:#EFD3CF;background:var(--danger-bg);color:var(--danger)}
 .sv-like:not([disabled]):hover{border-color:#BFE3CC;background:var(--ok-bg,#EAF7EF);color:var(--ok)}
 .sv-foot{display:flex;align-items:center;justify-content:center;gap:6px;margin:26px 0 8px;color:var(--muted);font-size:11.5px}
+.sv-art summary{outline:none}
+.sv-art summary::-webkit-details-marker{display:none}
+.sv-art[open] summary{border-bottom:1px solid var(--line-2)}
+.sv-art[open] .sv-art-car{transform:rotate(180deg);display:inline-block}
 @media(max-width:380px){.sv-kpi-c .v{font-size:14.5px}}
 @media(min-width:860px){
   .sv-wrap{max-width:880px;padding:48px 24px 70px}
@@ -8664,8 +8668,12 @@ function renderShareView(snap){
     ${notesHtml}
     ${planBrokenHtml}
     ${planHtml}
+    ${svArticlesLibHtml()}
+    ${svMotivationHtml(snap)}
     <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
+  document.querySelectorAll('[data-sv-art-docx]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticleDocx(b.dataset.svArtDocx); }));
+  document.querySelectorAll('[data-sv-art-pdf]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticlePdf(b.dataset.svArtPdf); }));
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
   window.__svCheat=null;
@@ -8684,6 +8692,224 @@ function renderShareView(snap){
     document.querySelectorAll('[data-sv-plan]').forEach(b=>b.addEventListener('click',()=>svSelectPlan(+b.dataset.svPlan)));
     svRenderPlanBody();
   }
+}
+/* Danışana ismiyle hitap eden, günden güne değişen sıcak bir kapanış notu —
+   sayfanın markanıza özgü, kişisel hissettiren son dokunuşu. */
+const SV_MOTIVASYON=[
+  '{ad}, bu yolculuğa seninle birlikte çıktık. Her adımında yanındayım, unutma.',
+  '{ad}, bugün attığın her küçük adım, yarının sağlıklı sen\'ini inşa ediyor. Kendine inan.',
+  'Vücudun sana nasıl davranıldığını hatırlar, {ad}. Ona sabırla ve sevgiyle yaklaş.',
+  '{ad}, mükemmel olmak zorunda değilsin — sadece devam etmen yeterli. Ben buradayım.',
+  'Bugün kendine güzel bir söz söyle, {ad}: "Ben değişime hazırım ve buna değerim."',
+  '{ad}, geldiğin yere değil, gittiğin yöne bak. Her gün biraz daha iyiye gidiyorsun.',
+  'Bu süreçte düşmek değil, kalkmayı bilmek önemli, {ad}. Sen zaten kalkıyorsun.',
+  '{ad}, sağlığın için verdiğin bu emek, kendine verdiğin en güzel hediye. Gururluyum seninle.',
+  'Küçük adımlar büyük değişimlere götürür, {ad}. Sabırlı ol, sonuç geliyor.',
+  '{ad}, bu yolda yalnız değilsin. Her sorunda, her zorlandığında buradayım.',
+  'Kendine nazik ol, {ad}. Bugün olduğun gibi de değerlisin, yarın olacağın gibi de.',
+  '{ad}, bu sadece bir program değil, kendine attığın bir adım. Seninle gurur duyuyorum.'
+];
+function svMotivationHtml(snap){
+  const ad=(snap.name||'').trim().split(/\s+/)[0]||'canım';
+  const tok=window.__shareTok||'';
+  let h=0; for(let i=0;i<tok.length;i++) h=(h*31+tok.charCodeAt(i))>>>0;
+  const dayIdx=Math.floor(Date.now()/86400000);
+  const msg=SV_MOTIVASYON[(dayIdx+h)%SV_MOTIVASYON.length].replace(/\{ad\}/g,esc(ad));
+  const imza=(snap.profile&&snap.profile.name)||'Diyetisyenin';
+  return `<section class="sv-card" style="margin-top:16px;background:linear-gradient(135deg,var(--blue-50),#fff);border:1px solid var(--blue-100)">
+    <div style="padding:24px 22px;text-align:center">
+      <div style="font-size:22px;margin-bottom:10px">🌸</div>
+      <p style="font-family:var(--serif);font-size:15.5px;line-height:1.75;color:var(--ink);margin:0 0 14px;font-style:italic">${msg}</p>
+      <div style="font-family:var(--serif);font-size:13.5px;color:var(--blue-700);font-weight:600">— ${esc(imza)}</div>
+    </div>
+  </section>`;
+}
+/* ══════════════ Danışan Bilgilendirme Kitapçığı ══════════════
+   Danışan linkinden okunabilen / Word-PDF indirilebilen kısa, sade
+   bilgilendirme yazıları. Her yazı {t:'h'} başlık, {t:'p'} paragraf,
+   {t:'ul'} madde listesi bloklarından oluşur — hem ekranda hem Word/PDF
+   çıktısında aynı içerik aynı sırayla kullanılır. Tıbbi tavsiye/teşhis
+   yerine geçmez; genel, sade beslenme bilgilendirmesidir. */
+const SV_ARTICLES=[
+ {id:'kilo-temelleri',cat:'Genel',emoji:'⚖️',title:'Kilo Vermenin Temelleri',ozet:'Kalıcı kilo kontrolünün arkasındaki basit ama sık unutulan ilkeler.',blocks:[
+  {t:'p',x:'Kilo vermek çoğu zaman karmaşık diyetler ya da mucizevi yöntemler aranarak zorlaştırılır. Oysa kalıcı sonuç veren değişim, küçük ve sürdürülebilir alışkanlıklardan geçer.'},
+  {t:'h',x:'Enerji dengesi'},
+  {t:'p',x:'Vücut, aldığı enerjiden daha azını harcadığında kilo alır; daha fazlasını harcadığında kilo verir. Ancak bu denge yalnızca "az ye, çok hareket et" kadar basit değildir — uyku, stres, hormonal durum ve öğün düzeni de bu dengeyi doğrudan etkiler.'},
+  {t:'h',x:'Hızlı sonuç beklentisinin riski'},
+  {t:'p',x:'Çok hızlı kilo kaybı genellikle kas kaybıyla birlikte gelir ve metabolizmayı yavaşlatır. Haftada 0,5-1 kg arası bir kayıp, hem sağlıklı hem de kalıcı olma ihtimali en yüksek hızdır.'},
+  {t:'h',x:'Nelere dikkat etmeli?'},
+  {t:'ul',x:['Öğün atlamaktan kaçının — uzun açlık dönemleri sonraki öğünde kontrolsüz yemeye yol açabilir.','Yeterli protein tüketimi tokluk süresini uzatır.','Su tüketimini artırmak çoğu zaman yanlışlıkla açlık sanılan susuzluğu önler.','Hareketi bir cezadan çok günlük hayatın doğal bir parçası haline getirin.']},
+  {t:'h',x:'Sabır en önemli besin'},
+  {t:'p',x:'Vücudunuz yıllar içinde oluşmuş alışkanlıklara sahip; birkaç haftada tam tersine dönmesini beklemek gerçekçi değildir. Diyetisyeninizle birlikte belirlediğiniz programı istikrarla sürdürmek, uzun vadede en etkili yoldur.'}
+ ]},
+ {id:'insulin-direnci',cat:'Metabolik Sağlık',emoji:'🩸',title:'İnsülin Direnci ve Beslenme',ozet:'İnsülin direnci nedir, beslenme düzeni bu süreci nasıl destekler?',blocks:[
+  {t:'p',x:'İnsülin, kan şekerini hücrelere taşıyan bir hormondur. İnsülin direncinde hücreler bu hormona eskisi kadar duyarlı tepki vermez, vücut dengeyi sağlamak için daha fazla insülin salgılar. Zamanla bu durum kilo alımını kolaylaştırabilir ve tip 2 diyabet riskini artırabilir.'},
+  {t:'h',x:'Belirtiler nelerdir?'},
+  {t:'p',x:'Sürekli yorgunluk, tatlı isteğinde artış, özellikle karın bölgesinde yağlanma ve öğün sonrası uyku hali sık görülen belirtiler arasındadır. Kesin tanı mutlaka kan tahlili ile, bir hekim tarafından konulmalıdır.'},
+  {t:'h',x:'Beslenmede dikkat edilecek noktalar'},
+  {t:'ul',x:['Rafine şeker ve beyaz un ürünleri yerine tam tahıllı seçenekler tercih edilmeli.','Her öğünde protein, lif ve sağlıklı yağ bir arada bulunmalı — bu, kan şekerindeki ani yükselişleri yumuşatır.','Öğünler arasında çok uzun süre açlıkta kalmaktan kaçınılmalı.','Düzenli fiziksel aktivite, hücrelerin insüline duyarlılığını artırır.']},
+  {t:'h',x:'Besin seçiminde sıralama önemli'},
+  {t:'p',x:'Aynı öğünde önce sebze/lif, sonra protein, en son karbonhidrat tüketmek, kan şekeri yanıtını belirgin şekilde yumuşatabilir. Bu basit sıralama değişikliği bile fark yaratabilir.'},
+  {t:'p',x:'İnsülin direnci, doğru beslenme ve hareket alışkanlıklarıyla büyük ölçüde yönetilebilir bir durumdur — bu süreçte diyetisyeninizle düzenli takip çok değerlidir.'}
+ ]},
+ {id:'menopoz',cat:'Kadın Sağlığı',emoji:'🌷',title:'Menopoz Döneminde Beslenme',ozet:'Hormonal değişimin beslenme ihtiyaçlarını nasıl etkilediği.',blocks:[
+  {t:'p',x:'Menopozla birlikte azalan östrojen seviyesi; metabolizma hızında yavaşlama, karın bölgesinde yağlanma eğilimi ve kemik yoğunluğunda azalmaya yol açabilir. Bu dönemde beslenme alışkanlıklarını buna göre uyarlamak önemlidir.'},
+  {t:'h',x:'Kalsiyum ve D vitamini'},
+  {t:'p',x:'Kemik erimesi riski bu dönemde artar. Süt ürünleri, yeşil yapraklı sebzeler ve güneşlenme (hekim önerisiyle D vitamini desteği gerekebilir) kemik sağlığı için önemlidir.'},
+  {t:'h',x:'Protein ihtiyacı artar'},
+  {t:'p',x:'Yaşla birlikte azalan kas kütlesini korumak için menopoz sonrası protein ihtiyacı görece artar. Her öğünde kaliteli bir protein kaynağı bulunmasına özen gösterilmelidir.'},
+  {t:'h',x:'Sıcak basması ve beslenme'},
+  {t:'p',x:'Kafein, alkol ve çok baharatlı yiyecekler bazı kadınlarda sıcak basmalarını tetikleyebilir. Bu besinlerin tüketimini gözlemleyip azaltmak rahatlama sağlayabilir.'},
+  {t:'h',x:'Öneriler'},
+  {t:'ul',x:['Haftada en az 2-3 gün kalsiyum kaynağı tüketin (süt, yoğurt, badem vb.).','Kemik ve kas sağlığı için düzenli direnç egzersizlerini beslenmeyle birlikte sürdürün.','Rafine şekerden uzak durarak ani kilo alımının önüne geçin.','Bol su için — hormonal değişim cilt ve mukoza kuruluğunu artırabilir.']}
+ ]},
+ {id:'logusalik',cat:'Kadın Sağlığı',emoji:'🤱',title:'Doğum Sonrası (Loğusalık) Döneminde Beslenme',ozet:'Yeni doğum yapan anneler için iyileşme ve emzirme döneminde beslenme.',blocks:[
+  {t:'p',x:'Doğum sonrası dönem, bedenin hem iyileştiği hem de (emziriyorsa) bebeğini beslediği, enerji ve besin öğesi ihtiyacının arttığı özel bir dönemdir. Bu süreçte hızlı kilo verme hedefi değil, dengeli ve besleyici beslenme öncelikli olmalıdır.'},
+  {t:'h',x:'Neden acele etmemeli?'},
+  {t:'p',x:'Gebelikte alınan kiloların çoğu, doğumdan sonraki ilk aylarda kademeli olarak geri döner. Çok düşük kalorili diyetler, özellikle emziren annelerde süt üretimini ve anne sağlığını olumsuz etkileyebilir.'},
+  {t:'h',x:'Emziren anneler için öncelikli besinler'},
+  {t:'ul',x:['Yeterli protein (et, yumurta, baklagiller, süt ürünleri)','Demir açısından zengin besinler — doğum sonrası demir kaybını desteklemek için','Omega-3 kaynakları (balık, ceviz) — bebeğin gelişimi için de önemlidir','Bol sıvı tüketimi — süt üretimi su ihtiyacını belirgin artırır','Lifli besinler — doğum sonrası sindirim sistemini desteklemek için']},
+  {t:'h',x:'Enerjiyi geri kazanmak'},
+  {t:'p',x:'Uyku düzensizliği ve yorgunluk bu dönemde kaçınılmazdır. Sık aralıklarla, küçük ama besin değeri yüksek öğünler tüketmek, enerjiyi daha dengeli tutmaya yardımcı olur.'},
+  {t:'p',x:'Her anne ve her doğum süreci farklıdır — bu dönemde beslenme planı mutlaka kişiye özel şekilde, hekim ve diyetisyen iş birliğiyle oluşturulmalıdır.'}
+ ]},
+ {id:'araliklı-oruc',cat:'Beslenme Yöntemleri',emoji:'⏱️',title:'Aralıklı Oruç: Kime Uygun, Kime Değil?',ozet:'Popüler bir yöntemin avantajları, sınırları ve uygun olmadığı durumlar.',blocks:[
+  {t:'p',x:'Aralıklı oruç (intermittent fasting), belirli saatlerde yemek yiyip belirli saatlerde yememeyi temel alan bir beslenme modelidir. Herkese uygun, tek bir "doğru" yöntem değildir.'},
+  {t:'h',x:'Olası faydaları'},
+  {t:'p',x:'Bazı kişilerde öğün sayısının azalması, toplam kalori alımını kontrol etmeyi kolaylaştırabilir. Düzenli uygulandığında insülin duyarlılığına olumlu katkısı olduğunu gösteren çalışmalar vardır.'},
+  {t:'h',x:'Kimler dikkatli olmalı?'},
+  {t:'ul',x:['Gebe ve emziren kadınlar','Yeme bozukluğu geçmişi olanlar','Diyabet gibi kan şekeri dengesini ilaçla yöneten kişiler (hekim onayı şart)','Büyüme çağındaki çocuk ve ergenler','Düşük tansiyon veya mide rahatsızlığı olanlar']},
+  {t:'h',x:'Nasıl başlanmalı?'},
+  {t:'p',x:'Aniden uzun açlık sürelerine geçmek yerine, açlık penceresini kademeli olarak uzatmak vücudun uyumunu kolaylaştırır. Aç kalınan saatlerde bol su, bitki çayı tüketmek rahatlatıcıdır.'},
+  {t:'p',x:'Bu yöntemi denemeden önce mevcut sağlık durumunuzu diyetisyeninizle paylaşmanız, size uygun olup olmadığının netleşmesi açısından önemlidir.'}
+ ]},
+ {id:'tiroid',cat:'Metabolik Sağlık',emoji:'🦋',title:'Tiroid Fonksiyonu ve Kilo İlişkisi',ozet:'Tiroid bezinin metabolizma ve kilo üzerindeki etkisi.',blocks:[
+  {t:'p',x:'Boyunda yer alan tiroid bezi, metabolizma hızını düzenleyen hormonlar üretir. Bu hormonların az üretildiği durumda (hipotiroidi) metabolizma yavaşlar ve kilo alımı kolaylaşabilir.'},
+  {t:'h',x:'Belirtiler'},
+  {t:'p',x:'Yorgunluk, üşüme hissi, saç dökülmesi, kabızlık ve açıklanamayan kilo alımı dikkat çekici belirtiler arasındadır. Tanı yalnızca kan tahlili ile hekim tarafından konulabilir.'},
+  {t:'h',x:'Beslenme ile desteklemek'},
+  {t:'ul',x:['İyot içeren besinler (iyotlu tuz, deniz ürünleri) tiroid hormonu üretimi için gereklidir.','Selenyum (Brezilya fıstığı, yumurta) tiroid fonksiyonunu destekleyen bir mineraldir.','Aşırı işlenmiş gıdalardan uzak durmak genel hormonal dengeyi destekler.','Lifli besinler, tiroid ilacı kullanan kişilerde ilaç emilimini etkileyebileceğinden ilaçla besin arası genelde belirli bir süre bırakılması önerilir — bu konuda hekiminize danışın.']},
+  {t:'p',x:'Tiroid sorunu olan kişilerde beslenme planı, ilaç tedavisiyle birlikte ve hekim-diyetisyen iş birliğiyle kişiselleştirilmelidir.'}
+ ]},
+ {id:'pcos',cat:'Kadın Sağlığı',emoji:'🌙',title:'PCOS (Polikistik Over Sendromu) ve Beslenme',ozet:'PCOS\'ta beslenmenin hormonal dengeye katkısı.',blocks:[
+  {t:'p',x:'Polikistik over sendromu (PCOS), üreme çağındaki kadınlarda sık görülen, hormonal dengesizlikle seyreden bir durumdur. Çoğu PCOS\'lu kadında insülin direnci de birlikte görülür — bu da beslenmeyi tedavinin önemli bir parçası haline getirir.'},
+  {t:'h',x:'Beslenme neden bu kadar önemli?'},
+  {t:'p',x:'Kan şekerini dengede tutan bir beslenme düzeni, hem insülin direncini hem de buna bağlı hormonal dengesizlikleri yönetmeye yardımcı olabilir. Kilo kaybının (mevcutsa) adet düzeninde bile olumlu etkisi görülebilir.'},
+  {t:'h',x:'Öneriler'},
+  {t:'ul',x:['Düşük glisemik indeksli besinler (tam tahıllar, baklagiller) tercih edin.','Her öğünde protein ve lif bulunmasına özen gösterin.','Şekerli içecek ve atıştırmalıklardan mümkün olduğunca uzak durun.','Düzenli fiziksel aktivite insülin duyarlılığını destekler.','İltihabı azaltabilecek omega-3 kaynaklarını (balık, keten tohumu) beslenmeye dahil edin.']},
+  {t:'p',x:'PCOS yönetimi kişiye özeldir — semptomlar ve laboratuvar değerleri kişiden kişiye farklılık gösterir, bu yüzden beslenme planı da kişiselleştirilmelidir.'}
+ ]},
+ {id:'duygusal-yeme',cat:'Davranış',emoji:'💭',title:'Duygusal Yeme ile Baş Etmek',ozet:'Açlık hissi ile duygusal açlığı ayırt etmenin yolları.',blocks:[
+  {t:'p',x:'Stres, üzüntü, sıkıntı ya da yalnızca alışkanlık sonucu yemek yemek, çoğu insanın hayatında zaman zaman yaşadığı bir durumdur. Bunu fark etmek, yönetmenin ilk adımıdır.'},
+  {t:'h',x:'Fiziksel açlık ile duygusal açlığın farkı'},
+  {t:'p',x:'Fiziksel açlık kademeli gelişir ve herhangi bir besinle tatmin olur. Duygusal açlık ise aniden ortaya çıkar, genellikle belirli bir yiyeceğe (tatlı, cips gibi) yönelir ve yedikten sonra genellikle pişmanlık hissi bırakır.'},
+  {t:'h',x:'Baş etme yolları'},
+  {t:'ul',x:['Yemek yemeden önce "şu an gerçekten aç mıyım?" diye kendinize sorun.','Yemek dışında rahatlatıcı alternatifler belirleyin: kısa bir yürüyüş, nefes egzersizi, bir arkadaşı aramak.','Mutfakta "tetikleyici" atıştırmalıkları göz önünde bulundurmayın; yerine meyve, yoğurt gibi seçenekleri kolay ulaşılabilir yapın.','Yediklerinizi birkaç gün not almak, hangi duygu durumlarının yeme isteğini tetiklediğini fark etmenizi sağlar.']},
+  {t:'p',x:'Duygusal yeme zaman zaman herkeste olabilir — amaç bunu tamamen yok etmek değil, sık ve kontrolsüz hale gelmesini önlemektir. Gerekirse bu konuda bir uzmandan destek almak da değerlidir.'}
+ ]},
+ {id:'protein-tokluk',cat:'Genel',emoji:'🥚',title:'Protein ve Tokluk Hissi',ozet:'Proteinin iştah kontrolündeki rolü ve günlük beslenmeye nasıl eklenir.',blocks:[
+  {t:'p',x:'Üç ana besin öğesi (protein, karbonhidrat, yağ) arasında tokluk hissini en uzun süre koruyan protein olduğu bilinir. Bu nedenle kilo yönetiminde protein alımına özen göstermek önemli bir stratejidir.'},
+  {t:'h',x:'Neden tok tutar?'},
+  {t:'p',x:'Protein, sindirimi en yavaş olan besin öğesidir ve tokluk hormonlarının salgılanmasını destekler. Ayrıca kas kütlesinin korunmasına katkı sağlar — bu da dinlenme halindeki metabolizmayı destekler.'},
+  {t:'h',x:'Günlük beslenmeye nasıl eklenir?'},
+  {t:'ul',x:['Kahvaltıya yumurta, peynir ya da yoğurt ekleyin.','Ana öğünlerde tabağın bir bölümünü her zaman bir protein kaynağına ayırın.','Ara öğünlerde meyveyi yalnız değil, bir avuç kuruyemiş ya da yoğurtla birlikte tüketin.','Baklagilleri haftada birkaç kez ana öğün olarak değerlendirin — hem protein hem lif kaynağıdır.']},
+  {t:'p',x:'Protein miktarı kişinin yaşına, aktivite düzeyine ve sağlık durumuna göre değişir; ihtiyacınıza uygun miktarı diyetisyeninizle birlikte belirlemeniz en sağlıklısıdır.'}
+ ]},
+ {id:'lif-bagirsak',cat:'Genel',emoji:'🌾',title:'Bağırsak Sağlığı ve Lifli Beslenme',ozet:'Lifin sindirim ve genel sağlık üzerindeki etkisi.',blocks:[
+  {t:'p',x:'Lif, sindirilemeyen ama bağırsak sağlığı için kritik öneme sahip bir besin öğesidir. Hem düzenli bağırsak hareketlerini destekler hem de bağırsaktaki yararlı bakterileri besler.'},
+  {t:'h',x:'Çözünür ve çözünmeyen lif'},
+  {t:'p',x:'Çözünür lif (yulaf, elma, baklagiller) kan şekeri ve kolesterol dengesine katkı sağlarken; çözünmeyen lif (tam tahıl kabuğu, sebze kabukları) bağırsak hareketliliğini destekler. İkisi de dengeli şekilde tüketilmelidir.'},
+  {t:'h',x:'Günlük beslenmeye eklemek için'},
+  {t:'ul',x:['Beyaz ekmek yerine tam tahıllı ekmek tercih edin.','Meyveleri kabuklarıyla (yıkanmış şekilde) tüketin.','Haftada birkaç kez baklagil tüketin.','Lif alımını aniden değil, kademeli artırın — ani artış şişkinlik yapabilir.','Bol su için — lif yeterli suyla birlikte etkili çalışır.']},
+  {t:'p',x:'Düzenli lifli beslenme yalnızca sindirimi değil, tokluk hissini ve genel metabolik sağlığı da olumlu etkiler.'}
+ ]},
+ {id:'uyku-kilo',cat:'Yaşam Tarzı',emoji:'😴',title:'Uyku ve Kilo Yönetimi',ozet:'Yetersiz uykunun iştah ve kilo üzerindeki şaşırtıcı etkisi.',blocks:[
+  {t:'p',x:'Beslenme kadar önemli olan ama çoğu zaman göz ardı edilen bir faktör de uykudur. Yetersiz ve düzensiz uyku, iştahı düzenleyen hormonları doğrudan etkiler.'},
+  {t:'h',x:'Uyku ile iştah hormonları'},
+  {t:'p',x:'Uyku yetersizliği, açlık hissini artıran grelin hormonunu yükseltirken, tokluk hissini sağlayan leptin hormonunu azaltır. Sonuç olarak yorgun bir bedende iştah artar, özellikle yüksek kalorili besinlere yönelim görülür.'},
+  {t:'h',x:'Kaliteli uyku için öneriler'},
+  {t:'ul',x:['Her gün benzer saatte yatıp kalkmaya çalışın.','Yatmadan 2-3 saat önce ağır/yağlı yemekten kaçının.','Akşam saatlerinde kafein tüketimini sınırlayın.','Yatak odasını karanlık ve serin tutmak uyku kalitesini artırır.','Ekran süresini yatmadan en az yarım saat önce azaltın.']},
+  {t:'p',x:'Düzenli uyku, beslenme programınızın başarısını doğrudan destekleyen, çoğu zaman göz ardı edilen güçlü bir unsurdur.'}
+ ]},
+ {id:'yoyo-diyet',cat:'Davranış',emoji:'🔄',title:'Yo-yo Diyet: Sürekli Kilo Verip Almanın Bedeli',ozet:'Sık diyet-kilo alma döngüsünün metabolizmaya etkisi.',blocks:[
+  {t:'p',x:'Çok hızlı kilo verip, kısa süre sonra aynı hızla (hatta fazlasıyla) geri alma döngüsüne "yo-yo diyet" denir. Bu döngü, uzun vadede metabolizma ve vücut kompozisyonu açısından olumsuz sonuçlar doğurabilir.'},
+  {t:'h',x:'Neden zararlı olabilir?'},
+  {t:'p',x:'Hızlı kilo kaybında genellikle yağ kadar kas kütlesi de kaybedilir. Kilo geri alındığında ise çoğunlukla yağ dokusu olarak geri gelir. Zamanla bu döngü, vücudun yağ oranını artırırken kas kütlesini azaltabilir.'},
+  {t:'h',x:'Döngüden çıkmanın yolu'},
+  {t:'ul',x:['Çok düşük kalorili, sürdürülemez diyetlerden kaçının.','Kilo kaybını yavaş ama istikrarlı bir süreç olarak planlayın.','Diyet bitince "eski düzene dönme" değil, kalıcı bir yaşam tarzı değişikliği hedefleyin.','Kas kütlesini korumak için direnç egzersizlerini beslenmeyle birlikte sürdürün.']},
+  {t:'p',x:'Kalıcı sonuç, hız değil süreklilik ister. Diyetisyeninizle birlikte oluşturduğunuz program, tam olarak bu sürekliliği hedefler.'}
+ ]}
+];
+function svArtBlocksHtml(bl){
+  return bl.map(b=>{
+    if(b.t==='h') return `<div style="font-weight:700;color:var(--blue-700);font-size:13.5px;margin:14px 0 6px">${esc(b.x)}</div>`;
+    if(b.t==='ul') return `<ul style="margin:0 0 8px;padding-left:18px;font-size:13px;line-height:1.7">${b.x.map(i=>`<li>${esc(i)}</li>`).join('')}</ul>`;
+    return `<p style="margin:0 0 8px;font-size:13px;line-height:1.7;color:var(--ink-2)">${esc(b.x)}</p>`;
+  }).join('');
+}
+function svArtBlocksDocx(bl){
+  return bl.map(b=>{
+    if(b.t==='h') return wP(b.x,{b:true,size:24,color:'9C3F60',before:160,after:90});
+    if(b.t==='ul') return b.x.map(i=>wP(i,{bullet:true,size:21,after:50,line:300})).join('');
+    return wP(b.x,{size:21,after:110,line:300});
+  }).join('');
+}
+async function svArticlePdf(id){
+  const art=SV_ARTICLES.find(a=>a.id===id); if(!art) return;
+  toast('PDF hazırlanıyor…',8000);
+  try{
+    await ensurePdfLibs();
+    const snap=window.__shareSnap||{};
+    const brand='#9C3F60';
+    const html=`<div style="padding:40px 46px 20px;text-align:center;border-bottom:3px solid ${brand}">
+      <div style="font-size:30px">${art.emoji}</div>
+      <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;color:${brand};margin-top:8px">${esc(art.title)}</div>
+      <div style="font-size:12px;color:#8a8a8a;margin-top:8px">${esc((snap.profile&&snap.profile.name)||'Diyetisyen Bilgilendirme Kitapçığı')}</div>
+    </div>
+    <div style="padding:26px 46px 10px">${svArtBlocksHtml(art.blocks)}
+      <p style="margin-top:22px;font-size:10.5px;color:#9a9a9a;font-style:italic">Bu yazı genel bilgilendirme amaçlıdır, tıbbi tanı veya tedavi yerine geçmez. Kişisel durumunuzla ilgili sorularınızı diyetisyeninizle paylaşın.</p>
+    </div>`;
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF('p','mm','a4');
+    const canvas=await pdfRenderChunk(html);
+    pdfAddCanvas(doc,canvas,false);
+    doc.save((art.title).replace(/[\\/:*?"<>|]/g,'').slice(0,80)+'.pdf');
+    toast('PDF indirildi ✓');
+  }catch(err){ toast('PDF oluşturulamadı: '+(err.message||''),6000); }
+}
+function svArticleDocx(id){
+  const art=SV_ARTICLES.find(a=>a.id===id); if(!art) return;
+  const snap=window.__shareSnap||{};
+  let body=wP(art.title,{align:'center',b:true,size:34,color:'9C3F60',after:70});
+  body+=wP((snap.profile&&snap.profile.name)||'Diyetisyen Bilgilendirme Kitapçığı',{align:'center',i:true,size:18,color:'7A5362',after:200});
+  body+=svArtBlocksDocx(art.blocks);
+  body+=wP('Bu yazı genel bilgilendirme amaçlıdır, tıbbi tanı veya tedavi yerine geçmez. Kişisel durumunuzla ilgili sorularınızı diyetisyeninizle paylaşın.',{size:15,i:true,color:'9a9a9a',before:260});
+  packDocx(body,[],[],art.title);
+}
+function svArticlesLibHtml(){
+  const cats=[...new Set(SV_ARTICLES.map(a=>a.cat))];
+  return `<section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>📚 Bilgilendirme Kitapçığı</h3></div>
+    <div style="padding:14px 16px 16px">
+      <p class="hint" style="margin:0 0 12px">Beslenmeyle ilgili merak ettiğin konularda kısa, sade yazılar — okumak için başlığa dokun, istersen Word veya PDF olarak indir.</p>
+      ${cats.map(cat=>`
+        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px">${esc(cat)}</div>
+        ${SV_ARTICLES.filter(a=>a.cat===cat).map(a=>`
+          <details class="sv-art" style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">
+            <summary style="list-style:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px">
+              <span style="font-size:16px">${a.emoji}</span>
+              <span style="flex:1">${esc(a.title)}<div style="font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px">${esc(a.ozet)}</div></span>
+              <span class="sv-art-car" style="color:var(--muted);font-size:11px">▾</span>
+            </summary>
+            <div style="padding:4px 16px 16px;border-top:1px solid var(--line-2)">
+              ${svArtBlocksHtml(a.blocks)}
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button class="btn btn-sm" type="button" data-sv-art-docx="${a.id}" style="flex:1;justify-content:center">⬇ Word</button>
+                <button class="btn btn-sm" type="button" data-sv-art-pdf="${a.id}" style="flex:1;justify-content:center">⬇ PDF</button>
+              </div>
+            </div>
+          </details>`).join('')}`).join('')}
+    </div>
+  </section>`;
 }
 function svPlanKey(){ const p=window.__svCurPlan; return p&&p.id?p.id:'cur'; }
 function svDaysTabsHtml(plan){
