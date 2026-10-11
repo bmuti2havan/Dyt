@@ -8840,6 +8840,23 @@ const SV_ARTICLES=[
   {t:'p',x:'Kalıcı sonuç, hız değil süreklilik ister. Diyetisyeninizle birlikte oluşturduğunuz program, tam olarak bu sürekliliği hedefler.'}
  ]}
 ];
+/* Her makalenin kısa "bu bilgi nereden geliyor" notu — danışana şeffaflık için.
+   Belirli bir dergi/çalışma adı uydurmak yerine, içeriğin hangi genel bilgi
+   alanından derlendiğini dürüstçe belirtir. */
+const SV_KAYNAK={
+  'kilo-temelleri':'Enerji dengesi ve sürdürülebilir kilo yönetimi konusundaki güncel, genel kabul görmüş beslenme bilimi bilgileri derlenerek hazırlanmıştır.',
+  'insulin-direnci':'İnsülin direnci ve beslenme ilişkisine dair güncel klinik beslenme literatüründeki genel bilgiler derlenerek hazırlanmıştır.',
+  'menopoz':'Menopoz döneminde hormonal değişim ve beslenme ihtiyaçlarına dair güncel kadın sağlığı ve beslenme literatüründeki genel bilgiler derlenerek hazırlanmıştır.',
+  'logusalik':'Doğum sonrası iyileşme, emzirme ve beslenme ihtiyaçlarına dair güncel klinik beslenme literatüründeki genel bilgiler derlenerek hazırlanmıştır.',
+  'araliklı-oruc':'Aralıklı oruç yöntemleri ve etkilerine dair güncel beslenme literatüründeki genel bulgular derlenerek hazırlanmıştır.',
+  'tiroid':'Tiroid fonksiyonu ile metabolizma ve kilo ilişkisine dair güncel endokrinoloji ve beslenme literatüründeki genel bilgiler derlenerek hazırlanmıştır.',
+  'pcos':'PCOS ve beslenme ilişkisine dair güncel kadın sağlığı ve beslenme literatüründeki genel bilgiler derlenerek hazırlanmıştır.',
+  'duygusal-yeme':'Duygusal yeme davranışına dair güncel beslenme psikolojisi literatüründeki genel bilgiler derlenerek hazırlanmıştır.',
+  'protein-tokluk':'Proteinin tokluk ve iştah üzerindeki etkisine dair güncel beslenme bilimi literatüründeki genel bilgiler derlenerek hazırlanmıştır.',
+  'lif-bagirsak':'Lifli beslenme ve bağırsak sağlığına dair güncel beslenme literatüründeki genel bilgiler derlenerek hazırlanmıştır.',
+  'uyku-kilo':'Uyku ile iştah ve kilo yönetimi ilişkisine dair güncel beslenme ve uyku literatüründeki genel bulgular derlenerek hazırlanmıştır.',
+  'yoyo-diyet':'Tekrarlayan diyet döngülerinin metabolizmaya etkisine dair güncel obezite ve beslenme literatüründeki genel bulgular derlenerek hazırlanmıştır.'
+};
 function svArtBlocksHtml(bl){
   return bl.map(b=>{
     if(b.t==='h') return `<div style="font-weight:700;color:var(--blue-700);font-size:13.5px;margin:14px 0 6px">${esc(b.x)}</div>`;
@@ -8867,7 +8884,8 @@ async function svArticlePdf(id){
       <div style="font-size:12px;color:#8a8a8a;margin-top:8px">${esc((snap.profile&&snap.profile.name)||'Diyetisyen Bilgilendirme Kitapçığı')}</div>
     </div>
     <div style="padding:26px 46px 10px">${svArtBlocksHtml(art.blocks)}
-      <p style="margin-top:22px;font-size:10.5px;color:#9a9a9a;font-style:italic">Bu yazı genel bilgilendirme amaçlıdır, tıbbi tanı veya tedavi yerine geçmez. Kişisel durumunuzla ilgili sorularınızı diyetisyeninizle paylaşın.</p>
+      ${SV_KAYNAK[art.id]?`<p style="margin-top:16px;font-size:10px;color:#9a9a9a;font-style:italic">📎 Kaynak: ${esc(SV_KAYNAK[art.id])}</p>`:''}
+      <p style="margin-top:8px;font-size:10.5px;color:#9a9a9a;font-style:italic">Bu yazı genel bilgilendirme amaçlıdır, tıbbi tanı veya tedavi yerine geçmez. Kişisel durumunuzla ilgili sorularınızı diyetisyeninizle paylaşın.</p>
     </div>`;
     const {jsPDF}=window.jspdf;
     const doc=new jsPDF('p','mm','a4');
@@ -8894,7 +8912,8 @@ function svArticleDocx(id){
   body+=wP(art.title,{align:'center',b:true,size:34,color:'9C3F60',after:70});
   body+=wP((snap.profile&&snap.profile.name)||'Diyetisyen Bilgilendirme Kitapçığı',{align:'center',i:true,size:18,color:'7A5362',after:200});
   body+=svArtBlocksDocx(art.blocks);
-  body+=wP('Bu yazı genel bilgilendirme amaçlıdır, tıbbi tanı veya tedavi yerine geçmez. Kişisel durumunuzla ilgili sorularınızı diyetisyeninizle paylaşın.',{size:15,i:true,color:'9a9a9a',before:260});
+  if(SV_KAYNAK[art.id]) body+=wP('📎 Kaynak: '+SV_KAYNAK[art.id],{size:14,i:true,color:'9a9a9a',before:220});
+  body+=wP('Bu yazı genel bilgilendirme amaçlıdır, tıbbi tanı veya tedavi yerine geçmez. Kişisel durumunuzla ilgili sorularınızı diyetisyeninizle paylaşın.',{size:15,i:true,color:'9a9a9a',before:120});
   packDocx(body,media,rels,art.title);
 }
 function svArticlesLibHtml(){
@@ -8913,6 +8932,7 @@ function svArticlesLibHtml(){
             </summary>
             <div style="padding:4px 16px 16px;border-top:1px solid var(--line-2)">
               ${svArtBlocksHtml(a.blocks)}
+              ${SV_KAYNAK[a.id]?`<p style="margin:10px 0 0;font-size:10.5px;color:var(--muted);font-style:italic">📎 Kaynak: ${esc(SV_KAYNAK[a.id])}</p>`:''}
               <div style="display:flex;gap:8px;margin-top:10px">
                 <button class="btn btn-sm" type="button" data-sv-art-docx="${a.id}" style="flex:1;justify-content:center">⬇ Word</button>
                 <button class="btn btn-sm" type="button" data-sv-art-pdf="${a.id}" style="flex:1;justify-content:center">⬇ PDF</button>
