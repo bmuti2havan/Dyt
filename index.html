@@ -2239,7 +2239,7 @@ async function shareRevoke(cid){
   const c=clientOf(cid||S.shareClient||S.client); if(!c||!c.shareToken) return;
   if(!confirm('Bu link iptal edilsin mi? Danışan artık bu linkten hiçbir şey göremeyecek.')) return;
   try{ const t=await cloudToken(); await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t)}`,{method:'DELETE'}); }catch(e){}
-  c.shareToken=''; c.shareCreatedAt=0; c.shareExpiresAt=0;
+  c.shareToken=''; c.shareCreatedAt=0; c.shareExpiresAt=0; c.shareUpdatedAt=Date.now();
   await save(); toast('Link iptal edildi');
   modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
 }
@@ -2325,7 +2325,22 @@ function mergeVal(a,b,prefB){              // a = bu cihaz, b = bulut
     return prefB? b : a;                   // sırası önemli listeler (günler, öğünler…): yeni olan taraf
   }
   if(isPlain(a)&&isPlain(b)){
-    const o={}; new Set([...Object.keys(a),...Object.keys(b)]).forEach(k=>{ o[k]=mergeVal(a[k],b[k],prefB); }); return o;
+    const o={}; const keys=new Set([...Object.keys(a),...Object.keys(b)]);
+    // Danışan takip linki (shareToken ve ilgili alanlar) özel durum: tüm DB için
+    // tek bir "hangi taraf daha yeni" kararı (prefB) burada YANLIŞ sonuç verebilir —
+    // mesela başka bir sekme/cihazda açık kalmış eski bir oturum arka planda
+    // senkronize olduğunda, az önce iptal edilip yeniden oluşturulmuş bir linki
+    // sessizce eski haline geri çevirebilir. Bu yüzden bu alanlar grubu kendi
+    // shareUpdatedAt zaman damgasına göre, DB geneli prefB'den bağımsız merge edilir.
+    const isShareClient=keys.has('shareToken')&&keys.has('id');
+    const prefShareB=isShareClient&&((+b.shareUpdatedAt||0)>=(+a.shareUpdatedAt||0));
+    keys.forEach(k=>{
+      if(isShareClient&&(k==='shareToken'||k==='shareCreatedAt'||k==='shareExpiresAt'||k==='shareUpdatedAt')){
+        o[k]=prefShareB?b[k]:a[k]; return;
+      }
+      o[k]=mergeVal(a[k],b[k],prefB);
+    });
+    return o;
   }
   return prefB? b : a;
 }
