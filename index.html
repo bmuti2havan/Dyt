@@ -2260,11 +2260,46 @@ async function shareRevoke(cid){
   await save(); toast('Link iptal edildi');
   modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
 }
+/* Linki kopyalama — tek yönteme güvenmez, sırayla dener:
+   1) Clipboard API (modern tarayıcılar, https gerektirir)
+   2) document.execCommand('copy') (Clipboard API'nin çalışmadığı eski/
+      uygulama-içi tarayıcılarda — WhatsApp/Instagram gömülü tarayıcısı vb. —
+      genelde bu çalışır)
+   3) İkisi de başarısız olursa: kutudaki linki otomatik seçili bırakıp
+      kullanıcıya "elle kopyala" talimatı verir — en azından sayfanın
+      kendisi hep çalışır, danışana link iletmek asla tamamen tıkanmaz. */
+function shareCopyLegacy(url){
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=url;
+    ta.style.cssText='position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:none;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select(); ta.setSelectionRange(0,99999);
+    const ok=document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }catch(e){ return false; }
+}
+function shareCopyFail(){
+  const inp=document.getElementById('shareUrlInput');
+  if(inp){ inp.focus(); inp.select(); try{ inp.setSelectionRange(0,99999); }catch(e){} }
+  toast('Otomatik kopyalanamadı — kutudaki link seçili, klavyenden Kopyala (Ctrl/Cmd+C) ya da uzun basıp "Kopyala" ile alabilirsin',7000);
+}
 function shareCopy(cid){
   const c=clientOf(cid||S.shareClient||S.client); if(!c||!c.shareToken) return;
   const url=shareUrl(c.shareToken);
-  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(()=>toast('Link kopyalandı')).catch(()=>toast('Kopyalanamadı — kutudan elle seçip kopyalayın'));
-  else toast('Kopyalanamadı — kutudan elle seçip kopyalayın');
+  if(navigator.clipboard&&navigator.clipboard.writeText&&window.isSecureContext){
+    navigator.clipboard.writeText(url).then(()=>toast('Link kopyalandı ✓'))
+      .catch(()=>{ if(shareCopyLegacy(url)) toast('Link kopyalandı ✓'); else shareCopyFail(); });
+  } else {
+    if(shareCopyLegacy(url)) toast('Link kopyalandı ✓'); else shareCopyFail();
+  }
+}
+async function shareNative(cid){
+  const c=clientOf(cid||S.shareClient||S.client); if(!c||!c.shareToken) return;
+  const url=shareUrl(c.shareToken);
+  try{ await navigator.share({title:'Takip linkin',text:(c.name?c.name+', ':'')+'işte takip linkin:',url}); }
+  catch(e){ /* kullanıcı paylaşım panelini kapattıysa sessiz geç */ }
 }
 function shareStatusHtml(c){
   if(!c.shareToken){
@@ -2275,10 +2310,11 @@ function shareStatusHtml(c){
   }
   const url=shareUrl(c.shareToken);
   return `<p class="hint" style="margin:0 0 10px">Bu link <b>sen iptal edene kadar</b> açık kalır. Danışan bu linkten kilo/ölçüm grafiğini ve güncel programını görebilir, isterse Word/PDF indirebilir — başka hiçbir veriye erişemez.</p>
-    <div class="field" style="margin-bottom:12px"><input readonly value="${esc(url)}" onclick="this.select()" style="font-family:var(--mono);font-size:12px;width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px"></div>
+    <div class="field" style="margin-bottom:12px"><input id="shareUrlInput" readonly value="${esc(url)}" onclick="this.select()" onfocus="this.select()" style="font-family:var(--mono);font-size:12px;width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px"></div>
     <p style="margin:0 0 10px;color:var(--muted);font-size:12px">Oluşturulma: ${trDT(c.shareCreatedAt)}</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn btn-sm btn-primary" data-act="share-copy">📋 Linki kopyala</button>
+      ${navigator.share?`<button class="btn btn-sm" data-act="share-native">📤 Paylaş (WhatsApp vb.)</button>`:''}
       <button class="btn btn-sm" data-act="share-gen">🔄 Verileri güncelle</button>
       <button class="btn btn-sm btn-danger" data-act="share-revoke">Linki iptal et</button>
     </div>
@@ -8294,6 +8330,7 @@ document.addEventListener('click',async e=>{
     if(a==='share-open'){ openClientShare(act.dataset.cid); return; }
     if(a==='share-gen'){ await shareGenerate(); return; }
     if(a==='share-copy'){ shareCopy(); return; }
+    if(a==='share-native'){ await shareNative(); return; }
     if(a==='share-revoke'){ await shareRevoke(); return; }
     if(a==='lib-toggle'){
       const c2=clientOf(act.dataset.cid); if(!c2) return;
