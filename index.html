@@ -1710,7 +1710,7 @@ function seed(){
   return {
     profile:{name:'Dyt. Ayşenur KORKMAZ', clinic:'Ayşenur KORKMAZ Beslenme Danışmanlığı',
       phone:'', mail:'', note:'Sorularınız için bana yazabilirsiniz.', logo:LOGO},
-    clients:[], appts:[], foods:SEED_FOODS, plans:[], gallery:[], favMeals:[], planTpls:[], seq:1
+    clients:[], appts:[], foods:SEED_FOODS, plans:[], gallery:[], favMeals:[], planTpls:[], library:[], seq:1
   };
 }
 /* ══════════════ Fotoğraf kasası (IndexedDB) ══════════════
@@ -2143,7 +2143,7 @@ async function openCloudBackups(){
 /* Firebase boş dizileri saklamaz; eski otomatik yedeklerde eksik kalan alanları tamamlar */
 function normalizeRestored(o){
   const arr=v=>Array.isArray(v)? v : (v&&typeof v==='object'? Object.values(v) : []);
-  ['clients','appts','plans','gallery','favMeals','planTpls'].forEach(k=>{ o[k]=arr(o[k]); });
+  ['clients','appts','plans','gallery','favMeals','planTpls','library'].forEach(k=>{ o[k]=arr(o[k]); });
   o.clients.forEach(c=>{ c.measures=arr(c.measures); c.notes=arr(c.notes); c.docs=arr(c.docs); });
   o.savedRecipes=arr(o.savedRecipes);
   const fix=p=>{
@@ -2201,6 +2201,7 @@ function shareToken(){
   return s;
 }
 const shareUrl=tok=>location.origin+location.pathname+'?v='+tok;
+function libSizeFmt(n){ n=+n||0; return n<1024*1024? Math.round(n/1024)+' KB' : (n/1024/1024).toFixed(1)+' MB'; }
 function buildShareSnapshot(c){
   const all=plansOf(c.id);
   const act=all.find(p=>p.status==='Aktif')||[...all].sort((a,b)=>new Date(b.start)-new Date(a.start))[0]||null;
@@ -2212,11 +2213,14 @@ function buildShareSnapshot(c){
   const nx=nextApptOf(c.id);
   const notes=(c.notes||[]).filter(n=>n.visible).sort((a,b)=>new Date(b.date)-new Date(a.date))
     .map(n=>({date:n.date,type:n.type,text:n.text}));
+  // Danışana özel olarak atanmış eğitim kitapçıkları (kendi yüklediğin Word/PDF'ler)
+  const booklets=(c.assignedBooklets||[]).map(id=>(DB.library||[]).find(b=>b.id===id)).filter(Boolean)
+    .map(b=>({id:b.id,name:b.name,type:b.type,data:b.data}));
   return {
     name:c.name, clientId:c.id,
     measures:(c.measures||[]).filter(m=>m.date&&m.weight!=null).map(m=>({date:m.date,weight:m.weight,waist:m.waist,hip:m.hip,fat:m.fat})),
     nextAppt: nx? {when:nx.when,type:nx.type} : null,
-    plan, pastPlans, notes,
+    plan, pastPlans, notes, booklets,
     profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail}
   };
 }
@@ -2256,7 +2260,8 @@ function shareCopy(cid){
 function shareStatusHtml(c){
   if(!c.shareToken){
     return `<p class="hint" style="margin:0 0 14px">Bu danışan için henüz bir takip linki yok. Oluşturduğunda danışan; kilo/ölçüm grafiğini, güncel beslenme programını ve bir sonraki randevusunu kendi linkinden görebilir, isterse Word veya PDF olarak indirebilir. Link, sen iptal edene kadar açık kalır — kendiliğinden silinmez.</p>
-      <button class="btn btn-primary" data-act="share-gen">🔗 Link oluştur</button>`;
+      <button class="btn btn-primary" data-act="share-gen">🔗 Link oluştur</button>
+      ${shareBookletsHtml(c)}`;
   }
   const url=shareUrl(c.shareToken);
   return `<p class="hint" style="margin:0 0 10px">Bu link <b>sen iptal edene kadar</b> açık kalır. Danışan bu linkten kilo/ölçüm grafiğini ve güncel programını görebilir, isterse Word/PDF indirebilir — başka hiçbir veriye erişemez.</p>
@@ -2266,7 +2271,22 @@ function shareStatusHtml(c){
       <button class="btn btn-sm btn-primary" data-act="share-copy">📋 Linki kopyala</button>
       <button class="btn btn-sm" data-act="share-gen">🔄 Verileri güncelle</button>
       <button class="btn btn-sm btn-danger" data-act="share-revoke">Linki iptal et</button>
-    </div>`;
+    </div>
+    ${shareBookletsHtml(c)}`;
+}
+/* Danışana özel atanan eğitim kitapçıkları (kendi yüklediği Word/PDF'ler) —
+   kütüphaneden seçip işaretlemek yeter, link zaten açıksa anında güncellenir. */
+function shareBookletsHtml(c){
+  const lib=DB.library||[];
+  return `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px">📚 Bu danışana verilecek eğitim kitapçıkları</div>
+    ${lib.length?`<div style="display:flex;flex-wrap:wrap;gap:6px">${lib.map(b=>{
+        const on=(c.assignedBooklets||[]).includes(b.id);
+        return `<button class="btn btn-sm ${on?'btn-primary':''}" type="button" data-act="lib-toggle" data-cid="${c.id}" data-lid="${b.id}">${on?'✓ ':''}${b.type==='pdf'?'📕':'📘'} ${esc(b.name)}</button>`;
+      }).join('')}</div>
+      <p class="hint" style="margin-top:8px">Seçtiklerin, danışanın takip linkinde "Eğitim Kitapçıkların" bölümünde indirilebilir olarak görünür. Haftalık değiştirmek için buradan işaretini kaldırıp yenisini seç.</p>`
+     :`<p class="hint" style="margin:0">Kütüphanede henüz kitapçık yok. Ayarlar → 📚 Eğitim kitapçığı kütüphanesi bölümünden kendi Word/PDF dosyalarını yükleyebilirsin.</p>`}
+  </div>`;
 }
 function openClientShare(cid){
   const c=clientOf(cid||S.client); if(!c) return;
@@ -6291,6 +6311,15 @@ function pageSettings(){
       <p style="font-size:12px;color:var(--muted);margin:12px 0 0">Linkler sen "Linki iptal et" demeden kendiliğinden silinmez/kapanmaz.</p>
       </div>`;
     })()}</section>
+    <section class="card" style="margin-bottom:16px"><div class="card-h"><h3>📚 Eğitim kitapçığı kütüphanesi</h3><div class="spacer"></div><span class="tag ${(DB.library||[]).length?'tag-ok':''}">${(DB.library||[]).length}</span></div>
+      <div class="card-b">
+        <p style="margin:0 0 12px;color:var(--muted);font-size:13px">Kendi hazırladığın Word veya PDF eğitim kitapçıklarını buraya toplu yükle. Sonra bir danışanın "🔗 Danışan linki" ayarından, o danışana hangi kitapçığı/kitapçıkları vereceğini seçebilirsin — haftalık değiştirmek için aynı yerden işaretini kaldırıp yenisini seçmen yeter.</p>
+        <label class="btn btn-primary" style="display:inline-flex">⬆ Kitapçık yükle (Word/PDF, birden fazla seçilebilir)<input type="file" id="libFiles" accept=".docx,.pdf" multiple hidden></label>
+        ${(DB.library||[]).length?`<div class="tw" style="margin-top:14px"><table><thead><tr><th>Dosya</th><th>Tür</th><th>Boyut</th><th>Eklenme</th><th></th></tr></thead>
+          <tbody>${DB.library.map(b=>`<tr><td class="t-name">${esc(b.name)}</td><td><span class="tag">${b.type==='pdf'?'PDF':'Word'}</span></td><td class="num">${libSizeFmt(b.size)}</td><td class="num">${trDT(b.uploadedAt)}</td>
+            <td class="t-right"><button class="btn btn-sm btn-danger" data-act="lib-del" data-lid="${b.id}">Sil</button></td></tr>`).join('')}</tbody></table></div>`
+         :''}
+      </div></section>
     <section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Giriş şifresi</h3></div><div class="card-b">
       <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Uygulama her açıldığında sorulur. Şu anki şifre ${String(p.pin||'0508').length} haneli.</p>
       <div class="form-grid">
@@ -8237,6 +8266,23 @@ document.addEventListener('click',async e=>{
     if(a==='share-gen'){ await shareGenerate(); return; }
     if(a==='share-copy'){ shareCopy(); return; }
     if(a==='share-revoke'){ await shareRevoke(); return; }
+    if(a==='lib-toggle'){
+      const c2=clientOf(act.dataset.cid); if(!c2) return;
+      c2.assignedBooklets=c2.assignedBooklets||[];
+      const lid=act.dataset.lid, i=c2.assignedBooklets.indexOf(lid);
+      if(i>=0) c2.assignedBooklets.splice(i,1); else c2.assignedBooklets.push(lid);
+      await save();
+      if(c2.shareToken){ await shareGenerate(c2.id); }
+      else { modal('🔗 Danışan takip linki', shareStatusHtml(c2), 'Kapat','close','540px'); }
+      return;
+    }
+    if(a==='lib-del'){
+      const lid=act.dataset.lid;
+      if(!confirm('Bu kitapçık silinsin mi? Atanmış olduğu danışanların sayfasından da kalkar.')) return;
+      DB.library=(DB.library||[]).filter(b=>b.id!==lid);
+      DB.clients.forEach(c2=>{ if(c2.assignedBooklets) c2.assignedBooklets=c2.assignedBooklets.filter(id=>id!==lid); });
+      await save(); toast('Kitapçık silindi'); render(); return;
+    }
     if(a==='save-form'){
       const c2=clientOf(S.client);
       Object.assign(c2,{name:val('fm-name')||c2.name,age:val('fm-age'),city:val('fm-city'),height:val('fm-height'),
@@ -8399,6 +8445,25 @@ document.addEventListener('change',async e=>{
   if(e.target.id==='logoFile' && e.target.files && e.target.files[0]){
     try{ DB.profile.logo=await shrink(e.target.files[0],760,0.82,false); await save(); const backupMsg=await forceCloudBackup(); toast('Logo kaydedildi'+backupMsg); render(); }
     catch(err){ toast('Görsel okunamadı'); }
+  }
+  if(e.target.id==='libFiles' && e.target.files && e.target.files.length){
+    const files=[...e.target.files]; let added=0, skipped=[];
+    toast('Yükleniyor…',5000);
+    try{
+      for(const f of files){
+        const ext=(f.name.split('.').pop()||'').toLowerCase();
+        if(ext!=='docx'&&ext!=='pdf'){ skipped.push(f.name+' (desteklenmeyen tür)'); continue; }
+        if(f.size>8*1024*1024){ skipped.push(f.name+' (8MB üzeri)'); continue; }
+        const data=await blobToData(f);
+        DB.library=DB.library||[];
+        DB.library.push({id:uid('lib'),name:f.name,type:ext,size:f.size,uploadedAt:Date.now(),data});
+        added++;
+      }
+      await save(); const backupMsg=await forceCloudBackup();
+      toast((added? added+' kitapçık eklendi'+backupMsg : 'Hiçbir dosya eklenemedi')+(skipped.length?' — atlanan: '+skipped.join(', '):''),skipped.length?8000:4000);
+      render();
+    }catch(err){ toast('Dosya okunamadı'); }
+    e.target.value='';
   }
 });
 
@@ -8668,10 +8733,12 @@ function renderShareView(snap){
     ${notesHtml}
     ${planBrokenHtml}
     ${planHtml}
+    ${svBookletsHtml(snap)}
     ${svArticlesLibHtml()}
     ${svMotivationHtml(snap)}
     <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
+  document.querySelectorAll('[data-sv-booklet]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svDownloadBooklet(+b.dataset.svBooklet); }));
   document.querySelectorAll('[data-sv-art-docx]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticleDocx(b.dataset.svArtDocx); }));
   document.querySelectorAll('[data-sv-art-pdf]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticlePdf(b.dataset.svArtPdf); }));
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
@@ -8915,6 +8982,26 @@ function svArticleDocx(id){
   if(SV_KAYNAK[art.id]) body+=wP('📎 Kaynak: '+SV_KAYNAK[art.id],{size:14,i:true,color:'9a9a9a',before:220});
   body+=wP('Bu yazı genel bilgilendirme amaçlıdır, tıbbi tanı veya tedavi yerine geçmez. Kişisel durumunuzla ilgili sorularınızı diyetisyeninizle paylaşın.',{size:15,i:true,color:'9a9a9a',before:120});
   packDocx(body,media,rels,art.title);
+}
+function svBookletsHtml(snap){
+  const bl=snap.booklets||[]; if(!bl.length) return '';
+  return `<section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>📖 Eğitim Kitapçıkların</h3></div>
+    <div style="padding:14px 16px 16px">
+      <p class="hint" style="margin:0 0 12px">Diyetisyenin senin için özel olarak seçtiği kaynaklar.</p>
+      <div style="display:grid;gap:8px">
+        ${bl.map((b,i)=>`<button class="btn" type="button" data-sv-booklet="${i}" style="justify-content:space-between;width:100%">
+          <span>${b.type==='pdf'?'📕':'📘'} ${esc(b.name)}</span><span>⬇</span></button>`).join('')}
+      </div>
+    </div>
+  </section>`;
+}
+async function svDownloadBooklet(i){
+  const snap=window.__shareSnap||{}; const b=(snap.booklets||[])[i]; if(!b) return;
+  try{
+    const res=await fetch(b.data); const blob=await res.blob();
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=b.name; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  }catch(err){ toast('Dosya indirilemedi'); }
 }
 function svArticlesLibHtml(){
   const cats=[...new Set(SV_ARTICLES.map(a=>a.cat))];
