@@ -2231,7 +2231,7 @@ function buildShareSnapshot(c){
     measures:(c.measures||[]).filter(m=>m.date&&m.weight!=null).map(m=>({date:m.date,weight:m.weight,waist:m.waist,hip:m.hip,fat:m.fat})),
     nextAppt: nx? {when:nx.when,type:nx.type} : null,
     plan, pastPlans, notes, booklets,
-    birthday: c.birthday||null, targetWeight: c.targetWeight||null,
+    birthday: c.birthday||null, targetWeight: c.targetWeight||null, sex: c.sex||'',
     pkg: mn.total? {done:mn.done,total:mn.total} : null,
     weeklyTask: c.weeklyTask||null,
     profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail}
@@ -8823,8 +8823,10 @@ function renderShareView(snap){
     ${svBookletsHtml(snap)}
     ${svArticlesLibHtml()}
     ${svMotivationHtml(snap)}
+    ${svCycleSectionHtml(snap)}
     <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
+  { if(document.getElementById('svCycleBody')) svRenderCycle(); }
   document.querySelectorAll('[data-sv-booklet]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svDownloadBooklet(+b.dataset.svBooklet); }));
   document.querySelectorAll('[data-sv-art-docx]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticleDocx(b.dataset.svArtDocx); }));
   document.querySelectorAll('[data-sv-art-pdf]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticlePdf(b.dataset.svArtPdf); }));
@@ -8939,6 +8941,112 @@ async function svChatSend(){
     else{ svChatAppend('bot', data.text); window.__svChatHistory.push({role:'assistant',text:data.text}); }
   }catch(e){ if(typing) typing.remove(); svChatAppend('bot','Bağlantı sorunu oldu, tekrar dener misin?'); }
   btn.disabled=false; inp.disabled=false; inp.focus();
+}
+/* ══════════════ 🌙 Regl Takibi (döngü evresine özel beslenme önerisi) ══════════════
+   Kişiye özel hassas bir bilgi olduğu için bulutta/dietisyende HİÇ
+   saklanmıyor — yalnızca bu cihazın localStorage'ında, token'a bağlı
+   olarak tutuluyor. Erkek olarak işaretlenmiş danışanlarda hiç gösterilmez. */
+const SV_CYCLE_PHASES=[
+  {id:'menstruation',title:'Regl (Menstrüasyon) Dönemi',emoji:'🩸',tips:[
+    'Demir açısından zengin besinlere ağırlık ver: kırmızı et, mercimek, ıspanak, pekmez.',
+    'Omega-3 kaynakları (somon, keten tohumu, ceviz) kramp şiddetini hafifletmeye yardımcı olabilir.',
+    'Bol su iç — tuzu azaltmak şişkinliği hafifletebilir.',
+    'Sıcak bitki çayları (zencefil, tarçın) rahatlatıcı olabilir.']},
+  {id:'follicular',title:'Foliküler Faz',emoji:'🌱',tips:[
+    'Bu dönemde enerji genelde artar — kompleks karbonhidrat ve protein dengesine devam et.',
+    'Fermente gıdalar (yoğurt, kefir) bağırsak sağlığını destekler.',
+    'Egzersiz toleransı genelde yüksektir, aktif kalmak bu dönemde kolaylaşabilir.']},
+  {id:'ovulation',title:'Ovülasyon Dönemi',emoji:'🌸',tips:[
+    'Antioksidan açısından zengin meyve/sebzeler (yaban mersini, nar) tüket.',
+    'Çinko kaynakları (kabak çekirdeği, nohut) bu dönemde faydalı olabilir.',
+    'Hafif şişkinlik hissi normaldir, su tüketimine devam et.']},
+  {id:'luteal',title:'Luteal Faz (Adet Öncesi)',emoji:'🌙',tips:[
+    'Magnezyum kaynakları (badem, ıspanak, az miktarda bitter çikolata) ruh halini dengelemeye yardımcı olabilir.',
+    'Kompleks karbonhidratlar (yulaf, tam tahıl) kan şekerini dengede tutar, ani açlık ataklarını azaltabilir.',
+    'Kafein ve rafine şekeri azaltmak PMS belirtilerini hafifletebilir.',
+    'Tuzu azaltmak şişkinlik ve su tutulmasını azaltabilir.']}
+];
+function svCycleLoad(){
+  try{ const raw=localStorage.getItem('sv_cycle_'+window.__shareTok); return raw?JSON.parse(raw):null; }catch(e){ return null; }
+}
+function svCycleSave(data){ try{ localStorage.setItem('sv_cycle_'+window.__shareTok,JSON.stringify(data)); }catch(e){} }
+function svCyclePhaseFor(data){
+  const last=new Date(data.lastPeriod+'T00:00:00');
+  const cycleLen=Math.max(18,Math.min(45,+data.cycleLen||28)), periodLen=+data.periodLen||5;
+  const now=new Date(); now.setHours(0,0,0,0);
+  let daysSince=Math.floor((now-last)/86400000); if(daysSince<0) daysSince=0;
+  const day=(daysSince%cycleLen)+1;
+  const ovDay=Math.max(periodLen+2,cycleLen-14);
+  let phase;
+  if(day<=periodLen) phase=SV_CYCLE_PHASES[0];
+  else if(day<ovDay-1) phase=SV_CYCLE_PHASES[1];
+  else if(day<=ovDay+1) phase=SV_CYCLE_PHASES[2];
+  else phase=SV_CYCLE_PHASES[3];
+  const cyclesPassed=Math.floor(daysSince/cycleLen)+1;
+  const nextPeriod=new Date(last); nextPeriod.setDate(nextPeriod.getDate()+cyclesPassed*cycleLen);
+  return {day,phase,nextPeriodISO:localISODate(nextPeriod)};
+}
+function svCycleFormHtml(data){
+  return `<p class="hint" style="margin:0 0 12px">Son adet başlangıç tarihini ve ortalama döngü uzunluğunu gir — hangi evrede olduğunu ve o evreye uygun beslenme önerilerini göstereyim. Bu bilgi yalnızca bu cihazda saklanır, diyetisyenine hiç gönderilmez.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><label>Son adet başlangıcı</label><input type="date" id="svCycleDate" value="${data&&data.lastPeriod||''}" max="${todayISO()}"></div>
+      <div class="field"><label>Ortalama döngü (gün)</label><input type="number" id="svCycleLen" value="${data&&data.cycleLen||28}" min="18" max="45"></div>
+    </div>
+    <button class="btn btn-primary" id="svCycleSaveBtn" type="button" style="margin-top:12px;width:100%;justify-content:center">💾 Kaydet</button>`;
+}
+function svCycleInfoHtml(data){
+  const {day,phase,nextPeriodISO}=svCyclePhaseFor(data);
+  return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:12px 14px;background:var(--blue-50);border-radius:10px">
+      <div style="font-size:28px">${phase.emoji}</div>
+      <div><div style="font-weight:700;font-size:14.5px">${esc(phase.title)}</div><div style="color:var(--muted);font-size:12px">Döngü günü: ${day} · Tahmini sonraki adet: ${trDate(nextPeriodISO)}</div></div>
+    </div>
+    <div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">Bu dönemde beslenme önerileri</div>
+    <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;line-height:1.7">${phase.tips.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+    <p style="margin:0 0 12px;font-size:10.5px;color:var(--muted);font-style:italic">Bu bilgiler genel sağlıklı beslenme önerileridir, tıbbi tavsiye yerine geçmez. Döngü düzensizliği veya şiddetli belirtiler için diyetisyenine ya da doktoruna danış.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" id="svCycleTodayBtn" type="button">🩸 Bugün adetim başladı</button>
+      <button class="btn btn-sm" id="svCycleEditBtn" type="button">✏ Bilgileri düzenle</button>
+    </div>`;
+}
+function svCycleWire(){
+  const save=document.getElementById('svCycleSaveBtn');
+  if(save) save.addEventListener('click',()=>{
+    const d=document.getElementById('svCycleDate').value, l=+document.getElementById('svCycleLen').value||28;
+    if(!d){ toast('Önce bir tarih seç'); return; }
+    svCycleSave({lastPeriod:d,cycleLen:l,periodLen:5});
+    svRenderCycle();
+  });
+  const todayBtn=document.getElementById('svCycleTodayBtn');
+  if(todayBtn) todayBtn.addEventListener('click',()=>{
+    const cur=svCycleLoad()||{cycleLen:28,periodLen:5};
+    svCycleSave({...cur,lastPeriod:todayISO()});
+    svRenderCycle(); toast('Güncellendi ✓');
+  });
+  const editBtn=document.getElementById('svCycleEditBtn');
+  if(editBtn) editBtn.addEventListener('click',()=>{
+    const host=document.getElementById('svCycleBody'); if(!host) return;
+    host.innerHTML=svCycleFormHtml(svCycleLoad());
+    svCycleWire();
+  });
+}
+function svRenderCycle(){
+  const host=document.getElementById('svCycleBody'); if(!host) return;
+  const data=svCycleLoad();
+  host.innerHTML=(data&&data.lastPeriod)?svCycleInfoHtml(data):svCycleFormHtml(data);
+  svCycleWire();
+}
+function svCycleSectionHtml(snap){
+  if(snap.sex==='E') return '';
+  return `<section class="sv-card" style="margin-top:16px">
+    <details class="sv-art">
+      <summary style="list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px">
+        <span style="font-size:18px">🌙</span>
+        <span style="flex:1">Regl Takibi<div style="font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px">Döngünü takip et, evrene özel beslenme önerilerini gör</div></span>
+        <span class="sv-art-car" style="color:var(--muted);font-size:11px">▾</span>
+      </summary>
+      <div id="svCycleBody" style="padding:4px 16px 18px;border-top:1px solid var(--line-2)"></div>
+    </details>
+  </section>`;
 }
 /* ══════════════ Doğum günü kutlaması ══════════════ */
 function svIsBirthdayToday(snap){
