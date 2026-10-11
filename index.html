@@ -8516,13 +8516,26 @@ async function bootShareView(token){
     shareViewMsg('Sayfan yüklendi ama bir kısmı görüntülenirken sorun çıktı. Diyetisyenine haber ver, "Danışan linki → Verileri güncelle" ile linkini tazelesin.');
   }
 }
-/* Program verisi eski/bozuk bir formatta kayıtlıysa (ör. "days" içindeki
-   öğeler "meals" dizisi yerine doğrudan öğün alanları taşıyorsa) sayfa
-   çökmesin diye — böyle durumda program kartını sessizce gizleriz, geri
-   kalan her şey (kilo grafiği, notlar, ölçüm formu) yine de çalışır. */
+/* Program verisi Firebase'den dönerken bozulabiliyor: Firebase Realtime
+   Database boş dizileri ("lines":[]  gibi) hiç saklamıyor, geri okurken o
+   alan tamamen yok oluyor. Kod ise m.lines.length gibi yerlerde bunun var
+   olduğunu varsayıyordu — o yüzden boş bir ara öğünü olan danışanlarda sayfa
+   çöküyordu. Burada her öğünün eksik alanlarını güvenli varsayılanlarla
+   dolduruyoruz (migratePlan'in daha hafif, sadece okuma amaçlı bir eşleniği)
+   — ayrıca gün/öğün yapısı gerçekten tanınmaz haldeyse de çökme yerine
+   program kartını sessizce gizleriz. */
 function svSafePlan(p){
   if(!p||!Array.isArray(p.days)||!p.days.length) return null;
-  return p.days.every(d=>d&&Array.isArray(d.meals))?p:null;
+  const ok=p.days.every(d=>d&&Array.isArray(d.meals));
+  if(!ok) return null;
+  p.days.forEach(d=>{
+    d.sub=d.sub||''; d.photo=d.photo||'';
+    d.meals.forEach(m=>{
+      m.lines=Array.isArray(m.lines)?m.lines:[];
+      m.title=m.title||''; m.tip=m.tip||''; m.photo=m.photo||''; m.name=m.name||''; m.emoji=m.emoji||'🍽';
+    });
+  });
+  return p;
 }
 function renderShareView(snap){
   window.__shareSnap=snap;
