@@ -8499,16 +8499,30 @@ async function bootShareView(token){
   document.title='Danışan Takip Sayfası';
   const root=document.getElementById('shareView'); root.hidden=false;
   root.innerHTML='<div class="sv-wrap"><p style="color:var(--muted);text-align:center;padding:60px 0">Yükleniyor…</p></div>';
+  let snap;
   try{
     const r=await fetch(CLOUD_DB+'/shares/'+encodeURIComponent(token)+'.json');
     if(!r.ok) throw new Error('İstek başarısız ('+r.status+')');
     const raw=await r.json();
-    const snap=typeof raw==='string'?JSON.parse(raw):raw;
-    if(!snap) return shareViewMsg('Bu bağlantı artık geçerli değil veya iptal edilmiş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
+    snap=typeof raw==='string'?JSON.parse(raw):raw;
+  }catch(e){ console.error('[danışan linki] veri çekilemedi:',e); return shareViewMsg('Sayfa yüklenemedi — internet bağlantınızı kontrol edip sayfayı yenileyin.'); }
+  if(!snap) return shareViewMsg('Bu bağlantı artık geçerli değil veya iptal edilmiş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
+  try{
     renderShareView(snap);
     // Diyetisyenine "bugün linke kaç kez girdi" bilgisi düşsün diye sessizce kaydet (sayfa açılışını engellemez)
     svIntakePost({type:'visit',date:todayISO(),at:Date.now()}).catch(()=>{});
-  }catch(e){ shareViewMsg('Sayfa yüklenemedi — internet bağlantınızı kontrol edip sayfayı yenileyin.'); }
+  }catch(e){
+    console.error('[danışan linki] görüntüleme hatası:',e);
+    shareViewMsg('Sayfan yüklendi ama bir kısmı görüntülenirken sorun çıktı. Diyetisyenine haber ver, "Danışan linki → Verileri güncelle" ile linkini tazelesin.');
+  }
+}
+/* Program verisi eski/bozuk bir formatta kayıtlıysa (ör. "days" içindeki
+   öğeler "meals" dizisi yerine doğrudan öğün alanları taşıyorsa) sayfa
+   çökmesin diye — böyle durumda program kartını sessizce gizleriz, geri
+   kalan her şey (kilo grafiği, notlar, ölçüm formu) yine de çalışır. */
+function svSafePlan(p){
+  if(!p||!Array.isArray(p.days)||!p.days.length) return null;
+  return p.days.every(d=>d&&Array.isArray(d.meals))?p:null;
 }
 function renderShareView(snap){
   window.__shareSnap=snap;
@@ -8517,7 +8531,8 @@ function renderShareView(snap){
   const diff=(first&&last&&pts.length>1)?(+last.weight-+first.weight):null;
   let svHeightStored=''; try{ svHeightStored=localStorage.getItem('sv_height_'+window.__shareTok)||''; }catch(e){}
   if(!svHeightStored && snap.height) svHeightStored=String(snap.height);
-  const p=snap.plan;
+  const p=svSafePlan(snap.plan);
+  const planBrokenHtml=(snap.plan&&!p)?`<section class="sv-card" style="margin-top:16px"><div style="padding:16px;text-align:center;color:var(--muted);font-size:13px">⚠ Güncel programın şu an görüntülenemiyor. Diyetisyenine haber ver, "Danışan linki → Verileri güncelle" ile tazelesin.</div></section>`:'';
   const notesHtml=!(snap.notes&&snap.notes.length)?'':`<section class="sv-card" style="margin-top:16px">
       <div class="sv-card-h"><h3>📝 Diyetisyeninden notlar</h3></div>
       <div style="padding:4px 16px 8px">
@@ -8598,6 +8613,7 @@ function renderShareView(snap){
       </div>
     </section>
     ${notesHtml}
+    ${planBrokenHtml}
     ${planHtml}
     <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
