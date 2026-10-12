@@ -8768,6 +8768,7 @@ function renderShareView(snap){
       <h1>Merhaba ${esc(snap.name)} 👋</h1>
       <p>${mood}</p>
       ${snap.nextAppt?`<div class="sv-appt"><span style="font-size:19px">📅</span><div>Sıradaki randevun<br><b>${trDT(snap.nextAppt.when)}</b> · ${esc(snap.nextAppt.type||'')}</div></div>`:''}
+      ${p?`<button class="btn btn-sm" id="svShopBtn" type="button" style="margin-top:16px;width:100%;justify-content:center">🛒 Alışveriş Listesi</button>`:''}
     </div>
     ${kpiHtml}
     ${svAchievementHtml(snap)}
@@ -8835,6 +8836,7 @@ function renderShareView(snap){
   { const tc=document.getElementById('svTaskChk'); if(tc) tc.addEventListener('change',svSubmitTaskDone); }
   { const sb=document.getElementById('svChatSend'); if(sb) sb.addEventListener('click',svChatSend); }
   { const si=document.getElementById('svChatInput'); if(si) si.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); svChatSend(); } }); }
+  { const shb=document.getElementById('svShopBtn'); if(shb) shb.addEventListener('click',svOpenShopModal); }
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
   window.__svCheat=null;
@@ -9547,6 +9549,63 @@ function svShowDay(i){
     </div>`;
   }).join(''):`<p style="color:var(--muted)">Bu günde öğün girilmemiş.</p>`);
   host.querySelectorAll('[data-sv-fb]').forEach(b=>b.addEventListener('click',()=>svSendMealFeedback(b)));
+}
+/* ══════════════ 🛒 Alışveriş Listesi ══════════════
+   Danışanın güncel programındaki tüm öğün satırlarından, tekrarları
+   atarak çıkarılan sade bir market listesi. Sadece bu cihazda (localStorage)
+   işaretleniyor — diyetisyene veya buluta gönderilmiyor. */
+function svBuildShopItems(){
+  const p=window.__svCurPlan; if(!p||!Array.isArray(p.days)) return [];
+  const seen=new Map();
+  p.days.forEach(d=>(d.meals||[]).forEach(m=>(m.lines||[]).forEach(l=>{
+    const t=String(l||'').trim(); if(!t) return;
+    const k=t.toLocaleLowerCase('tr');
+    if(!seen.has(k)) seen.set(k,t);
+  })));
+  return [...seen.values()].sort((a,b)=>a.localeCompare(b,'tr'));
+}
+function svShopKey(){ return 'sv_shop_'+(window.__shareTok||'')+'_'+((window.__svCurPlan&&window.__svCurPlan.name)||''); }
+function svShopState(){ try{ return JSON.parse(localStorage.getItem(svShopKey())||'{}'); }catch(e){ return {}; } }
+function svShopSave(st){ try{ localStorage.setItem(svShopKey(),JSON.stringify(st)); }catch(e){} }
+function svOpenShopModal(){
+  const items=svBuildShopItems();
+  const st=svShopState();
+  const planName=(window.__svCurPlan&&window.__svCurPlan.name)||'';
+  const doneCount=items.filter(it=>st[it]).length;
+  const body=items.length?`
+    <p class="hint" style="margin:0 0 4px">${esc(planName)} programındaki tüm öğünlerden çıkarılan market listen. Markette alırken işaretleyebilirsin — sadece bu telefonda/tarayıcıda saklanır.</p>
+    <p id="svShopCounter" style="margin:0 0 12px;font-size:12px;color:var(--muted)">${doneCount}/${items.length} alındı</p>
+    <div id="svShopList" style="display:flex;flex-direction:column;gap:2px">
+      ${items.map((it,i)=>{
+        const checked=!!st[it];
+        return `<label style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line-2);cursor:pointer">
+          <input type="checkbox" data-sv-shop-i="${i}" ${checked?'checked':''} style="width:18px;height:18px;flex:0 0 auto;accent-color:var(--blue-600)">
+          <span data-sv-shop-txt style="font-size:13.5px${checked?';opacity:.45;text-decoration:line-through':''}">${esc(it)}</span>
+        </label>`;
+      }).join('')}
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-sm" id="svShopClearBtn" type="button" style="flex:1;justify-content:center">🔄 İşaretleri sıfırla</button>
+      ${navigator.share?`<button class="btn btn-sm" id="svShopShareBtn" type="button" style="flex:1;justify-content:center">📤 Paylaş</button>`:''}
+    </div>
+  `:`<p style="color:var(--muted);margin:0">Güncel programında henüz öğün girilmemiş, bu yüzden listelenecek bir ürün yok.</p>`;
+  modal('🛒 Alışveriş Listesi',body,'Kapat','close','440px');
+  window.__svShopItems=items;
+  document.querySelectorAll('[data-sv-shop-i]').forEach(cb=>cb.addEventListener('change',()=>{
+    const i=+cb.dataset.svShopI, it=window.__svShopItems[i];
+    const s=svShopState(); if(cb.checked) s[it]=true; else delete s[it]; svShopSave(s);
+    const row=cb.closest('label'), sp=row.querySelector('[data-sv-shop-txt]');
+    sp.style.opacity=cb.checked?'.45':''; sp.style.textDecoration=cb.checked?'line-through':'';
+    const ctr=document.getElementById('svShopCounter');
+    if(ctr) ctr.textContent=window.__svShopItems.filter(x=>s[x]).length+'/'+window.__svShopItems.length+' alındı';
+  }));
+  const clearBtn=document.getElementById('svShopClearBtn');
+  if(clearBtn) clearBtn.addEventListener('click',()=>{ svShopSave({}); svOpenShopModal(); });
+  const shareBtn=document.getElementById('svShopShareBtn');
+  if(shareBtn) shareBtn.addEventListener('click',async()=>{
+    const text='🛒 Alışveriş Listesi'+(planName?' — '+planName:'')+'\n\n'+items.map(i=>'• '+i).join('\n');
+    try{ await navigator.share({title:'Alışveriş Listesi',text}); }catch(e){}
+  });
 }
 async function svIntakePost(entry){
   const tok=window.__shareTok;
