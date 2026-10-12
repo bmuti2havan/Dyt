@@ -1,16 +1,21 @@
 // Danışan takip sayfasındaki "🌸 Diyet Asistanın" sohbet kutusu için.
 //
-// GÜVENLİK: Buradaki Anthropic API anahtarı yalnızca bu sunucu
-// fonksiyonunun kendi ortam değişkeninden (process.env.ANTHROPIC_API_KEY)
-// okunur. Danışanın tarayıcısına, herkese açık "shares/{token}" verisine
-// ya da başka hiçbir yere ASLA gönderilmez — aksi halde linki açan herkes
-// anahtarı görüp kötüye kullanabilirdi. (Bu, diyetisyenin kendi panelinde
-// kullandığı claude-proxy.js'den farklı: orada anahtar onun kendi
-// tarayıcısından geliyor, burada hiç tarayıcıya çıkmıyor.)
+// GÜVENLİK: Anthropic API anahtarı danışanın tarayıcısına, herkese açık
+// "shares/{token}" verisine ya da başka hiçbir yere ASLA gönderilmez —
+// aksi halde linki açan herkes anahtarı görüp kötüye kullanabilirdi.
+// (Bu, diyetisyenin kendi panelinde kullandığı claude-proxy.js'den farklı:
+// orada anahtar onun kendi tarayıcısından geliyor, burada hiç tarayıcıya
+// çıkmıyor.)
 //
-// Kaba bir kötüye kullanım freni olarak, istek önce gerçekten var olan bir
-// paylaşım linkine (token) mi ait diye kontrol edilir — rastgele/yabancı
-// isteklerin önüne geçer, mükemmel bir güvenlik değil ama yeterli bir ilk engel.
+// Anahtarı NEREDEN alıyoruz: diyetisyen Ayarlar sayfasında "Claude API
+// anahtarı"nı zaten kendi hesabına (DB.profile.claude) kaydetmişse, onu
+// kullanıyoruz — ayrıca Netlify'da yeni bir ortam değişkeni ayarlamasına
+// gerek kalmıyor. Bunun için zaten var olan FIREBASE_EMAIL/FIREBASE_PASSWORD
+// ortam değişkenleriyle (scheduled-weekly.js / scheduled-backup.js'de de
+// kullanılıyor) kendi verisine sunucu tarafında, kimliği doğrulanmış olarak
+// bağlanıp DB.profile.claude'u okuyoruz. İstenirse process.env.ANTHROPIC_API_KEY
+// da yedek olarak kullanılabilir (ayarlıysa, profildeki anahtara göre önceliklidir).
+const { firebaseGetData } = require('./_firebase-helper');
 const CLOUD_DB = 'https://dyt-aysenur-korkmaz-default-rtdb.europe-west1.firebasedatabase.app';
 
 exports.handler = async function (event) {
@@ -36,11 +41,6 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: JSON.stringify({ error: 'Eksik bilgi' }) };
   }
 
-  const apiKey = String(process.env.ANTHROPIC_API_KEY || '').replace(/\s+/g, '');
-  if (!apiKey) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'Asistan şu an yapılandırılmamış. Diyetisyenine haber ver.' }) };
-  }
-
   // Token gerçekten geçerli bir paylaşım linkine mi ait, kontrol et.
   try {
     const chk = await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(token)}.json`);
@@ -48,6 +48,22 @@ exports.handler = async function (event) {
     if (!snap) return { statusCode: 403, body: JSON.stringify({ error: 'Geçersiz bağlantı' }) };
   } catch (e) {
     return { statusCode: 502, body: JSON.stringify({ error: 'Doğrulama yapılamadı, tekrar dener misin?' }) };
+  }
+
+  // Anahtarı önce diyetisyenin kendi Ayarlar'da kayıtlı Claude anahtarından
+  // almaya çalış (DB.profile.claude), yoksa Netlify ortam değişkenine düş.
+  let apiKey = '';
+  try {
+    const { data } = await firebaseGetData();
+    apiKey = String((data && data.profile && data.profile.claude) || '').replace(/\s+/g, '').replace(/[^\x21-\x7E]/g, '');
+  } catch (e) {
+    // Firebase'e erişilemedi - alttaki env-var yedeğine düşülecek.
+  }
+  if (!apiKey) {
+    apiKey = String(process.env.ANTHROPIC_API_KEY || '').replace(/\s+/g, '');
+  }
+  if (!apiKey) {
+    return { statusCode: 500, body: JSON.stringify({ error: 'Asistan şu an yapılandırılmamış. Diyetisyenine haber ver: Ayarlar sayfasında bir Claude API anahtarı girmesi gerekiyor.' }) };
   }
 
   const system = `Sen "Diyet Asistanın" adında, sıcak ve destekleyici bir beslenme asistanısın. Bir diyetisyenin danışanıyla, onun kendi takip sayfasında konuşuyorsun. Kurallar:
