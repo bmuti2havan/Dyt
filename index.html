@@ -9754,29 +9754,63 @@ function svShowDay(i){
   host.querySelectorAll('[data-sv-photo-input]').forEach(inp=>inp.addEventListener('change',()=>svSendMealPhoto(inp)));
 }
 /* ══════════════ 🛒 Alışveriş Listesi ══════════════
-   Danışanın güncel programındaki tüm öğün satırlarından, tekrarları
-   atarak çıkarılan sade bir market listesi. Sadece bu cihazda (localStorage)
-   işaretleniyor — diyetisyene veya buluta gönderilmiyor. */
-function svBuildShopItems(){
+   Danışanın güncel programındaki TÜM öğün satırları (ham haliyle, hafta
+   boyunca tekrarlarıyla birlikte) sunucudaki shopping-list.js fonksiyonuna
+   gönderilir; o da diyetisyenin kendi Claude anahtarıyla (ask-assistant.js
+   ile aynı yöntem) bunu gerçekçi bir market listesine çevirir — "700 adet
+   badem" yerine "3 avuç badem", tekrarlı "2 yumurta"ları haftalık "10 adet
+   yumurta" gibi mantıklı bir toplama dönüştürür. Yapay zekâ erişilemezse
+   (anahtar yoksa, internet sorunu vb.) sessizce basit tekrarsız bir listeye
+   düşer — özellik hiçbir durumda çalışmaz hale gelmez. Sonuç, aynı program
+   için tekrar tekrar sorulmasın diye bu cihazda önbelleğe alınır; işaretler
+   de yine sadece bu cihazda tutulur, diyetisyene/buluta gönderilmez. */
+function svBuildShopRawItems(){
   const p=window.__svCurPlan; if(!p||!Array.isArray(p.days)) return [];
-  const seen=new Map();
+  const out=[];
   p.days.forEach(d=>(d.meals||[]).forEach(m=>(m.lines||[]).forEach(l=>{
-    const t=String(l||'').trim(); if(!t) return;
-    const k=t.toLocaleLowerCase('tr');
-    if(!seen.has(k)) seen.set(k,t);
+    const t=String(l||'').trim(); if(t) out.push(t);
   })));
+  return out;
+}
+function svBuildShopFallback(raw){
+  const seen=new Map();
+  raw.forEach(t=>{ const k=t.toLocaleLowerCase('tr'); if(!seen.has(k)) seen.set(k,t); });
   return [...seen.values()].sort((a,b)=>a.localeCompare(b,'tr'));
 }
 function svShopKey(){ return 'sv_shop_'+(window.__shareTok||'')+'_'+((window.__svCurPlan&&window.__svCurPlan.name)||''); }
 function svShopState(){ try{ return JSON.parse(localStorage.getItem(svShopKey())||'{}'); }catch(e){ return {}; } }
 function svShopSave(st){ try{ localStorage.setItem(svShopKey(),JSON.stringify(st)); }catch(e){} }
-function svOpenShopModal(){
-  const items=svBuildShopItems();
-  const st=svShopState();
+function svShopAiKey(){ return 'sv_shop_ai_'+(window.__shareTok||'')+'_'+((window.__svCurPlan&&window.__svCurPlan.name)||''); }
+function svShopAiCacheGet(raw){
+  try{
+    const c=JSON.parse(localStorage.getItem(svShopAiKey())||'null');
+    if(c&&Array.isArray(c.items)&&c.items.length&&JSON.stringify(c.raw)===JSON.stringify(raw)) return c.items;
+  }catch(e){}
+  return null;
+}
+function svShopAiCacheSet(raw,items){ try{ localStorage.setItem(svShopAiKey(),JSON.stringify({raw,items,at:Date.now()})); }catch(e){} }
+async function svOpenShopModal(){
+  const raw=svBuildShopRawItems();
   const planName=(window.__svCurPlan&&window.__svCurPlan.name)||'';
+  if(!raw.length){
+    modal('🛒 Alışveriş Listesi',`<p style="color:var(--muted);margin:0">Güncel programında henüz öğün girilmemiş, bu yüzden listelenecek bir ürün yok.</p>`,'Kapat','close','440px');
+    return;
+  }
+  let aiItems=svShopAiCacheGet(raw);
+  if(!aiItems){
+    modal('🛒 Alışveriş Listesi',`<div style="padding:34px 0;text-align:center;color:var(--muted)"><div style="font-size:26px;margin-bottom:10px">🧠</div>Akıllı liste hazırlanıyor…</div>`,'Kapat','close','440px');
+    try{
+      const r=await fetch('/.netlify/functions/shopping-list',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:window.__shareTok,items:raw})});
+      const data=await r.json().catch(()=>({}));
+      if(data&&Array.isArray(data.items)&&data.items.length){ aiItems=data.items; svShopAiCacheSet(raw,aiItems); }
+    }catch(e){ /* sessiz geç — aşağıda basit listeye düşülecek */ }
+    if(!document.querySelector('.modal-bg')) return; // kullanıcı bu sırada modalı kapattıysa devam etme
+  }
+  const items=aiItems||svBuildShopFallback(raw);
+  const st=svShopState();
   const doneCount=items.filter(it=>st[it]).length;
-  const body=items.length?`
-    <p class="hint" style="margin:0 0 4px">${esc(planName)} programındaki tüm öğünlerden çıkarılan market listen. Markette alırken işaretleyebilirsin — sadece bu telefonda/tarayıcıda saklanır.</p>
+  const body=`
+    <p class="hint" style="margin:0 0 4px">${esc(planName)} programındaki tüm öğünlerden çıkarılan, gerçekçi miktarlara çevrilmiş market listen. Markette alırken işaretleyebilirsin — sadece bu telefonda/tarayıcıda saklanır.</p>
     <p id="svShopCounter" style="margin:0 0 12px;font-size:12px;color:var(--muted)">${doneCount}/${items.length} alındı</p>
     <div id="svShopList" style="display:flex;flex-direction:column;gap:2px">
       ${items.map((it,i)=>{
@@ -9791,7 +9825,7 @@ function svOpenShopModal(){
       <button class="btn btn-sm" id="svShopClearBtn" type="button" style="flex:1;justify-content:center">🔄 İşaretleri sıfırla</button>
       ${navigator.share?`<button class="btn btn-sm" id="svShopShareBtn" type="button" style="flex:1;justify-content:center">📤 Paylaş</button>`:''}
     </div>
-  `:`<p style="color:var(--muted);margin:0">Güncel programında henüz öğün girilmemiş, bu yüzden listelenecek bir ürün yok.</p>`;
+  `;
   modal('🛒 Alışveriş Listesi',body,'Kapat','close','440px');
   window.__svShopItems=items;
   document.querySelectorAll('[data-sv-shop-i]').forEach(cb=>cb.addEventListener('change',()=>{
