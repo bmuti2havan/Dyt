@@ -1,0 +1,30 @@
+{
+  "appId": "com.aysenurkorkmaz.diyettakip",
+  "appName": "Diyet Takip",
+  "webDir": "www",
+  "server": {
+    "url": "https://takip.dytaysenurkorkmazantalya.com.tr",
+    "cleartext": false,
+    "allowNavigation": [
+      "takip.dytaysenurkorkmazantalya.com.tr",
+      "dyt-akorkmaz.netlify.app",
+      "*.firebaseio.com",
+      "*.firebasedatabase.app",
+      "identitytoolkit.googleapis.com",
+      "*.googleapis.com"
+    ]
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0B3B63",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK"
+    }
+  }
+}

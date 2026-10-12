@@ -1,0 +1,52 @@
+name: Android Build
+
+on:
+  push:
+    paths:
+      - 'app/**'
+      - '.github/workflows/android-build.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v4
+
+      - name: Node kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Java kur (Android derlemesi için)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Bağımlılıkları kur
+        run: npm install
+
+      - name: Android platformu yoksa oluştur
+        run: test -d android || npx cap add android
+
+      - name: Capacitor senkronizasyonu
+        run: npx cap sync android
+
+      - name: gradlew çalıştırılabilir yap
+        run: chmod +x android/gradlew
+
+      - name: Debug APK derle
+        working-directory: app/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: APK'yı yükle (indirilebilir çıktı)
+        uses: actions/upload-artifact@v4
+        with:
+          name: diyet-takip-debug-apk
+          path: app/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

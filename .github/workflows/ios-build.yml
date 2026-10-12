@@ -1,0 +1,56 @@
+name: iOS Build (imzasız — simülatör testi)
+
+# NOT: Bu workflow şimdilik İMZASIZ bir simülatör derlemesi yapar, sadece
+# projenin gerçekten derlendiğini doğrulamak için. Gerçek iPhone'a kurulabilir
+# ya da App Store'a yüklenebilir bir sürüm için Apple Developer hesabı
+# (99$/yıl) ve imzalama sertifikaları gerekiyor — o hazır olunca bu dosyaya
+# imzalama adımları eklenecek.
+
+on:
+  push:
+    paths:
+      - 'app/**'
+      - '.github/workflows/ios-build.yml'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Kodu çek
+        uses: actions/checkout@v4
+
+      - name: Node kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Bağımlılıkları kur
+        run: npm install
+
+      - name: iOS platformu yoksa oluştur
+        run: test -d ios || npx cap add ios
+
+      - name: Capacitor senkronizasyonu
+        run: npx cap sync ios
+
+      - name: CocoaPods bağımlılıkları
+        working-directory: app/ios/App
+        run: pod install
+
+      - name: Simülatör için imzasız derleme
+        working-directory: app/ios/App
+        run: |
+          xcodebuild -workspace App.xcworkspace -scheme App \
+            -sdk iphonesimulator -configuration Debug \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+
+      - name: Derleme çıktısını yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: diyet-takip-ios-simulator-build
+          path: app/ios/App/build/Build/Products/Debug-iphonesimulator
+          if-no-files-found: error

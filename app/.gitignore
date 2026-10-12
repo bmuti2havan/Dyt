@@ -1,0 +1,22 @@
+node_modules/
+.DS_Store
+
+# Android build çıktıları (CI her build'de yeniden üretir)
+android/app/build/
+android/.gradle/
+android/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+
+# iOS build çıktıları
+ios/App/build/
+ios/App/Pods/
+ios/App/App.xcworkspace/xcuserdata/
+ios/DerivedData/
+
+# İmzalama anahtarları ASLA repoya girmemeli
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.p8
