@@ -66,14 +66,15 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-promo-wa-btn{display:inline-block;padding:13px 28px;background:#25D366;color:#fff;border-radius:999px;font-weight:600;font-size:14.5px;text-decoration:none}
 .sv-promo-foot{text-align:center;color:var(--muted);font-size:12px;padding:18px 0}
 @media(max-width:480px){.sv-promo-hero h1{font-size:22px}}
-.sv-preg-tabrow{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
-.sv-preg-tab{padding:8px 13px;border:1px solid #fbcfe8;background:#fff;border-radius:999px;font-size:12.5px;font-weight:600;color:#9d174d;cursor:pointer}
+.sv-preg-tabrow{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px}
+.sv-preg-tab{padding:11px 18px;border:1px solid #fbcfe8;background:#fff;border-radius:999px;font-size:14.5px;font-weight:700;color:#9d174d;cursor:pointer}
 .sv-preg-tab.active{background:linear-gradient(135deg,#9d174d,#db2777);border-color:transparent;color:#fff}
-.sv-preg-panels{padding:14px 15px;background:#fff;border-radius:12px;border:1px solid #fbcfe8}
-.sv-preg-card{background:#fff;border:1px solid #fbcfe8;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.sv-preg-panels{padding:18px 20px;background:#fff;border-radius:14px;border:1px solid #fbcfe8}
+.sv-preg-card{background:#fff;border:1px solid #fbcfe8;border-radius:14px;padding:18px 20px;margin-bottom:16px}
 .sv-preg-card:last-child{margin-bottom:0}
-.sv-preg-card-h{font-weight:700;font-size:13px;color:#9d174d;margin-bottom:6px}
-.sv-preg-card-tip{margin-top:8px;padding:8px 10px;background:#fdf2f8;border-radius:8px;font-size:12px;color:#831843;font-style:italic}
+.sv-preg-card-h{font-weight:800;font-size:17px;color:#9d174d;margin-bottom:10px}
+.sv-preg-card ul{font-size:15px!important;line-height:1.85!important}
+.sv-preg-card-tip{margin-top:12px;padding:12px 14px;background:#fdf2f8;border-radius:10px;font-size:14px;color:#831843;font-style:italic}
 .sv-top{display:flex;align-items:center;gap:12px}
 .sv-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .sv-card-h{padding:14px 16px;border-bottom:1px solid var(--line-2)}
@@ -9437,7 +9438,7 @@ const SV_PREG_TRIMESTERS=[
 ];
 function svPregCardHtml(c){
   return `<div class="sv-preg-card">
-    ${c.img?`<img src="${c.img}" alt="${esc(c.title)}" style="width:100%;max-width:300px;display:block;margin:0 auto 10px;border-radius:12px">`:''}
+    ${c.img?`<img src="${c.img}" alt="${esc(c.title)}" style="width:100%;max-width:460px;display:block;margin:0 auto 14px;border-radius:16px;box-shadow:0 8px 20px -8px rgba(92,34,56,.3)">`:''}
     <div class="sv-preg-card-h">${c.emoji} ${esc(c.title)}</div>
     ${svPregUl(c.items)}
     ${c.tip?`<div class="sv-preg-card-tip">💡 ${esc(c.tip)}</div>`:''}
@@ -9669,7 +9670,7 @@ function svPregInfoHtml(data){
   const trimester=computed?computed.trimester:SV_PREG_TRIMESTERS[0];
   const dayIdx=Math.floor(Date.now()/86400000);
   const moodIdx=(tracked?computed.curWeek:dayIdx)%SV_PREG_MOTIVATION.length;
-  const imgTop=(id,alt)=>SV_PREG_IMG[id]?`<img src="${SV_PREG_IMG[id]}" alt="${esc(alt||'')}" style="width:100%;max-width:340px;display:block;margin:0 auto 14px;border-radius:14px;box-shadow:0 6px 16px -8px rgba(92,34,56,.3)">`:'';
+  const imgTop=(id,alt)=>SV_PREG_IMG[id]?`<img src="${SV_PREG_IMG[id]}" alt="${esc(alt||'')}" style="width:100%;max-width:460px;display:block;margin:0 auto 16px;border-radius:16px;box-shadow:0 8px 20px -8px rgba(92,34,56,.3)">`:'';
   const tabs=[
     {id:'beslenme',label:'🍽 Beslenme',html:`${imgTop('akilliaraogun','Akıllı ara öğün formülü')}<div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">${esc(trimester.label)}</div>${svPregUl(trimester.tips)}<div style="margin-top:12px">${svPregCardsHtml(SV_PREG_KALORI_CARDS)}</div>`},
     {id:'biliyormuydun',label:'💡 Biliyor Muydun',html:svPregCardsHtml(SV_PREG_FACT_CARDS)},
@@ -9698,9 +9699,9 @@ function svPregInfoHtml(data){
 }
 function svPregSectionHtml(snap){
   const tracked=!!(snap.pregnancy&&snap.pregnancy.week);
-  return `<section class="sv-card" style="margin-top:16px;background:linear-gradient(135deg,#fdf2f8,#fff);border:1px solid #fbcfe8">
-    <div class="sv-card-h"><h3>🤰 ${tracked?'Hamilelik Rehberin':'Hamilelik Rehberi'}</h3></div>
-    <div style="padding:16px">${svPregInfoHtml(snap.pregnancy)}</div>
+  return `<section class="sv-card" style="margin-top:16px;background:linear-gradient(135deg,#fdf2f8,#fff);border:2px solid #fbcfe8">
+    <div class="sv-card-h" style="padding:20px 20px 16px"><h3 style="font-size:21px!important;display:flex;align-items:center;gap:8px"><span style="font-size:26px">🤰</span> ${tracked?'Hamilelik Rehberin':'Hamilelik Rehberi'}</h3></div>
+    <div style="padding:20px">${svPregInfoHtml(snap.pregnancy)}</div>
   </section>`;
 }
 /* ══════════════ Doğum günü kutlaması ══════════════ */
@@ -10271,7 +10272,7 @@ function svArticlesLibHtml(){
               <span class="sv-art-car" style="color:var(--muted);font-size:11px">▾</span>
             </summary>
             <div style="padding:4px 16px 16px;border-top:1px solid var(--line-2)">
-              ${a.img?`<img src="${a.img}" loading="lazy" style="width:100%;max-width:320px;display:block;margin:12px auto 10px;border-radius:14px;box-shadow:0 6px 16px -8px rgba(92,34,56,.35)">`:''}
+              ${a.img?`<img src="${a.img}" loading="lazy" style="width:100%;max-width:440px;display:block;margin:12px auto 12px;border-radius:14px;box-shadow:0 6px 16px -8px rgba(92,34,56,.35)">`:''}
               ${svArtBlocksHtml(a.blocks)}
               ${SV_KAYNAK[a.id]?`<p style="margin:10px 0 0;font-size:10.5px;color:var(--muted);font-style:italic">📎 Kaynak: ${esc(SV_KAYNAK[a.id])}</p>`:''}
               <div style="display:flex;gap:8px;margin-top:10px">
