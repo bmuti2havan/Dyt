@@ -2260,6 +2260,7 @@ function buildShareSnapshot(c){
     pkg: mn.total? {done:mn.done,total:mn.total,left:mn.left} : null,
     weeklyTask: c.weeklyTask||null,
     foodPrefs: c.foodPrefs||null,
+    pregnancy: (c.pregnant&&c.pregWeek)? {week:c.pregWeek,at:c.pregAt||Date.now(),oksapar:!!c.pregOksapar} : null,
     profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail}
   };
 }
@@ -6644,6 +6645,11 @@ function clientForm(c){
     <div class="field"><label>Meslek</label><input id="c-job" value="${esc(c.job||'')}"></div>
     <div class="field full"><label>Hastalıklar / tanılar</label><input id="c-health" value="${esc(c.health||'')}" placeholder="Örn. insülin direnci, tiroid — yoksa boş bırakın"></div>
     <div class="field full"><label>Kullandığı ilaçlar</label><input id="c-meds" value="${esc(c.meds||'')}"></div>
+    <div class="field full" style="border-top:1px solid var(--line);padding-top:14px;margin-top:4px">
+      <label><input type="checkbox" id="c-preg" ${c.pregnant?'checked':''} style="width:auto;margin-right:8px">🤰 Bu danışan hamile</label>
+      <span class="hint">İşaretlersen takip linkinde otomatik olarak gebeliğe özel bilgilendirme bölümü açılır.</span></div>
+    <div class="field"><label>Kaçıncı haftada</label><input id="c-preg-week" type="number" min="1" max="42" value="${esc(c.pregWeek||'')}" placeholder="örn. 23"></div>
+    <div class="field"><label><input type="checkbox" id="c-preg-oksapar" ${c.pregOksapar?'checked':''} style="width:auto;margin-right:8px">💉 Oksapar/kan sulandırıcı iğne kullanıyor</label></div>
     <div class="field full"><label>Not</label><textarea id="c-note" rows="3" placeholder="Beslenme alışkanlıkları, çalışma düzeni, tercihleri">${esc(c.note||'')}</textarea></div>
     <div class="field full" style="border-top:1px solid var(--line);padding-top:14px;margin-top:4px">
       <label><input type="checkbox" id="c-inv" ${c.invoiced?'checked':''} style="width:auto;margin-right:8px">🧾 Bu danışana fatura kesildi</label></div>
@@ -6657,6 +6663,9 @@ function readClient(){
     pal:val('c-pal'),goal:val('c-goal'),targetWeight:val('c-target'),kcalTarget:val('c-kcal'),pTarget:val('c-p'),kTarget:val('c-k'),yTarget:val('c-y'),
     phone:val('c-phone'),mail:val('c-mail'),allergy:val('c-allergy'),health:val('c-health'),
     city:val('c-city'),job:val('c-job'),meds:val('c-meds'),note:val('c-note'),
+    pregnant:!!(document.getElementById('c-preg')&&document.getElementById('c-preg').checked),
+    pregWeek:val('c-preg-week'),
+    pregOksapar:!!(document.getElementById('c-preg-oksapar')&&document.getElementById('c-preg-oksapar').checked),
     pkgCount:val('c-pkgc'),pkgPrice:val('c-pkgp'),
     invoiced:!!(document.getElementById('c-inv')&&document.getElementById('c-inv').checked),
     invoiceNo:val('c-invno'),invoiceDate:val('c-invdate'),invoiceAmount:val('c-invamt')};
@@ -6939,8 +6948,13 @@ async function handleOk(act){
     if(act==='client'){
       const nc={id:uid('c'),created:todayISO(),measures:[],notes:[],docs:[],...d};
       if(nc.weight) nc.measures.push({id:uid('m'),date:todayISO(),weight:nc.weight,note:'İlk ölçüm'});
+      if(nc.pregnant&&nc.pregWeek) nc.pregAt=Date.now();
       DB.clients.push(nc); S.client=nc.id; S.page='client'; S.tab='form'; toast('Danışan eklendi — bilgi formunu tamamlayabilirsiniz');
-    } else { Object.assign(c,d); toast('Bilgiler güncellendi'); }
+    } else {
+      const weekChanged=(+d.pregWeek||0)!==(+c.pregWeek||0);
+      if(d.pregnant&&(weekChanged||!c.pregnant)) d.pregAt=Date.now();
+      Object.assign(c,d); toast('Bilgiler güncellendi');
+    }
   }
   if(act==='measure'){
     if(!val('m-weight')) return toast('Kilo zorunlu');
@@ -9058,7 +9072,6 @@ function renderShareView(snap){
     <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
   { if(document.getElementById('svCycleBody')) svRenderCycle(); }
-  { if(document.getElementById('svPregBody')) svRenderPreg(); }
   document.querySelectorAll('[data-sv-booklet]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svDownloadBooklet(+b.dataset.svBooklet); }));
   document.querySelectorAll('[data-sv-art-docx]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticleDocx(b.dataset.svArtDocx); }));
   document.querySelectorAll('[data-sv-art-pdf]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticlePdf(b.dataset.svArtPdf); }));
@@ -9313,10 +9326,12 @@ function svCycleSectionHtml(snap){
   </section>`;
 }
 /* ══════════════ 🤰 Hamilelik Takibi ══════════════
-   Tamamen bu cihazda saklanır (regl takibi ile aynı mantık), diyetisyene
-   hiç gönderilmez. Danışan "şu an kaçıncı haftadayım" bilgisini girer
-   (doktorundan öğrendiği haftayı), biz o günden itibaren haftayı otomatik
-   ilerletiriz. İçerik genel bilgilendirme amaçlıdır, tıbbi tavsiye değildir. */
+   Danışan kendi başına işaretlemiyor — diyetisyen danışan dosyasında
+   "Hamile" kutusunu işaretleyip haftayı girdiğinde, danışanın takip
+   linkinde otomatik olarak bu bilgilendirme bölümü açılır (buildShareSnapshot
+   ile snap.pregnancy taşınır). Danışan tarafında hiçbir buton/form yok;
+   sadece diyetisyenin girdiği hafta bilgisine göre otomatik ilerler.
+   İçerik genel bilgilendirme amaçlıdır, tıbbi tavsiye değildir. */
 const SV_PREG_TRIMESTERS=[
   {id:1,label:'1. Trimester (1–13. hafta)',tips:[
     'Folik asit (yeşil yapraklı sebzeler, kurubaklagil) bebeğin nöral tüp gelişimi için bu dönemde özellikle önemlidir.',
@@ -9355,9 +9370,6 @@ const SV_PREG_MOTIVATION=[
   'Bebeğinle tanışacağın gün yaklaşıyor — bu bekleyiş de hikayenizin en özel bölümlerinden biri. ✨',
   'Bugün attığın her sağlıklı adım (bir bardak daha su, dengeli bir öğün) doğrudan bebeğine giden bir hediye. 🌷'
 ];
-function svPregKey(){ return 'sv_preg_'+(window.__shareTok||''); }
-function svPregLoad(){ try{ const raw=localStorage.getItem(svPregKey()); return raw?JSON.parse(raw):null; }catch(e){ return null; } }
-function svPregSave(data){ try{ localStorage.setItem(svPregKey(),JSON.stringify(data)); }catch(e){} }
 function svPregCompute(data){
   const baseDays=Math.max(0,Math.min(45,+data.week||0))*7;
   const passed=Math.max(0,Math.floor((Date.now()-(+data.at||Date.now()))/86400000));
@@ -9369,14 +9381,6 @@ function svPregCompute(data){
   const trimester=curWeek<=13?SV_PREG_TRIMESTERS[0]:curWeek<=27?SV_PREG_TRIMESTERS[1]:SV_PREG_TRIMESTERS[2];
   const overdue=totalDays>280;
   return {curWeek,curDay,daysLeft,eddISO:localISODate(edd),trimester,overdue};
-}
-function svPregFormHtml(data){
-  return `<p class="hint" style="margin:0 0 12px">Doktorunun söylediği gebelik haftasını gir — o günden itibaren haftanı otomatik ilerletip sana özel bilgi ve öneriler göstereyim. Bu bilgi yalnızca bu cihazda saklanır, diyetisyenine hiç gönderilmez.</p>
-    <div class="field"><label>Şu an kaçıncı haftadasın?</label><input type="number" id="svPregWeek" min="1" max="42" value="${data&&data.week||''}" placeholder="örn. 23"></div>
-    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
-      <input type="checkbox" id="svPregOksapar" style="width:auto" ${data&&data.oksapar?'checked':''}> 💉 Oksapar / benzeri bir kan sulandırıcı iğne kullanıyorum
-    </label>
-    <button class="btn btn-primary" id="svPregSaveBtn" type="button" style="margin-top:12px;width:100%;justify-content:center">💾 Kaydet</button>`;
 }
 function svPregInfoHtml(data){
   const {curWeek,curDay,daysLeft,eddISO,trimester,overdue}=svPregCompute(data);
@@ -9397,42 +9401,13 @@ function svPregInfoHtml(data){
       <div style="font-weight:700;font-size:12.5px;color:#9a3412;margin-bottom:6px">💉 Oksapar / kan sulandırıcı iğne kullananlar için</div>
       <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7">${SV_PREG_OKSAPAR_INFO.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
     </div>`:''}
-    <p style="margin:0 0 12px;font-size:10.5px;color:var(--muted);font-style:italic">Bu bilgiler genel bilgilendirme amaçlıdır, tıbbi tavsiye yerine geçmez. Gebeliğinle ilgili her durum için doktorunu ve diyetisyenini takip et.</p>
-    <button class="btn btn-sm" id="svPregEditBtn" type="button">✏ Haftayı güncelle</button>`;
-}
-function svPregWire(){
-  const save=document.getElementById('svPregSaveBtn');
-  if(save) save.addEventListener('click',()=>{
-    const w=+document.getElementById('svPregWeek').value||0;
-    if(!w){ toast('Önce hafta sayısını gir'); return; }
-    const oksapar=document.getElementById('svPregOksapar').checked;
-    svPregSave({week:w,oksapar,at:Date.now()});
-    svRenderPreg();
-  });
-  const editBtn=document.getElementById('svPregEditBtn');
-  if(editBtn) editBtn.addEventListener('click',()=>{
-    const host=document.getElementById('svPregBody'); if(!host) return;
-    host.innerHTML=svPregFormHtml(svPregLoad());
-    svPregWire();
-  });
-}
-function svRenderPreg(){
-  const host=document.getElementById('svPregBody'); if(!host) return;
-  const data=svPregLoad();
-  host.innerHTML=(data&&data.week)?svPregInfoHtml(data):svPregFormHtml(data);
-  svPregWire();
+    <p style="margin:0;font-size:10.5px;color:var(--muted);font-style:italic">Bu bilgiler genel bilgilendirme amaçlıdır, tıbbi tavsiye yerine geçmez. Gebeliğinle ilgili her durum için doktorunu ve diyetisyenini takip et.</p>`;
 }
 function svPregSectionHtml(snap){
-  if(snap.sex==='E') return '';
-  return `<section class="sv-card" style="margin-top:16px">
-    <details class="sv-art">
-      <summary style="list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px">
-        <span style="font-size:18px">🤰</span>
-        <span style="flex:1">Hamileyim<div style="font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px">Gebelik haftanı takip et, beslenme ve doğum bilgilerini gör</div></span>
-        <span class="sv-art-car" style="color:var(--muted);font-size:11px">▾</span>
-      </summary>
-      <div id="svPregBody" style="padding:4px 16px 18px;border-top:1px solid var(--line-2)"></div>
-    </details>
+  if(!snap.pregnancy||!snap.pregnancy.week) return '';
+  return `<section class="sv-card" style="margin-top:16px;background:linear-gradient(135deg,#fdf2f8,#fff);border:1px solid #fbcfe8">
+    <div class="sv-card-h"><h3>🤰 Hamilelik Takibin</h3></div>
+    <div style="padding:16px">${svPregInfoHtml(snap.pregnancy)}</div>
   </section>`;
 }
 /* ══════════════ Doğum günü kutlaması ══════════════ */
