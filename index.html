@@ -41,6 +41,12 @@ button{cursor:pointer}
 body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparent 60%), var(--canvas)}
 #shareView{min-height:100vh;background:var(--canvas)}
 .sv-wrap{max-width:640px;margin:0 auto;padding:28px 20px 50px}
+@keyframes svFadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.sv-wrap>*{animation:svFadeUp .5s cubic-bezier(.2,.7,.3,1) both}
+.sv-wrap>*:nth-child(n+2){animation-delay:.05s}
+.sv-wrap>*:nth-child(n+4){animation-delay:.09s}
+.sv-wrap>*:nth-child(n+7){animation-delay:.12s}
+@media(prefers-reduced-motion:reduce){.sv-wrap>*{animation:none}}
 .sv-promo-wrap{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 40px rgba(92,34,56,.12)}
 .sv-promo-hero{background:linear-gradient(135deg,var(--blue-900),var(--blue-600));color:#fff;padding:40px 24px 32px;text-align:center}
 .sv-promo-logo{height:48px;margin-bottom:14px;border-radius:8px}
@@ -76,9 +82,9 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-preg-card ul{font-size:15px!important;line-height:1.85!important}
 .sv-preg-card-tip{margin-top:12px;padding:12px 14px;background:#fdf2f8;border-radius:10px;font-size:14px;color:#831843;font-style:italic}
 .sv-top{display:flex;align-items:center;gap:12px}
-.sv-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
-.sv-card-h{padding:14px 16px;border-bottom:1px solid var(--line-2)}
-.sv-card-h h3{font-size:14.5px}
+.sv-card{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 2px 3px rgba(92,34,56,.04),0 14px 30px -22px rgba(92,34,56,.35)}
+.sv-card-h{padding:15px 17px;border-bottom:1px solid var(--line-2);background:linear-gradient(135deg,var(--blue-50) 0%,#fff 75%)}
+.sv-card-h h3{font-size:15px}
 .sv-day[aria-pressed="true"]{background:var(--dayc,var(--blue-600));border-color:var(--dayc,var(--blue-600));color:#fff}
 .sv-day[aria-pressed="true"] .d-n,.sv-day[aria-pressed="true"] .d-k{color:rgba(255,255,255,.82)}
 .sv-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--blue-900) 0%,var(--blue-700) 45%,var(--blue-500) 80%,#F0B8C6 100%);color:#fff;border-radius:18px;padding:22px}
@@ -89,12 +95,19 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-brand img{height:32px;border-radius:7px;background:#fff;padding:3px}
 .sv-brand b{display:block;font-size:13px}
 .sv-brand span{display:block;font-size:11px;color:#CFE6F8}
+.sv-hero-row{display:flex;align-items:center;gap:14px}
+.sv-avatar{flex:0 0 auto;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:22px;font-weight:700;color:#fff;backdrop-filter:blur(2px)}
 .sv-hero h1{color:#fff;font-size:22px;margin:0}
 .sv-hero p{margin:6px 0 0;color:#D9EDFB;font-size:13.5px;max-width:52ch}
+.sv-qn{display:flex;gap:8px;overflow-x:auto;margin:14px 0 0;padding:4px 2px 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.sv-qn::-webkit-scrollbar{display:none}
+.sv-qn a{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);color:var(--blue-700);font-size:12.5px;font-weight:600;text-decoration:none;box-shadow:0 6px 14px -10px rgba(92,34,56,.3);transition:transform .14s,box-shadow .14s,background .14s}
+.sv-qn a:hover{background:var(--blue-50);transform:translateY(-1px);box-shadow:0 10px 18px -10px rgba(92,34,56,.4)}
+.sv-qn a:active{transform:translateY(0)}
 .sv-appt{display:flex;align-items:center;gap:11px;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.22);font-size:13px}
 .sv-appt b{font-family:var(--mono);color:#fff}
 .sv-kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:16px 0}
-.sv-kpi-c{background:#fff;border:1px solid var(--line);border-radius:var(--r-s);padding:12px 8px;text-align:center}
+.sv-kpi-c{background:linear-gradient(160deg,#fff 0%,var(--blue-50) 130%);border:1px solid var(--line);border-radius:14px;padding:12px 8px;text-align:center;box-shadow:0 2px 3px rgba(92,34,56,.04),0 10px 22px -18px rgba(92,34,56,.4)}
 .sv-kpi-c .l{font-size:10.5px;color:var(--muted)}
 .sv-kpi-c .v{font-family:var(--mono);font-size:17px;font-weight:700;color:var(--blue-900);margin-top:3px}
 .sv-kpi-c .v small{font-size:10.5px;font-weight:400;color:var(--muted)}
@@ -9011,7 +9024,7 @@ function renderShareView(snap){
     </section>`;
   const pastPlansSafe=(snap.pastPlans||[]).map(pp=>svSafePlan(pp)).filter(Boolean);
   const svPlans=[p,...pastPlansSafe].filter(Boolean);
-  const planHtml=!p?'':`<section class="sv-card" style="margin-top:16px">
+  const planHtml=!p?'':`<section class="sv-card" id="sv-program" style="margin-top:16px">
       <div class="sv-card-h"><h3 id="svPlanTitle">📋 Güncel programın: ${esc(p.name)}</h3></div>
       <div style="padding:16px">
         ${pastPlansSafe.length?`<div class="chip-row" style="margin-bottom:12px" id="svPlanRow">
@@ -9042,18 +9055,28 @@ function renderShareView(snap){
         ${snap.profile&&snap.profile.logo?`<img src="${snap.profile.logo}">`:''}
         <div><b>${esc(snap.profile?snap.profile.name:'')}</b>${snap.profile&&snap.profile.clinic?`<span>${esc(snap.profile.clinic)}</span>`:''}</div>
       </div>
-      <h1>Merhaba ${esc(snap.name)} 👋</h1>
-      <p>${mood}</p>
+      <div class="sv-hero-row">
+        <div class="sv-avatar">${esc((snap.name||'?').trim().charAt(0).toUpperCase())}</div>
+        <div><h1>Merhaba ${esc(snap.name)} 👋</h1>
+        <p>${mood}</p></div>
+      </div>
       ${snap.nextAppt?`<div class="sv-appt"><span style="font-size:19px">📅</span><div>Sıradaki randevun<br><b>${trDT(snap.nextAppt.when)}</b> · ${esc(snap.nextAppt.type||'')}</div></div>`:''}
       ${p?`<button class="btn btn-sm" id="svShopBtn" type="button" style="margin-top:16px;width:100%;justify-content:center">🛒 Alışveriş Listesi</button>`:''}
     </div>
+    <nav class="sv-qn">
+      <a href="#sv-grafik">📈 Grafik</a>
+      ${p?'<a href="#sv-program">📋 Program</a>':''}
+      <a href="#sv-gunluk">🍽 Bugün</a>
+      <a href="#sv-hamilelik">🤰 Hamilelik</a>
+      <a href="#sv-rehber">📚 Rehberler</a>
+    </nav>
     ${kpiHtml}
     ${svWeeklyReportHtml(snap)}
     ${svAchievementHtml(snap)}
     ${svCertsHtml(snap)}
     ${svWeeklyTaskHtml(snap)}
     ${svPkgHtml(snap)}
-    <section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>⚖ Gelişim grafiğin</h3></div>
+    <section class="sv-card" id="sv-grafik" style="margin-top:16px"><div class="sv-card-h"><h3>⚖ Gelişim grafiğin</h3></div>
       <div style="padding:16px">
         ${pts.length>1?lineChart(pts):`<p style="color:var(--muted);margin:0">Henüz grafik oluşturacak kadar ölçüm yok.</p>`}
         ${pts.length>1?`<button class="btn btn-sm" id="svTransformBtn" type="button" style="margin-top:12px;width:100%;justify-content:center">🖼 Paylaşılabilir ilerleme kartı oluştur</button>`:''}
@@ -9694,7 +9717,7 @@ function svPregInfoHtml(data){
 }
 function svPregSectionHtml(snap){
   const tracked=!!(snap.pregnancy&&snap.pregnancy.week);
-  return `<section class="sv-card" style="margin-top:16px;background:linear-gradient(135deg,#fdf2f8,#fff);border:2px solid #fbcfe8">
+  return `<section class="sv-card" id="sv-hamilelik" style="margin-top:16px;background:linear-gradient(135deg,#fdf2f8,#fff);border:2px solid #fbcfe8">
     <div class="sv-card-h" style="padding:20px 20px 16px"><h3 style="font-size:21px!important;display:flex;align-items:center;gap:8px"><span style="font-size:26px">🤰</span> ${tracked?'Hamilelik Rehberin':'Hamilelik Rehberi'}</h3></div>
     <div style="padding:20px">${svPregInfoHtml(snap.pregnancy)}</div>
   </section>`;
@@ -10178,7 +10201,7 @@ async function svDownloadBooklet(i){
 }
 function svArticlesLibHtml(){
   const cats=[...new Set(SV_ARTICLES.map(a=>a.cat))];
-  return `<section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>📚 Bilgilendirme Kitapçığı</h3></div>
+  return `<section class="sv-card" id="sv-rehber" style="margin-top:16px"><div class="sv-card-h"><h3>📚 Bilgilendirme Kitapçığı</h3></div>
     <div style="padding:14px 16px 16px">
       <p class="hint" style="margin:0 0 12px">Beslenmeyle ilgili merak ettiğin konularda kısa, sade yazılar — okumak için başlığa dokun, istersen Word veya PDF olarak indir.</p>
       ${cats.map(cat=>`
@@ -10456,7 +10479,7 @@ function svDailyLogList(){ try{ return JSON.parse(localStorage.getItem(svDailyLo
 function svDailyLogAdd(entry){ const l=svDailyLogList(); l.push(entry); try{ localStorage.setItem(svDailyLogKey(),JSON.stringify(l)); }catch(e){} }
 function svDailyMealHtml(){
   const log=svDailyLogList();
-  return `<section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>🍽 Bugün Ne Yedin?</h3></div>
+  return `<section class="sv-card" id="sv-gunluk" style="margin-top:16px"><div class="sv-card-h"><h3>🍽 Bugün Ne Yedin?</h3></div>
     <div style="padding:16px">
       <p class="hint" style="margin:0 0 12px">Programda yazmasa bile gerçekte ne yediğini, istersen tabağının fotoğrafıyla birlikte diyetisyenine gönder — görsel olarak ona düşer.</p>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="svDmTypeRow">
