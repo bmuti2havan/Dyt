@@ -8837,7 +8837,7 @@ async function bootShareView(token){
   root.innerHTML='<div class="sv-wrap"><p style="color:var(--muted);text-align:center;padding:60px 0">Yükleniyor…</p></div>';
   let snap;
   try{
-    const r=await fetch(CLOUD_DB+'/shares/'+encodeURIComponent(token)+'.json');
+    const r=await fetch(CLOUD_DB+'/shares/'+encodeURIComponent(token)+'.json?_ts='+Date.now(),{cache:'no-store'});
     if(!r.ok) throw new Error('İstek başarısız ('+r.status+')');
     const raw=await r.json();
     snap=typeof raw==='string'?JSON.parse(raw):raw;
@@ -8955,7 +8955,7 @@ async function bootPromoView(){
   root.innerHTML='<div class="sv-wrap"><p style="color:var(--muted);text-align:center;padding:60px 0">Yükleniyor…</p></div>';
   let profile={}, plan=null;
   try{
-    const r=await fetch(CLOUD_DB+'/shares/promo-landing.json');
+    const r=await fetch(CLOUD_DB+'/shares/promo-landing.json?_ts='+Date.now(),{cache:'no-store'});
     if(r.ok){ const raw=await r.json(); const snap=typeof raw==='string'?JSON.parse(raw):raw; if(snap&&snap.profile) profile=snap.profile; if(snap&&snap.plan) plan=snap.plan; }
   }catch(e){ /* profil bilgisi çekilemezse jenerik metinle devam ederiz */ }
   window.__shareTok='promo-landing';
