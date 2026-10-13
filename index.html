@@ -8931,6 +8931,13 @@ function svPromoHtml(profile,plan){
       <p>Yani danışmanlık, sadece haftalık bir liste almaktan ibaret değil — süreç boyunca sizi destekleyen, elinizin altında duran kişisel bir asistan gibi çalışır. 💗</p>
       ${planHtml}
 
+      <h3 style="margin-top:22px">⚖ Gelişim grafiğiniz böyle görünecek</h3>
+      <p style="margin-bottom:12px">Bu örnek bir gösterimdir — siz danışanlığa başladığınızda kendi ölçümlerinizle gerçek grafiğiniz burada oluşur.</p>
+      <div class="sv-card" style="margin:0 0 18px"><div style="padding:16px">${lineChart([
+        {date:'2026-07-01',weight:78},{date:'2026-07-15',weight:76.8},{date:'2026-08-01',weight:75.4},
+        {date:'2026-08-15',weight:74.1},{date:'2026-09-01',weight:73},{date:'2026-09-15',weight:72}
+      ])}</div></div>
+
       <button class="sv-promo-preg-btn" id="svPromoPregBtn" type="button">🤰 Hamile misiniz? Gebeliğe özel programımızı görün</button>
       <div id="svPromoPregBox" class="sv-promo-preg-box" hidden>
         <h3>🤰 Gebeliğinize Özel Beslenme Programı</h3>
@@ -8950,6 +8957,9 @@ function svPromoHtml(profile,plan){
         </ul>
         <p class="sv-promo-preg-motiv">"Her geçen hafta bebeğinize bir adım daha yaklaşıyorsunuz — bu özel süreçte yanınızdayım." 🌸</p>
       </div>
+
+      ${svPregSectionHtml({})}
+      ${svArticlesLibHtml()}
 
       <div class="sv-promo-cta">
         <p>Bu yaklaşımla danışmanlık hizmeti veriyorum, sizin için de uygun olan bir günde randevulaşabiliriz 🫶🏻🙏</p>
