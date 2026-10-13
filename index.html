@@ -801,6 +801,14 @@ main>*{animation:rise .22s ease both}
 <div id="toastRoot"></div>
 
 <script>
+/* Danışan linkini "Ana ekrana ekle" ile telefona kısayol olarak eklemek
+   için — bu olay sayfanın neresinde olursak olalım en erken anda
+   yakalanmalı, aksi halde Chrome/Android'in native kurulum istemini
+   (prompt) sonradan tetikleyemeyiz. iOS Safari bu olayı hiç göndermez,
+   orada kullanıcıya elle "Paylaş → Ana Ekrana Ekle" adımları gösterilir. */
+window.__svInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); window.__svInstallPrompt=e; });
+
 /* ═══════ WhatsApp gonderim yardimcisi (Meta Cloud API - dogrudan tarayicidan) ═══════ */
 const WA_TOKEN = 'EAAgl62FdbdMBSb2P4RG4X6INmzk0TFlq1O8AGW1ZADbdGL52Qx1m5Jp2bthYeS6r0YGOmoecRvNI8kOer71cHK94A8XZCi7Vtp3AuY8VHZBO0gpUYQJkjhSlDKhRV6S73sRc7k6O6ZBsJUXBsCjYnNyAb1UZBeKKxZASH6oX80XUw9ZAN7p6J784ZA0yiip47z0BdAZDZD';
 const WA_PHONE_ID = '1112592015280831';
@@ -3144,6 +3152,17 @@ function gemJson(txt){
   try{ return JSON.parse(gemJsonCloseTruncated(t)); }catch(e){}
   return JSON.parse(gemJsonCloseTruncated(gemJsonRepair(t)));
 }
+/* Tek seferlik (gün gün parçalamaya gerek olmayan) düz metin/JSON istekleri
+   için: tercih edilen sağlayıcı (varsayılan Gemini) hata verirse ve bir
+   Claude anahtarı tanımlıysa otomatik Claude'a geçer — "Listeden program
+   oluştur"daki aynı otomatik yedekleme mantığı, tek seferlik AI çağrıları
+   (brifing, vb.) için de kullanılabilsin diye. */
+async function aiText(prompt,maxTok,provider){
+  const prov=provider==='claude'?'claude':'gemini';
+  if(prov==='claude') return await claudeText(prompt,maxTok);
+  try{ return await geminiText(prompt,maxTok); }
+  catch(e){ if(claudeKey()) return await claudeText(prompt,maxTok); throw e; }
+}
 
 /* ── Yapıştırılan listeyi programa çevir ── */
 /* Danışanın tüm dosyasını Gemini'ye verilecek metne çevirir */
@@ -3184,6 +3203,29 @@ function clientDossier(c){
   }
   const ap=(DB.appts||[]).filter(x=>x.clientId===c.id).sort((a,b)=>String(b.when).localeCompare(String(a.when)));
   if(ap.length) L.push('','Toplam randevu: '+ap.length+' · sonuncusu '+String(ap[0].when||'').replace('T',' '));
+  /* Danışanın kendi takip linkinden gönderdiği son 7 günlük etkinlik —
+     öğün beğenip beğenmediği, günlük (su/adım/uyku/kaçamak/ruh hali),
+     "bugün ne yedim" paylaşımları ve kendi yazdığı notlar. Brifing bu
+     sayede sadece ölçüm/notlardan değil, danışanın haftalık gerçek
+     davranışından da besleniyor. */
+  const since=Date.now()-8*86400000;
+  const recentAt=arr=>(arr||[]).filter(x=>(+x.at||0)>=since).sort((a,b)=>(+b.at||0)-(+a.at||0));
+  const jr=recentAt(c.journal), mf=recentAt(c.mealFeedback), dm=recentAt(c.dailyMeals), cn=recentAt(c.clientNotes);
+  const visitDays=[...new Set((c.visits||[]).filter(v=>v.date&&new Date(v.date).getTime()>=since-86400000).map(v=>v.date))];
+  if(jr.length||mf.length||dm.length||cn.length||visitDays.length){
+    L.push('','SON 7 GÜN — TAKİP LİNKİNDEN GELENLER:');
+    if(visitDays.length) L.push('- Linke son 7 günde '+visitDays.length+' farklı gün giriş yapmış.');
+    if(jr.length) L.push('- Günlük kayıtları: '+jr.map(j=>trDate(j.date)+' (su '+(j.water??'—')+', adım '+(j.steps??'—')+', uyku '+(j.sleep??'—')+'sa'+(j.cheated===true?', kaçamak yaptı':j.cheated===false?', kaçamak yapmadı':'')+(j.mood?', ruh hali '+j.mood:'')+')').join(' · '));
+    if(mf.length){
+      const liked=mf.filter(x=>x.liked), disliked=mf.filter(x=>!x.liked);
+      if(liked.length) L.push('- Beğendiği öğünler: '+liked.map(x=>x.mealName).join(', '));
+      if(disliked.length) L.push('- Sevmediği öğünler: '+disliked.map(x=>x.mealName).join(', '));
+    }
+    if(dm.length) L.push('- "Bugün ne yedim" paylaşımları: '+dm.map(d=>trDate(d.date)+(d.mealType?' '+d.mealType:'')+(d.text?': '+d.text.slice(0,120):' (fotoğraf)')).join(' · '));
+    if(cn.length) L.push('- Danışanın kendi yazdığı notlar: '+cn.map(n=>'"'+String(n.text||'').slice(0,200)+'"').join(' · '));
+  } else {
+    L.push('','SON 7 GÜN — TAKİP LİNKİNDEN GELENLER: Son bir haftada danışandan linkten yeni bir veri gelmemiş.');
+  }
   return L.join('\n');
 }
 function planSummaryText(pl){
@@ -3209,7 +3251,7 @@ function copyBox(id,text){
 
 /* ── 1) Görüşme öncesi brifing ── */
 async function runBrief(cid){
-  if(!gemKey()){ S.gemDiag=null; return gemDiagModal(); }
+  if(!gemKey()&&!claudeKey()){ S.gemDiag=null; return gemDiagModal(); }
   const c=clientOf(cid||S.client); if(!c) return;
   S.brC=c.id; S.brRes=null; drawBrief('loading');
   try{
@@ -3220,16 +3262,17 @@ async function runBrief(cid){
 '- Yanıtı SADECE geçerli JSON olarak ver.',
 '- "ozet": 2-3 cümlelik durum özeti. Nerede başladı, şu an nerede.',
 '- "degisim": ölçümlerdeki eğilim tek cümle. Ölçüm yoksa "Ölçüm kaydı yok" yaz.',
-'- "gundem": bu görüşmede konuşulması gereken 3-5 madde. Önceki notlarda kalan açık konuları öne al.',
-'- "sorular": danışana sorulacak 3-4 somut soru.',
-'- "dikkat": alerji, hastalık, ilaç veya risk açısından unutulmaması gereken kısa notlar (yoksa boş liste).',
+'- "katilim": danışanın son 7 gündeki takip linki kullanımı/katılımı hakkında tek cümle (düzenli giriyor mu, sessiz mi kaldı, öğünleri beğeniyor mu) — veri yoksa "Son 7 günde link etkinliği yok" yaz.',
+'- "gundem": bu görüşmede konuşulması gereken 3-5 madde. Önceki notlarda kalan açık konuları ve danışanın linkten gönderdiği (öğün tepkisi, günlük, kendi notu) güncel konuları öne al.',
+'- "sorular": danışana sorulacak 3-4 somut soru — mümkünse linkten gelen güncel bilgilere (sevmediği öğün, düşen adım sayısı, kaçamaklar vb.) dayansın.',
+'- "dikkat": alerji, hastalık, ilaç, risk veya uzun süredir linke hiç girmemiş olmak gibi unutulmaması gereken kısa notlar (yoksa boş liste).',
 '- Teşhis koyma, ilaç önerme. Sadece dosyadaki bilgiyi topla ve düzenle.',
 '- Türkçe, kısa ve net yaz.','',
-'JSON ŞEMASI: {"ozet":"","degisim":"","gundem":[""],"sorular":[""],"dikkat":[""]}','',
+'JSON ŞEMASI: {"ozet":"","degisim":"","katilim":"","gundem":[""],"sorular":[""],"dikkat":[""]}','',
 'DANIŞAN DOSYASI:', clientDossier(c),
 '', 'YÜRÜYEN PROGRAM:', pl?planSummaryText(pl).slice(0,2500):'Yok'].join('\n');
-    const j=gemJson(await geminiText(prompt,3072));
-    S.brRes={ozet:String(j.ozet||''),degisim:String(j.degisim||''),
+    const j=gemJson(await aiText(prompt,3072,gemKey()?'gemini':'claude'));
+    S.brRes={ozet:String(j.ozet||''),degisim:String(j.degisim||''),katilim:String(j.katilim||''),
       gundem:(j.gundem||[]).map(String).slice(0,8),
       sorular:(j.sorular||[]).map(String).slice(0,8),
       dikkat:(j.dikkat||[]).map(String).slice(0,8)};
@@ -3244,6 +3287,7 @@ function drawBrief(state,err){
    ? `<div style="border:1px solid var(--line);border-radius:12px;padding:14px">
         <div style="font-size:14px;line-height:1.75">${esc(r.ozet)}</div>
         ${r.degisim?`<div class="tag tag-ok" style="margin-top:10px"><i class="dot"></i>${esc(r.degisim)}</div>`:''}
+        ${r.katilim?`<div class="tag tag-blue" style="margin-top:8px">🔗 ${esc(r.katilim)}</div>`:''}
         ${ul(r.dikkat,'⚠️ Dikkat','var(--danger)')}
         ${ul(r.gundem,'📌 Gündem')}
         ${ul(r.sorular,'❓ Sorulacaklar')}
@@ -3260,6 +3304,7 @@ async function briefToNote(){
   const c=clientOf(S.brC), r=S.brRes; if(!c||!r) return;
   const L=['Görüşme brifingi',r.ozet];
   if(r.degisim) L.push(r.degisim);
+  if(r.katilim) L.push('Katılım: '+r.katilim);
   if(r.dikkat.length) L.push('Dikkat: '+r.dikkat.join(' · '));
   if(r.gundem.length) L.push('Gündem: '+r.gundem.join(' · '));
   if(r.sorular.length) L.push('Sorulacaklar: '+r.sorular.join(' · '));
@@ -8920,6 +8965,62 @@ document.addEventListener('keydown',e=>{
 function shareViewMsg(msg){
   document.getElementById('shareView').innerHTML=`<div class="sv-wrap"><div class="sv-card" style="text-align:center;padding:50px 24px"><div style="font-size:34px;margin-bottom:10px">🔒</div><p style="color:var(--muted);max-width:360px;margin:0 auto">${esc(msg)}</p></div></div>`;
 }
+/* Danışanın "Ana ekrana ekle" ile telefonun ana ekranına, tam da o
+   danışanın kendi takip linkine açılan bir kısayol eklemesi için: web app
+   manifest'i o anki token'a göre (start_url içine ?v=token gömülü) bir
+   Blob URL olarak dinamik üretip <head>'e ekliyoruz. iOS Safari zaten
+   <head>'deki apple-mobile-web-app-* etiketleriyle mevcut URL'yi kısayol
+   yapıyor (ek bir şey gerekmez); bu fonksiyon asıl Android/Chrome'un
+   standalone kurulum istemini (beforeinstallprompt) doğru start_url ile
+   tetikleyebilmesi için. */
+function svInjectManifest(snap,token){
+  try{
+    const dietName=(snap&&snap.profile&&snap.profile.name)||'Diyetisyenin';
+    const appName=(snap&&snap.name?snap.name+' · ':'')+dietName+' Takip';
+    const iconLink=document.querySelector('link[rel="apple-touch-icon"]');
+    const icon=iconLink?iconLink.href:'';
+    const manifest={
+      name:appName.slice(0,60), short_name:'Takip Sayfam',
+      start_url:location.pathname+'?v='+encodeURIComponent(token),
+      scope:location.pathname, display:'standalone',
+      background_color:'#FBF3F5', theme_color:'#9C3F60',
+      icons:icon?[{src:icon,sizes:'192x192',type:'image/png'},{src:icon,sizes:'512x512',type:'image/png'}]:[]
+    };
+    const blobUrl=URL.createObjectURL(new Blob([JSON.stringify(manifest)],{type:'application/json'}));
+    let link=document.querySelector('link[rel="manifest"]');
+    if(!link){ link=document.createElement('link'); link.rel='manifest'; document.head.appendChild(link); }
+    link.href=blobUrl;
+  }catch(e){ /* manifest olmadan da sayfa normal çalışır, sessiz geç */ }
+}
+async function svInstallClick(){
+  if(window.__svInstallPrompt){
+    try{
+      window.__svInstallPrompt.prompt();
+      const choice=await window.__svInstallPrompt.userChoice;
+      window.__svInstallPrompt=null;
+      if(choice&&choice.outcome==='accepted'){ toast('Ana ekrana eklendi ✓'); return; }
+    }catch(e){ /* istemden vazgeçildiyse yönergeye düş */ }
+  }
+  svInstallInstructions();
+}
+function svInstallInstructions(){
+  const ua=navigator.userAgent||'';
+  const isIOS=/iphone|ipad|ipod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const body=isIOS
+    ? `<ol style="margin:0;padding-left:20px;font-size:14px;line-height:2.1">
+        <li>Altta ortadaki <b>Paylaş</b> ikonuna dokun (kare içinde yukarı ok ↑)</li>
+        <li>Açılan listede <b>"Ana Ekrana Ekle"</b>yi seç</li>
+        <li>Sağ üstteki <b>Ekle</b>ye dokun</li>
+      </ol>
+      <p class="hint" style="margin-top:12px">Bundan sonra telefonunda bu sayfanın kısayolu bir uygulama gibi duracak.</p>`
+    : `<ol style="margin:0;padding-left:20px;font-size:14px;line-height:2.1">
+        <li>Sağ üstteki <b>⋮</b> (üç nokta) menüsüne dokun</li>
+        <li><b>"Ana ekrana ekle"</b> ya da <b>"Uygulamayı yükle"</b> seçeneğini seç</li>
+        <li>Çıkan onayda <b>Ekle / Yükle</b>ye dokun</li>
+      </ol>
+      <p class="hint" style="margin-top:12px">Bundan sonra telefonunda bu sayfanın kısayolu bir uygulama gibi duracak.</p>`;
+  modal('📲 Ana ekrana ekle',body,'Tamam','close','420px');
+}
 async function bootShareView(token){
   window.__shareTok=token;
   document.querySelector('.app').style.display='none';
@@ -8937,6 +9038,7 @@ async function bootShareView(token){
   }catch(e){ console.error('[danışan linki] veri çekilemedi:',e); return shareViewMsg('Sayfa yüklenemedi — internet bağlantınızı kontrol edip sayfayı yenileyin.'); }
   if(!snap) return shareViewMsg('Bu bağlantı artık geçerli değil veya iptal edilmiş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
   try{
+    svInjectManifest(snap,token);
     renderShareView(snap);
     // Diyetisyenine "bugün linke kaç kez girdi" bilgisi düşsün diye sessizce kaydet (sayfa açılışını engellemez)
     svIntakePost({type:'visit',date:todayISO(),at:Date.now()}).catch(()=>{});
@@ -9158,6 +9260,7 @@ function renderShareView(snap){
       </div>
       ${snap.nextAppt?`<div class="sv-appt"><span style="font-size:19px">📅</span><div>Sıradaki randevun<br><b>${trDT(snap.nextAppt.when)}</b> · ${esc(snap.nextAppt.type||'')}</div></div>`:''}
       ${p?`<button class="btn btn-sm" id="svShopBtn" type="button" style="margin-top:16px;width:100%;justify-content:center">🛒 Alışveriş Listesi</button>`:''}
+      <button class="btn btn-sm" id="svInstallBtn" type="button" style="margin-top:8px;width:100%;justify-content:center">📲 Ana ekrana ekle</button>
     </div>
     <nav class="sv-qn">
       <a href="#sv-grafik">📈 Grafik</a>
@@ -9278,6 +9381,7 @@ function renderShareView(snap){
     inp.value=b.dataset.svQuick; inp.focus(); inp.setSelectionRange(inp.value.length,inp.value.length);
   }));
   { const shb=document.getElementById('svShopBtn'); if(shb) shb.addEventListener('click',svOpenShopModal); }
+  { const ib=document.getElementById('svInstallBtn'); if(ib) ib.addEventListener('click',svInstallClick); }
   { const rb=document.getElementById('svRemindBtn'); if(rb){ rb.addEventListener('click',svRemindToggle); svRemindPaint(); svCheckReminder(); } }
   document.getElementById('svMeasureBtn').addEventListener('click',svSubmitMeasure);
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
