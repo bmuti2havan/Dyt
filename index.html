@@ -66,6 +66,10 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-promo-wa-btn{display:inline-block;padding:13px 28px;background:#25D366;color:#fff;border-radius:999px;font-weight:600;font-size:14.5px;text-decoration:none}
 .sv-promo-foot{text-align:center;color:var(--muted);font-size:12px;padding:18px 0}
 @media(max-width:480px){.sv-promo-hero h1{font-size:22px}}
+.sv-preg-tabrow{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.sv-preg-tab{padding:8px 13px;border:1px solid #fbcfe8;background:#fff;border-radius:999px;font-size:12.5px;font-weight:600;color:#9d174d;cursor:pointer}
+.sv-preg-tab.active{background:linear-gradient(135deg,#9d174d,#db2777);border-color:transparent;color:#fff}
+.sv-preg-panels{padding:14px 15px;background:#fff;border-radius:12px;border:1px solid #fbcfe8}
 .sv-top{display:flex;align-items:center;gap:12px}
 .sv-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .sv-card-h{padding:14px 16px;border-bottom:1px solid var(--line-2)}
@@ -2354,10 +2358,25 @@ async function shareNative(cid){
   try{ await navigator.share({title:'Takip linkin',text:(c.name?c.name+', ':'')+'işte takip linkin:',url}); }
   catch(e){ /* kullanıcı paylaşım panelini kapattıysa sessiz geç */ }
 }
+function sharePregHtml(c){
+  return `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+    <div style="font-weight:700;font-size:13px;margin-bottom:8px">🤰 Bu danışan hamile mi?</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px">
+      <input type="checkbox" id="preg-on-${c.id}" ${c.pregnant?'checked':''} style="width:auto"> Evet, hamile — takip linkinde hamilelik rehberi açılsın
+    </label>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input id="preg-week-${c.id}" type="number" min="1" max="42" placeholder="Kaçıncı hafta" value="${esc(c.pregWeek||'')}" style="flex:1">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap;cursor:pointer"><input type="checkbox" id="preg-oksapar-${c.id}" ${c.pregOksapar?'checked':''} style="width:auto">💉 Oksapar</label>
+    </div>
+    <button class="btn btn-sm btn-primary" type="button" data-act="preg-save" data-cid="${c.id}">💾 Kaydet</button>
+    ${c.pregnant&&c.pregWeek?`<p class="hint" style="margin:8px 0 0">✓ Hamilelik rehberi danışanın linkinde otomatik görünüyor.</p>`:''}
+  </div>`;
+}
 function shareStatusHtml(c){
   if(!c.shareToken){
     return `<p class="hint" style="margin:0 0 14px">Bu danışan için henüz bir takip linki yok. Oluşturduğunda danışan; kilo/ölçüm grafiğini, güncel beslenme programını ve bir sonraki randevusunu kendi linkinden görebilir, isterse Word veya PDF olarak indirebilir. Link, sen iptal edene kadar açık kalır — kendiliğinden silinmez.</p>
       <button class="btn btn-primary" data-act="share-gen">🔗 Link oluştur</button>
+      ${sharePregHtml(c)}
       ${shareBookletsHtml(c)}
       ${shareWeeklyTaskHtml(c)}`;
   }
@@ -2371,6 +2390,7 @@ function shareStatusHtml(c){
       <button class="btn btn-sm" data-act="share-gen">🔄 Verileri güncelle</button>
       <button class="btn btn-sm btn-danger" data-act="share-revoke">Linki iptal et</button>
     </div>
+    ${sharePregHtml(c)}
     ${shareBookletsHtml(c)}
     ${shareWeeklyTaskHtml(c)}`;
 }
@@ -8478,6 +8498,20 @@ document.addEventListener('click',async e=>{
       else { modal('🔗 Danışan takip linki', shareStatusHtml(c2), 'Kapat','close','540px'); }
       return;
     }
+    if(a==='preg-save'){
+      const c2=clientOf(act.dataset.cid); if(!c2) return;
+      const on=document.getElementById('preg-on-'+c2.id).checked;
+      const week=+document.getElementById('preg-week-'+c2.id).value||0;
+      const oksapar=document.getElementById('preg-oksapar-'+c2.id).checked;
+      if(on&&!week) return toast('Hafta sayısını da gir');
+      const weekChanged=week!==(+c2.pregWeek||0);
+      if(on&&(weekChanged||!c2.pregnant)) c2.pregAt=Date.now();
+      c2.pregnant=on; c2.pregWeek=week; c2.pregOksapar=oksapar;
+      await save(); toast(on?'Hamilelik bilgisi kaydedildi ✓':'Güncellendi');
+      if(c2.shareToken){ await shareGenerate(c2.id); }
+      else { modal('🔗 Danışan takip linki', shareStatusHtml(c2), 'Kapat','close','540px'); }
+      return;
+    }
     if(a==='lib-del'){
       const lid=act.dataset.lid;
       if(!confirm('Bu kitapçık silinsin mi? Atanmış olduğu danışanların sayfasından da kalkar.')) return;
@@ -9396,6 +9430,30 @@ const SV_PREG_MOTIVATION=[
   'Bebeğinle tanışacağın gün yaklaşıyor — bu bekleyiş de hikayenizin en özel bölümlerinden biri. ✨',
   'Bugün attığın her sağlıklı adım (bir bardak daha su, dengeli bir öğün) doğrudan bebeğine giden bir hediye. 🌷'
 ];
+const SV_PREG_POSTPARTUM={
+  energy:[
+    'Emzirme döneminde günlük enerji ihtiyacın genelde 400–500 kcal kadar artar — bu farkı diyetisyeninle birlikte, kişiye özel olarak planlamak en sağlıklısı.',
+    'Protein ihtiyacın gebelik dönemine göre de artar; her öğünde kaliteli bir protein kaynağı (et, yumurta, baklagil, süt ürünleri) bulunmasına özen göster.',
+    'Doğumdaki kan kaybı nedeniyle demir ve B12 depoların azalmış olabilir — kırmızı et, yeşil yapraklılar, kurubaklagil bu dönemde önemini korur.',
+    'Kalsiyum ve D vitamini hem senin kemik sağlığın hem de süt içeriği için önemini sürdürür.'
+  ],
+  milk:[
+    'Yulaf, çörek otu, kimyon, rezene, susam/tahin ve bakla gibi besinlerin süt üretimini desteklediği geleneksel olarak düşünülür; bilimsel kanıt düzeyleri değişken olsa da dengeli beslenmenin bir parçası olarak tüketilebilirler.',
+    'En güvenilir "süt artırıcı" aslında düzenli emzirme/pompalama sıklığı ve yeterli sıvı alımıdır — bol su, ayran ve emzirme döneminde güvenli bitki çaylarını tercih et.',
+    'Tek bir mucize besin yoktur; dengeli ve yeterli kalorili beslenme süt üretiminde en belirleyici faktördür.'
+  ],
+  caution:[
+    'Kafeini günde 2–3 fincanı geçmeyecek şekilde sınırlamak bebeğin huzursuzluğunu azaltabilir.',
+    'Alkolden mümkünse tamamen uzak dur; zorunlu bir tüketimde emzirme zamanlamasını doktorunla planla.',
+    'Bazı bebeklerde annenin tükettiği gazlı besinler (lahana, brokoli, nohut gibi) huzursuzluğa yol açabilir — bebeğinde bir örüntü fark edersen diyetisyeninle paylaş.',
+    'Çok düşük kalorili diyetlerden kaçın; ani ve agresif kilo verme hem enerjini hem süt üretimini olumsuz etkileyebilir.'
+  ],
+  warn:[
+    'Göğüste şiddetli ağrı, kızarıklık, ateşle birlikte sertlik (mastit belirtisi olabilir)',
+    'Aşırı yorgunluk, baş dönmesi, süt üretiminde ani ve belirgin azalma',
+    'Loğusalık kanamasında artış veya kötü koku'
+  ]
+};
 function svPregCompute(data){
   const baseDays=Math.max(0,Math.min(45,+data.week||0))*7;
   const passed=Math.max(0,Math.floor((Date.now()-(+data.at||Date.now()))/86400000));
@@ -9408,31 +9466,45 @@ function svPregCompute(data){
   const overdue=totalDays>280;
   return {curWeek,curDay,daysLeft,eddISO:localISODate(edd),trimester,overdue};
 }
+function svPregUl(arr){ return `<ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.75">${arr.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>`; }
+function svPregPostpartumHtml(){
+  const pp=SV_PREG_POSTPARTUM;
+  return `<div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">⚡ Enerji ve temel besin ihtiyacı</div>
+    ${svPregUl(pp.energy)}
+    <div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin:14px 0 6px">🍼 Süt üretimini destekleyen besinler</div>
+    ${svPregUl(pp.milk)}
+    <div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin:14px 0 6px">⚠ Dikkat edilmesi gerekenler</div>
+    ${svPregUl(pp.caution)}
+    <div style="font-weight:700;font-size:12.5px;color:#b91c1c;margin:14px 0 6px">🚑 Ne zaman doktora başvurulmalı</div>
+    ${svPregUl(pp.warn)}
+    <p style="margin:12px 0 0;font-size:10.5px;color:var(--muted);font-style:italic">Bu bilgiler genel bilgilendirme amaçlıdır, tıbbi tavsiye yerine geçmez. Emzirme/doğum sonrası beslenmenle ilgili kişiye özel planlama için doktorunu ve diyetisyenini takip et.</p>`;
+}
+function svPregTab(id){
+  document.querySelectorAll('.sv-preg-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+  document.querySelectorAll('.sv-preg-panel').forEach(p=>{ p.hidden=(p.dataset.panel!==id); });
+}
 function svPregInfoHtml(data){
   const {curWeek,curDay,daysLeft,eddISO,trimester,overdue}=svPregCompute(data);
   const moodIdx=curWeek%SV_PREG_MOTIVATION.length;
+  const tabs=[
+    {id:'beslenme',label:'🍽 Beslenme',html:`<div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">${esc(trimester.label)}</div>${svPregUl(trimester.tips)}`},
+    {id:'dogum',label:'🎂 Doğuma Hazırlık',html:svPregUl(SV_PREG_BIRTH_INFO)},
+    {id:'sonrasi',label:'🤱 Doğum Sonrası & Emzirme',html:svPregPostpartumHtml()}
+  ];
+  if(data.oksapar) tabs.push({id:'oksapar',label:'💉 Oksapar',html:svPregUl(SV_PREG_OKSAPAR_INFO)});
+  tabs.push({id:'motiv',label:'💌 Motivasyon',html:`<p style="margin:0;font-size:13.5px;line-height:1.7;font-style:italic;text-align:center">${esc(SV_PREG_MOTIVATION[moodIdx])}</p>`});
   return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:12px 14px;background:var(--blue-50);border-radius:10px">
       <div style="font-size:28px">🤰</div>
       <div><div style="font-weight:700;font-size:14.5px">${curWeek}. hafta, ${curDay}. gün</div>
       <div style="color:var(--muted);font-size:12px">${overdue?'Tahmini doğum tarihin geçti — doktorunla iletişimde kal':'Tahmini doğum tarihi: '+trDate(eddISO)+' · '+daysLeft+' gün kaldı'}</div></div>
     </div>
-    <div style="padding:12px 14px;margin-bottom:14px;border-radius:10px;background:linear-gradient(135deg,#fdf2f8,#fff);border:1px solid #fbcfe8">
-      <p style="margin:0;font-size:13.5px;line-height:1.6;font-style:italic">${esc(SV_PREG_MOTIVATION[moodIdx])}</p>
-    </div>
-    <div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">${esc(trimester.label)} — beslenme önerileri</div>
-    <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;line-height:1.7">${trimester.tips.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
-    <div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">Doğum ve beslenme</div>
-    <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;line-height:1.7">${SV_PREG_BIRTH_INFO.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
-    ${data.oksapar?`<div style="padding:12px 14px;margin-bottom:14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa">
-      <div style="font-weight:700;font-size:12.5px;color:#9a3412;margin-bottom:6px">💉 Oksapar / kan sulandırıcı iğne kullananlar için</div>
-      <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7">${SV_PREG_OKSAPAR_INFO.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
-    </div>`:''}
-    <p style="margin:0;font-size:10.5px;color:var(--muted);font-style:italic">Bu bilgiler genel bilgilendirme amaçlıdır, tıbbi tavsiye yerine geçmez. Gebeliğinle ilgili her durum için doktorunu ve diyetisyenini takip et.</p>`;
+    <div class="sv-preg-tabrow">${tabs.map((t,i)=>`<button type="button" class="sv-preg-tab${i===0?' active':''}" data-tab="${t.id}" onclick="svPregTab('${t.id}')">${t.label}</button>`).join('')}</div>
+    <div class="sv-preg-panels">${tabs.map((t,i)=>`<div class="sv-preg-panel" data-panel="${t.id}" ${i===0?'':'hidden'}>${t.html}</div>`).join('')}</div>`;
 }
 function svPregSectionHtml(snap){
   if(!snap.pregnancy||!snap.pregnancy.week) return '';
   return `<section class="sv-card" style="margin-top:16px;background:linear-gradient(135deg,#fdf2f8,#fff);border:1px solid #fbcfe8">
-    <div class="sv-card-h"><h3>🤰 Hamilelik Takibin</h3></div>
+    <div class="sv-card-h"><h3>🤰 Hamilelik Rehberin</h3></div>
     <div style="padding:16px">${svPregInfoHtml(snap.pregnancy)}</div>
   </section>`;
 }
