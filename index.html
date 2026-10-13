@@ -3075,9 +3075,10 @@ async function geminiText(prompt,maxTok){
   return txt;
 }
 function gemJsonRepair(t){
-  // Dize (string) içindeki kaçışsız newline/tab/CR karakterlerini kaçışlı hale getirir
-  // ve dizi/obje sonundaki fazladan virgülleri temizler. Gemini'nin ara sıra ürettiği
-  // hafif bozuk JSON çıktısını (ör. 'Expected \',\' or \']\'' hatası) kurtarmak içindir.
+  // Dize (string) içindeki kaçışsız newline/tab/CR karakterlerini kaçışlı hale getirir,
+  // dizi/obje sonundaki fazladan virgülleri temizler ve iki string değer arasında
+  // unutulan virgülü ekler (Gemini'nin ara sıra ürettiği 'Expected "," or "]"' hatasının
+  // en sık nedeni — ör. ["2 yumurta" "1 dilim ekmek"]).
   let out='', inStr=false, esc=false;
   for(let k=0;k<t.length;k++){
     const c=t[k];
@@ -3094,14 +3095,40 @@ function gemJsonRepair(t){
       out+=c;
     }
   }
-  return out.replace(/,(\s*[\]}])/g,'$1');
+  return out
+    .replace(/,(\s*[\]}])/g,'$1')      // fazla virgül: [...,] veya {...,}
+    .replace(/"(\s+)"/g,'",$1"');      // eksik virgül: "a" "b" -> "a", "b"
+}
+// Yarıda kesilmiş (truncated) JSON'u son çare olarak kurtarmaya çalışır:
+// açık kalan string'i kapatır, ardından açık kalan [ ve { parantezlerini
+// (ters sırada) kapatarak geçerli bir JSON üretmeye çalışır.
+function gemJsonCloseTruncated(t){
+  let inStr=false, esc=false; const stack=[];
+  for(let k=0;k<t.length;k++){
+    const c=t[k];
+    if(inStr){
+      if(esc){ esc=false; continue; }
+      if(c==='\\'){ esc=true; continue; }
+      if(c==='"'){ inStr=false; }
+      continue;
+    }
+    if(c==='"'){ inStr=true; continue; }
+    if(c==='{'||c==='['){ stack.push(c); continue; }
+    if(c==='}'||c===']'){ stack.pop(); continue; }
+  }
+  let out=t.replace(/,\s*$/,'');
+  if(inStr) out+='"';
+  for(let k=stack.length-1;k>=0;k--) out+= stack[k]==='{' ? '}' : ']';
+  return out;
 }
 function gemJson(txt){
   let t=String(txt).replace(/```json/gi,'').replace(/```/g,'').trim();
   const i=t.indexOf('{'), j=t.lastIndexOf('}');
   if(i>0||j<t.length-1){ if(i>=0&&j>i) t=t.slice(i,j+1); }
   try{ return JSON.parse(t); }catch(e){}
-  return JSON.parse(gemJsonRepair(t));
+  try{ return JSON.parse(gemJsonRepair(t)); }catch(e){}
+  try{ return JSON.parse(gemJsonCloseTruncated(t)); }catch(e){}
+  return JSON.parse(gemJsonCloseTruncated(gemJsonRepair(t)));
 }
 
 /* ── Yapıştırılan listeyi programa çevir ── */
