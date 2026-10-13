@@ -41,6 +41,31 @@ button{cursor:pointer}
 body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparent 60%), var(--canvas)}
 #shareView{min-height:100vh;background:var(--canvas)}
 .sv-wrap{max-width:640px;margin:0 auto;padding:28px 20px 50px}
+.sv-promo-wrap{background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 40px rgba(92,34,56,.12)}
+.sv-promo-hero{background:linear-gradient(135deg,var(--blue-900),var(--blue-600));color:#fff;padding:40px 24px 32px;text-align:center}
+.sv-promo-logo{height:48px;margin-bottom:14px;border-radius:8px}
+.sv-promo-hero h1{font-family:var(--serif);font-size:26px;margin:0 0 8px;line-height:1.3}
+.sv-promo-sub{margin:0;font-size:14px;opacity:.92}
+.sv-promo-body{padding:28px 24px 8px}
+.sv-promo-lead{font-size:15px;line-height:1.7;margin:0 0 20px}
+.sv-promo-feat{display:grid;gap:10px;margin:0 0 24px;padding:16px 18px;background:var(--blue-50);border-radius:12px;font-size:14px}
+.sv-promo-body h3{font-family:var(--serif);color:var(--blue-900);font-size:17px;margin:0 0 10px}
+.sv-promo-body>p{font-size:14px;line-height:1.7;color:var(--ink-2)}
+.sv-promo-preg-btn{display:block;width:100%;margin:22px 0 0;padding:14px 16px;border:1px solid #fbcfe8;background:linear-gradient(135deg,#fdf2f8,#fff);border-radius:12px;font-weight:600;font-size:14px;color:#9d174d;cursor:pointer;text-align:center}
+.sv-promo-preg-box{margin-top:14px;padding:18px 18px 8px;border-radius:12px;background:#fdf2f8;border:1px solid #fbcfe8}
+.sv-promo-preg-box h3{color:#9d174d}
+.sv-promo-preg-box>p{font-size:13.5px;line-height:1.65}
+.sv-promo-preg-calc{margin:14px 0;padding:14px;background:#fff;border-radius:10px;border:1px solid #fbcfe8}
+.sv-promo-preg-calc label{font-size:12.5px;font-weight:600;color:#9d174d}
+.sv-promo-preg-calc input{padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:14px}
+.sv-promo-preg-result{margin-top:10px;font-size:13.5px;line-height:1.6}
+.sv-promo-preg-list{margin:0 0 12px;padding-left:18px;font-size:13.5px;line-height:1.7}
+.sv-promo-preg-motiv{font-style:italic;text-align:center;font-size:13.5px}
+.sv-promo-cta{margin:26px 0 8px;padding:20px;text-align:center;background:var(--blue-50);border-radius:12px}
+.sv-promo-cta p{margin:0 0 14px;font-size:14.5px;line-height:1.6}
+.sv-promo-wa-btn{display:inline-block;padding:13px 28px;background:#25D366;color:#fff;border-radius:999px;font-weight:600;font-size:14.5px;text-decoration:none}
+.sv-promo-foot{text-align:center;color:var(--muted);font-size:12px;padding:18px 0}
+@media(max-width:480px){.sv-promo-hero h1{font-size:22px}}
 .sv-top{display:flex;align-items:center;gap:12px}
 .sv-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .sv-card-h{padding:14px 16px;border-bottom:1px solid var(--line-2)}
@@ -2256,6 +2281,20 @@ async function shareGenerate(cid){
     toast(isNew?'Link oluşturuldu ✓':'Link güncellendi ✓');
     modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
   }catch(err){ toast('Link oluşturulamadı: '+(err.message||''),8000); }
+}
+function promoUrl(){ return location.origin+location.pathname+'?promo=1'; }
+async function promoPublish(){
+  if(!cloudReady()||!CL().enabled){ toast('Önce Ayarlar → Bulut senkronizasyonu bölümünden buluta bağlanmalısın — link bulut üzerinden çalışır',6000); return; }
+  toast('Yayınlanıyor…',4000);
+  try{
+    const snap={profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail},updatedAt:Date.now()};
+    const t1=await cloudToken();
+    const r=await fetch(`${CL().dbUrl}/shares/promo-landing.json?auth=${encodeURIComponent(t1)}`,
+      {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
+    if(!r.ok) throw new Error(cloudErr(r.status));
+    DB.profile.promoPublishedAt=Date.now(); await save();
+    toast('Tanıtım linki yayınlandı ✓'); render();
+  }catch(err){ toast('Yayınlanamadı: '+(err.message||''),8000); }
 }
 async function shareRevoke(cid){
   const c=clientOf(cid||S.shareClient||S.client); if(!c||!c.shareToken) return;
@@ -6413,6 +6452,17 @@ function pageSettings(){
       <p style="font-size:12px;color:var(--muted);margin:12px 0 0">Linkler sen "Linki iptal et" demeden kendiliğinden silinmez/kapanmaz.</p>
       </div>`;
     })()}</section>
+    <section class="card" style="margin-bottom:16px"><div class="card-h"><h3>📣 Yeni danışan tanıtım linki</h3>
+      <div class="spacer"></div><span class="tag ${DB.profile.promoPublishedAt?'tag-ok':''}">${DB.profile.promoPublishedAt?'Yayında':'Yayınlanmadı'}</span></div>
+      <div class="card-b">
+        <p style="margin:0 0 12px;color:var(--muted);font-size:13px">Belirli bir danışana bağlı değil — reklam/tanıtım amaçlı, herkese gönderebileceğin sabit bir link. Danışmanlık hizmetini anlatan, "🤰 Hamileyim" butonuna basınca gebeliğe özel bilgi/sayaç gösteren bir tanıtım sayfası açılır. Klinik bilgilerin (isim, logo, telefon) Ayarlar'daki Klinik bilgileri bölümünden otomatik gelir.</p>
+        ${DB.profile.promoPublishedAt?`<p style="font-size:12px;color:var(--muted);margin:0 0 12px">Son yayınlanma: ${trDT(DB.profile.promoPublishedAt)}</p>`:''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" data-act="promo-publish">${DB.profile.promoPublishedAt?'🔄 Güncelle':'📣 Yayınla'}</button>
+          ${DB.profile.promoPublishedAt?`<button class="btn btn-sm" data-act="promo-copy">🔗 Linki kopyala</button>
+          <button class="btn btn-sm" data-act="promo-preview">👀 Önizle</button>`:''}
+        </div>
+      </div></section>
     <section class="card" style="margin-bottom:16px"><div class="card-h"><h3>📚 Eğitim kitapçığı kütüphanesi</h3><div class="spacer"></div><span class="tag ${(DB.library||[]).length?'tag-ok':''}">${(DB.library||[]).length}</span></div>
       <div class="card-b">
         <p style="margin:0 0 12px;color:var(--muted);font-size:13px">Kendi hazırladığın Word veya PDF eğitim kitapçıklarını buraya toplu yükle. Sonra bir danışanın "🔗 Danışan linki" ayarından, o danışana hangi kitapçığı/kitapçıkları vereceğini seçebilirsin — haftalık değiştirmek için aynı yerden işaretini kaldırıp yenisini seçmen yeter.</p>
@@ -8437,6 +8487,9 @@ document.addEventListener('click',async e=>{
     if(a==='gem-diag'){ S.gemDiag=null; return gemDiagModal(); }
     if(a==='claude-diag'){ S.claudeDiag=null; return claudeDiagModal(); }
     if(a==='save-profile'){ Object.assign(DB.profile,{name:val('pf-name'),clinic:val('pf-clinic'),phone:val('pf-phone'),mail:val('pf-mail'),note:val('pf-note'),gemini:val('pf-gemini'),claude:val('pf-claude')}); await save(); toast('Bilgiler kaydedildi'); render(); }
+    if(a==='promo-publish'){ return promoPublish(); }
+    if(a==='promo-copy'){ try{ await navigator.clipboard.writeText(promoUrl()); toast('Link kopyalandı ✓'); }catch(e){ toast(promoUrl(),8000); } }
+    if(a==='promo-preview'){ window.open(promoUrl(),'_blank'); }
     if(a==='greet-new'){ return render(); }
     if(a==='recipe-shuffle'){ S.recipeShuffle=String(Math.random()); return render(); }
     if(a==='open-gallery'){ return openGallery({type:'browse'}); }
@@ -8733,6 +8786,109 @@ async function bootShareView(token){
     console.error('[danışan linki] görüntüleme hatası:',e);
     shareViewMsg('Sayfan yüklendi ama bir kısmı görüntülenirken sorun çıktı. Diyetisyenine haber ver, "Danışan linki → Verileri güncelle" ile linkini tazelesin.');
   }
+}
+/* ══════════════ 📣 Yeni danışan tanıtım/reklam sayfası ══════════════
+   Belirli bir danışana değil, herkese açık tek bir sabit linke bağlı
+   (shares/promo-landing). İçeriği diyetisyen Ayarlar'dan "Yayınla/Güncelle"
+   ile oluşturur; o yazma işlemi kimliği doğrulanmış olarak yapılır, ama bu
+   sayfanın kendisi okurken kimlik istemez (shares/$token ".read":true
+   kuralı zaten var, yeni bir Firebase kuralı eklemeye gerek yok). */
+const SV_PROMO_PREG_TRIMESTER_HINT=[
+  {max:13,label:'İlk trimester',hint:'Bu dönemde folik asit ve hafif, sık öğünler önceliğimiz olur.'},
+  {max:27,label:'İkinci trimester',hint:'Demir, kalsiyum ve protein ihtiyacınız artıyor — programınız buna göre şekillenir.'},
+  {max:42,label:'Üçüncü trimester',hint:'Kalsiyum, D vitamini ve doğuma hazırlık beslenmesi ön planda olur.'}
+];
+function svPromoPregCalc(week){
+  const w=Math.max(1,Math.min(42,+week||0));
+  const totalDays=w*7;
+  const daysLeft=Math.max(0,280-totalDays);
+  const edd=new Date(); edd.setDate(edd.getDate()+daysLeft);
+  const tri=SV_PROMO_PREG_TRIMESTER_HINT.find(t=>w<=t.max)||SV_PROMO_PREG_TRIMESTER_HINT[2];
+  return {w,daysLeft,eddISO:localISODate(edd),tri};
+}
+function svPromoHtml(profile){
+  const name=esc(profile.name||'Diyetisyeniniz');
+  const clinic=esc(profile.clinic||'');
+  const phoneRaw=String(profile.phone||'').replace(/[^\d]/g,'');
+  const waHref=phoneRaw?`https://wa.me/${phoneRaw.replace(/^0/,'90')}?text=${encodeURIComponent('Merhaba, danışmanlık hizmetiniz hakkında bilgi almak istiyorum.')}`:'';
+  return `<div class="sv-promo-wrap">
+    <div class="sv-promo-hero">
+      ${profile.logo?`<img src="${profile.logo}" class="sv-promo-logo">`:''}
+      <h1>Kişiye Özel Beslenme Danışmanlığı</h1>
+      <p class="sv-promo-sub">${name}${clinic?' · '+clinic:''}</p>
+    </div>
+    <div class="sv-promo-body">
+      <p class="sv-promo-lead">Hazırladığım programda her hafta farklı, dengeli ve besleyici tariflerle ilerliyoruz. Böylece <i>"bugün ne pişirsem?"</i> derdiniz ortadan kalkıyor; her gün hem damak tadınıza hem de vücudunuzun o dönemki ihtiyaçlarına uygun yönlendirme alıyorsunuz. 🌸</p>
+      <div class="sv-promo-feat">
+        <div>✨ <b>Size özel</b> hazırlanmış 7 günlük tarif listesi</div>
+        <div>🛒 Alışveriş listesi iletilir</div>
+        <div>📞 Her gün WhatsApp'tan iletişimdeyiz</div>
+        <div>🔄 Her hafta, o haftaki ihtiyaçlarınıza göre yeniden şekillenir</div>
+        <div>💬 Günlük yakın takip — motivasyonunuz sürekli yüksek kalır</div>
+      </div>
+      <h3>📘 Haftalık Beslenme Kitapçıkları</h3>
+      <p>Her hafta gönderdiğim mini kitapçıklar sayesinde beslenmeyi yakından öğrenme fırsatı buluyorsunuz. Doğru besin seçimlerini, porsiyon kontrolünü, yağ yakımını destekleyen bilimsel noktaları daha iyi kavrıyor ve öğrendiklerinizi kalıcı bir yaşam alışkanlığına dönüştürüyorsunuz. Sadece listeye uymak değil, süreci anlamak da çok önemli.</p>
+
+      <button class="sv-promo-preg-btn" id="svPromoPregBtn" type="button">🤰 Hamile misiniz? Gebeliğe özel programımızı görün</button>
+      <div id="svPromoPregBox" class="sv-promo-preg-box" hidden>
+        <h3>🤰 Gebeliğinize Özel Beslenme Programı</h3>
+        <p>Gebeliğinize özel olarak her hafta farklı, dengeli ve besleyici tariflerle ilerliyoruz — her gün hem damak tadınıza hem de bu dönemdeki artan besin ihtiyaçlarınıza (demir, kalsiyum, folat, protein vb.) uygun yönlendirme alıyorsunuz.</p>
+        <div class="sv-promo-preg-calc">
+          <label>Şu an kaçıncı haftadasınız?</label>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <input type="number" id="svPromoPregWeek" min="1" max="42" placeholder="örn. 23" style="flex:1">
+            <button class="btn btn-sm" id="svPromoPregCalcBtn" type="button">Göster</button>
+          </div>
+          <div id="svPromoPregResult"></div>
+        </div>
+        <ul class="sv-promo-preg-list">
+          <li>Doğuma yaklaşırken hurma gibi doğal besinlerin doğum sürecini desteklediğine dair gözlemler var — doktorunuzun onayıyla deneyebilirsiniz.</li>
+          <li>Doğumdan sonra (özellikle emzirecekseniz) protein ve bol sıvı alımı iyileşmeyi ve süt üretimini destekler.</li>
+          <li>Oksapar gibi doktor onaylı bir kan sulandırıcı iğne kullanıyorsanız da, programınız buna uygun ve dengeli şekilde planlanır — bu tür ilaçlarla ilgili her soru için mutlaka doktorunuza danışın.</li>
+        </ul>
+        <p class="sv-promo-preg-motiv">"Her geçen hafta bebeğinize bir adım daha yaklaşıyorsunuz — bu özel süreçte yanınızdayım." 🌸</p>
+      </div>
+
+      <div class="sv-promo-cta">
+        <p>Bu yaklaşımla danışmanlık hizmeti veriyorum, sizin için de uygun olan bir günde randevulaşabiliriz 🫶🏻🙏</p>
+        ${waHref?`<a href="${waHref}" target="_blank" class="sv-promo-wa-btn">💬 WhatsApp'tan yazın</a>`:`<p class="hint">İletişim için diyetisyeninize ulaşın.</p>`}
+      </div>
+    </div>
+    <p class="sv-promo-foot">💧 ${name}${clinic?' · '+clinic:''}</p>
+  </div>`;
+}
+function svPromoWire(){
+  const btn=document.getElementById('svPromoPregBtn');
+  const box=document.getElementById('svPromoPregBox');
+  if(btn&&box) btn.addEventListener('click',()=>{
+    box.hidden=!box.hidden;
+    btn.textContent=box.hidden?'🤰 Hamile misiniz? Gebeliğe özel programımızı görün':'▲ Gizle';
+    if(!box.hidden) box.scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+  const calcBtn=document.getElementById('svPromoPregCalcBtn');
+  if(calcBtn) calcBtn.addEventListener('click',()=>{
+    const w=+document.getElementById('svPromoPregWeek').value||0;
+    const res=document.getElementById('svPromoPregResult');
+    if(!w){ res.innerHTML='<p class="hint" style="margin:8px 0 0">Önce hafta sayısını girin.</p>'; return; }
+    const {daysLeft,eddISO,tri}=svPromoPregCalc(w);
+    res.innerHTML=`<div class="sv-promo-preg-result"><b>${w}. hafta</b> — ${esc(tri.label)}<br>
+      <span style="color:var(--muted);font-size:12.5px">${esc(tri.hint)}</span><br>
+      <span style="font-size:12.5px">Tahmini doğum tarihi: <b>${trDate(eddISO)}</b> · ${daysLeft} gün kaldı</span></div>`;
+  });
+}
+async function bootPromoView(){
+  document.querySelector('.app').style.display='none';
+  const lockEl=document.getElementById('lock'); lockEl.hidden=true; lockEl.style.display='none';
+  document.title='Beslenme Danışmanlığı';
+  const root=document.getElementById('shareView'); root.hidden=false;
+  root.innerHTML='<div class="sv-wrap"><p style="color:var(--muted);text-align:center;padding:60px 0">Yükleniyor…</p></div>';
+  let profile={};
+  try{
+    const r=await fetch(CLOUD_DB+'/shares/promo-landing.json');
+    if(r.ok){ const raw=await r.json(); const snap=typeof raw==='string'?JSON.parse(raw):raw; if(snap&&snap.profile) profile=snap.profile; }
+  }catch(e){ /* profil bilgisi çekilemezse jenerik metinle devam ederiz */ }
+  root.innerHTML=`<div class="sv-wrap">${svPromoHtml(profile)}</div>`;
+  svPromoWire();
 }
 /* Program verisi Firebase'den dönerken bozulabiliyor: Firebase Realtime
    Database boş dizileri ("lines":[]  gibi) hiç saklamıyor, geri okurken o
@@ -10239,8 +10395,10 @@ async function svExport(kind){
 }
 
 (async()=>{
-  const shareTok=new URLSearchParams(location.search).get('v');
+  const qp=new URLSearchParams(location.search);
+  const shareTok=qp.get('v');
   if(shareTok){ return bootShareView(shareTok); }
+  if(qp.get('promo')==='1'){ return bootPromoView(); }
   try{ await pvOpen(); }catch(e){}
   try{ await loadDB(); }catch(err){ DB=seed(); }
   if(DB.profile.pin===undefined||DB.profile.pin==='') DB.profile.pin='0508';
