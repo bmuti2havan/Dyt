@@ -9041,6 +9041,7 @@ function renderShareView(snap){
       ${snap.nextAppt?`<div class="sv-appt"><span style="font-size:19px">📅</span><div>Sıradaki randevun<br><b>${trDT(snap.nextAppt.when)}</b> · ${esc(snap.nextAppt.type||'')}</div></div>`:''}
       ${p?`<button class="btn btn-sm" id="svShopBtn" type="button" style="margin-top:16px;width:100%;justify-content:center">🛒 Alışveriş Listesi</button>`:''}
     </div>
+    ${svPregSectionHtml(snap)}
     ${kpiHtml}
     ${svWeeklyReportHtml(snap)}
     ${svAchievementHtml(snap)}
@@ -9128,7 +9129,6 @@ function renderShareView(snap){
     ${svFavHtml()}
     ${svMotivationHtml(snap)}
     ${svCycleSectionHtml(snap)}
-    ${svPregSectionHtml(snap)}
     <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
   { if(document.getElementById('svCycleBody')) svRenderCycle(); }
