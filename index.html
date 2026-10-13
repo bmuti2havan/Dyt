@@ -5554,7 +5554,7 @@ function pageClientControl(c){
           <div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line-2)">
             <span style="font-size:16px">${n.kind==='mf'?(n.liked?'👍':'👎'):n.kind==='cn'?'💬':n.kind==='mp'?'📷':n.kind==='ref'?'👋':n.kind==='dm'?'🍽':'📝'}</span>
             <div style="flex:1;min-width:0">
-              <div style="font-size:13px">${n.kind==='mf'
+              <div style="font-size:13px;white-space:pre-wrap">${n.kind==='mf'
                 ?`<b>${esc(n.dayLabel||'')}</b> ${esc(n.mealName||'')} öğününü ${n.liked?'<span style="color:var(--ok)">beğendi</span>':'sevmedi'}`
                 :n.kind==='cn'?`"${esc(n.text||'')}"`
                 :n.kind==='mp'?`<b>${esc(n.dayLabel||'')}</b> ${esc(n.mealName||'')} fotoğrafı gönderdi<br><img src="${n.photo}" style="margin-top:6px;max-width:160px;max-height:160px;border-radius:8px;display:block">`
@@ -7976,7 +7976,7 @@ function openNotifPanel(){
   const body=`${todayVisits?`<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px">🔗 Danışanlar bugün takip linklerine toplam <b>${todayVisits}</b> kez girdi.</p>`:''}
     <div class="notif-panel">${list.length?list.map(n=>`<div class="notif-row" data-notif-go="${n.clientId}">
       <span style="font-size:16px">${n.kind==='mf'?(n.text.includes('beğendi')?'👍':'👎'):n.kind==='cn'?'💬':n.kind==='mp'?'📷':n.kind==='ref'?'👋':n.kind==='dm'?'🍽':'📝'}</span>
-      <div style="flex:1;min-width:0"><div style="font-size:13px"><b>${esc(n.client)}</b> — ${n.text}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;white-space:pre-wrap"><b>${esc(n.client)}</b> — ${n.text}</div>
       <div style="font-size:11px;color:var(--muted)">${trDT(n.at)}</div></div></div>`).join('')
       :`<p style="margin:0;color:var(--muted);font-size:13.5px">Şu an bekleyen danışan bildirimi yok.</p>`}</div>`;
   modal('🔔 Danışan bildirimleri',body,'Kapat','close','460px');
@@ -8898,9 +8898,11 @@ function renderShareView(snap){
     ${svFavHtml()}
     ${svMotivationHtml(snap)}
     ${svCycleSectionHtml(snap)}
+    ${svPregSectionHtml(snap)}
     <p class="sv-foot">🔒 Bu sayfa yalnızca senin için oluşturuldu, kimseyle paylaşma.</p>
   </div>`;
   { if(document.getElementById('svCycleBody')) svRenderCycle(); }
+  { if(document.getElementById('svPregBody')) svRenderPreg(); }
   document.querySelectorAll('[data-sv-booklet]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svDownloadBooklet(+b.dataset.svBooklet); }));
   document.querySelectorAll('[data-sv-art-docx]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticleDocx(b.dataset.svArtDocx); }));
   document.querySelectorAll('[data-sv-art-pdf]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticlePdf(b.dataset.svArtPdf); }));
@@ -9151,6 +9153,129 @@ function svCycleSectionHtml(snap){
         <span class="sv-art-car" style="color:var(--muted);font-size:11px">▾</span>
       </summary>
       <div id="svCycleBody" style="padding:4px 16px 18px;border-top:1px solid var(--line-2)"></div>
+    </details>
+  </section>`;
+}
+/* ══════════════ 🤰 Hamilelik Takibi ══════════════
+   Tamamen bu cihazda saklanır (regl takibi ile aynı mantık), diyetisyene
+   hiç gönderilmez. Danışan "şu an kaçıncı haftadayım" bilgisini girer
+   (doktorundan öğrendiği haftayı), biz o günden itibaren haftayı otomatik
+   ilerletiriz. İçerik genel bilgilendirme amaçlıdır, tıbbi tavsiye değildir. */
+const SV_PREG_TRIMESTERS=[
+  {id:1,label:'1. Trimester (1–13. hafta)',tips:[
+    'Folik asit (yeşil yapraklı sebzeler, kurubaklagil) bebeğin nöral tüp gelişimi için bu dönemde özellikle önemlidir.',
+    'Bulantı oluyorsa az ve sık öğünler, ağır/yağlı yemeklerden uzak durmak rahatlatabilir.',
+    'Kafeini azaltmak, sigara ve alkolden tamamen uzak durmak bu dönemde kritik önemdedir.',
+    'Bol su iç; zencefilli çay bulantıyı hafifletmeye yardımcı olabilir.']},
+  {id:2,label:'2. Trimester (14–27. hafta)',tips:[
+    'Demir (kırmızı et, mercimek, pekmez) ve kalsiyum (süt ürünleri, susam) ihtiyacı bu dönemde artar.',
+    'Protein alımına özen göster — bebeğin hızlı büyüme dönemidir.',
+    'Omega-3 kaynakları (somon, ceviz, keten tohumu) bebeğin beyin gelişimini destekler.',
+    'Düzenli, hafif yürüyüşler hem sindirimi hem enerjini destekler (doktorun onayladığı ölçüde).']},
+  {id:3,label:'3. Trimester (28–40. hafta)',tips:[
+    'Kalsiyum ve D vitamini ihtiyacı en yüksek seviyededir; güneşlenme ve süt ürünlerine özen göster.',
+    'Küçük, sık öğünler mide yanmasını ve şişkinliği azaltabilir.',
+    'Lif açısından zengin besinler (tam tahıl, sebze, meyve) bu dönemde sık görülen kabızlığa iyi gelir.',
+    'Doğuma enerji biriktirmek için kompleks karbonhidratları ihmal etme, ama porsiyon kontrolüne dikkat et.']}
+];
+const SV_PREG_BIRTH_INFO=[
+  'Doğuma yaklaşırken hurma tüketiminin doğum sürecini desteklediğine dair gözlemler var — doktorunun onayıyla düzenli küçük porsiyonlar deneyebilirsin.',
+  'Doğum eylemi sırasında enerjini korumak için hafif, hızlı sindirilen atıştırmalıklar (muz, hurma, bal) faydalı olabilir — hastane politikasını önceden öğren.',
+  'Doğumdan hemen sonra (özellikle emzirecaksan) protein ve bol sıvı alımına devam etmek iyileşmeyi ve süt üretimini destekler.',
+  'Lohusalık döneminde demir ve B12 takviyeleri doktorun önerisiyle önem kazanabilir — kan kaybı sonrası enerji düşüklüğünü azaltmaya yardımcı olur.',
+  'Gebelikte alınan kiloların çoğu doğumdan sonraki ilk aylarda kademeli olarak geri döner; aceleci, çok düşük kalorili diyetlerden özellikle emzirme döneminde uzak dur.'
+];
+const SV_PREG_OKSAPAR_INFO=[
+  'Oksapar (enoksaparin) gibi kan sulandırıcı iğneler doktorunun belirlediği bir tedavi planının parçasıdır — dozunu veya kullanım sıklığını kendi kararınla değiştirme ya da bırakma.',
+  'Enjeksiyon bölgesinde morarma, hafif şişlik ya da sertlik görülebilir; bölgeyi her uygulamada biraz değiştirmek bunu azaltabilir.',
+  'Beslenme açısından: K vitamini çok yüksek besinleri (ıspanak, lahana, brokoli gibi) günden güne ANİ ve BÜYÜK miktarlarda değiştirmemek genelde önerilir — alışılmış, dengeli tüketimine sadık kalman yeterlidir; büyük bir değişiklik planlıyorsan önce doktoruna sor.',
+  'Olağan dışı/aşırı kanama, idrarda-dışkıda kan, şiddetli baş ağrısı, ani şişlik gibi bir durum fark edersen vakit kaybetmeden doktorunu ya da acil servisi ara.',
+  'Bu notlar genel bilgilendirme amaçlıdır; iğne/ilaç ile ilgili her soru için mutlaka takip eden doktoruna danış — doz ve kullanım kararı tamamen onun sorumluluğundadır.'
+];
+const SV_PREG_MOTIVATION=[
+  'Her geçen hafta bebeğine bir adım daha yaklaşıyorsun — bedenin şu an hayatının en büyük mucizesini gerçekleştiriyor. 🌸',
+  'Zor günler olabilir ama yalnız değilsin; hem bedenin hem de sen bu yolculukta harika iş çıkarıyorsunuz. 💪',
+  'Kendine nazik ol — dinlenmek, iyi beslenmek ve kendini dinlemek de bu dönemde bir öncelik, lüks değil. 🤍',
+  'Bebeğinle tanışacağın gün yaklaşıyor — bu bekleyiş de hikayenizin en özel bölümlerinden biri. ✨',
+  'Bugün attığın her sağlıklı adım (bir bardak daha su, dengeli bir öğün) doğrudan bebeğine giden bir hediye. 🌷'
+];
+function svPregKey(){ return 'sv_preg_'+(window.__shareTok||''); }
+function svPregLoad(){ try{ const raw=localStorage.getItem(svPregKey()); return raw?JSON.parse(raw):null; }catch(e){ return null; } }
+function svPregSave(data){ try{ localStorage.setItem(svPregKey(),JSON.stringify(data)); }catch(e){} }
+function svPregCompute(data){
+  const baseDays=Math.max(0,Math.min(45,+data.week||0))*7;
+  const passed=Math.max(0,Math.floor((Date.now()-(+data.at||Date.now()))/86400000));
+  const totalDays=baseDays+passed;
+  const curWeek=Math.min(42,Math.floor(totalDays/7));
+  const curDay=(totalDays%7)+1;
+  const daysLeft=Math.max(0,280-totalDays);
+  const edd=new Date(); edd.setDate(edd.getDate()+daysLeft);
+  const trimester=curWeek<=13?SV_PREG_TRIMESTERS[0]:curWeek<=27?SV_PREG_TRIMESTERS[1]:SV_PREG_TRIMESTERS[2];
+  const overdue=totalDays>280;
+  return {curWeek,curDay,daysLeft,eddISO:localISODate(edd),trimester,overdue};
+}
+function svPregFormHtml(data){
+  return `<p class="hint" style="margin:0 0 12px">Doktorunun söylediği gebelik haftasını gir — o günden itibaren haftanı otomatik ilerletip sana özel bilgi ve öneriler göstereyim. Bu bilgi yalnızca bu cihazda saklanır, diyetisyenine hiç gönderilmez.</p>
+    <div class="field"><label>Şu an kaçıncı haftadasın?</label><input type="number" id="svPregWeek" min="1" max="42" value="${data&&data.week||''}" placeholder="örn. 23"></div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
+      <input type="checkbox" id="svPregOksapar" style="width:auto" ${data&&data.oksapar?'checked':''}> 💉 Oksapar / benzeri bir kan sulandırıcı iğne kullanıyorum
+    </label>
+    <button class="btn btn-primary" id="svPregSaveBtn" type="button" style="margin-top:12px;width:100%;justify-content:center">💾 Kaydet</button>`;
+}
+function svPregInfoHtml(data){
+  const {curWeek,curDay,daysLeft,eddISO,trimester,overdue}=svPregCompute(data);
+  const moodIdx=curWeek%SV_PREG_MOTIVATION.length;
+  return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:12px 14px;background:var(--blue-50);border-radius:10px">
+      <div style="font-size:28px">🤰</div>
+      <div><div style="font-weight:700;font-size:14.5px">${curWeek}. hafta, ${curDay}. gün</div>
+      <div style="color:var(--muted);font-size:12px">${overdue?'Tahmini doğum tarihin geçti — doktorunla iletişimde kal':'Tahmini doğum tarihi: '+trDate(eddISO)+' · '+daysLeft+' gün kaldı'}</div></div>
+    </div>
+    <div style="padding:12px 14px;margin-bottom:14px;border-radius:10px;background:linear-gradient(135deg,#fdf2f8,#fff);border:1px solid #fbcfe8">
+      <p style="margin:0;font-size:13.5px;line-height:1.6;font-style:italic">${esc(SV_PREG_MOTIVATION[moodIdx])}</p>
+    </div>
+    <div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">${esc(trimester.label)} — beslenme önerileri</div>
+    <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;line-height:1.7">${trimester.tips.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+    <div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">Doğum ve beslenme</div>
+    <ul style="margin:0 0 14px;padding-left:18px;font-size:13px;line-height:1.7">${SV_PREG_BIRTH_INFO.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+    ${data.oksapar?`<div style="padding:12px 14px;margin-bottom:14px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa">
+      <div style="font-weight:700;font-size:12.5px;color:#9a3412;margin-bottom:6px">💉 Oksapar / kan sulandırıcı iğne kullananlar için</div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;line-height:1.7">${SV_PREG_OKSAPAR_INFO.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+    </div>`:''}
+    <p style="margin:0 0 12px;font-size:10.5px;color:var(--muted);font-style:italic">Bu bilgiler genel bilgilendirme amaçlıdır, tıbbi tavsiye yerine geçmez. Gebeliğinle ilgili her durum için doktorunu ve diyetisyenini takip et.</p>
+    <button class="btn btn-sm" id="svPregEditBtn" type="button">✏ Haftayı güncelle</button>`;
+}
+function svPregWire(){
+  const save=document.getElementById('svPregSaveBtn');
+  if(save) save.addEventListener('click',()=>{
+    const w=+document.getElementById('svPregWeek').value||0;
+    if(!w){ toast('Önce hafta sayısını gir'); return; }
+    const oksapar=document.getElementById('svPregOksapar').checked;
+    svPregSave({week:w,oksapar,at:Date.now()});
+    svRenderPreg();
+  });
+  const editBtn=document.getElementById('svPregEditBtn');
+  if(editBtn) editBtn.addEventListener('click',()=>{
+    const host=document.getElementById('svPregBody'); if(!host) return;
+    host.innerHTML=svPregFormHtml(svPregLoad());
+    svPregWire();
+  });
+}
+function svRenderPreg(){
+  const host=document.getElementById('svPregBody'); if(!host) return;
+  const data=svPregLoad();
+  host.innerHTML=(data&&data.week)?svPregInfoHtml(data):svPregFormHtml(data);
+  svPregWire();
+}
+function svPregSectionHtml(snap){
+  if(snap.sex==='E') return '';
+  return `<section class="sv-card" style="margin-top:16px">
+    <details class="sv-art">
+      <summary style="list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px">
+        <span style="font-size:18px">🤰</span>
+        <span style="flex:1">Hamileyim<div style="font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px">Gebelik haftanı takip et, beslenme ve doğum bilgilerini gör</div></span>
+        <span class="sv-art-car" style="color:var(--muted);font-size:11px">▾</span>
+      </summary>
+      <div id="svPregBody" style="padding:4px 16px 18px;border-top:1px solid var(--line-2)"></div>
     </details>
   </section>`;
 }
