@@ -2292,7 +2292,12 @@ function buildShareSnapshot(c){
 }
 async function shareGenerate(cid){
   const c=clientOf(cid||S.shareClient||S.client); if(!c) return;
-  if(!cloudReady()||!CL().enabled){ toast('Önce Ayarlar → Bulut senkronizasyonu bölümünden buluta bağlanmalısın — link bulut üzerinden çalışır',6000); return; }
+  if(!cloudReady()||!CL().enabled){
+    closeModal();
+    toast('Önce Ayarlar → Bulut senkronizasyonu bölümünden buluta bağlanmalısın — link bulut üzerinden çalışır',7000);
+    S.page='settings'; render();
+    return;
+  }
   const isNew=!c.shareToken;
   toast(isNew?'Link oluşturuluyor…':'Link güncelleniyor…',5000);
   try{
@@ -2311,7 +2316,12 @@ async function shareGenerate(cid){
 }
 function promoUrl(){ return location.origin+location.pathname+'?promo=1'; }
 async function promoPublish(){
-  if(!cloudReady()||!CL().enabled){ toast('Önce Ayarlar → Bulut senkronizasyonu bölümünden buluta bağlanmalısın — link bulut üzerinden çalışır',6000); return; }
+  if(!cloudReady()||!CL().enabled){
+    closeModal();
+    toast('Önce Ayarlar → Bulut senkronizasyonu bölümünden buluta bağlanmalısın — link bulut üzerinden çalışır',7000);
+    S.page='settings'; render();
+    return;
+  }
   toast('Yayınlanıyor…',4000);
   try{
     const planSel=document.getElementById('promo-plan-sel');
