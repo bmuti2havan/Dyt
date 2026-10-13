@@ -9071,7 +9071,6 @@ function renderShareView(snap){
         </div>
       </div>
     </section>
-    ${svBeforeAfterHtml()}
     ${svDailyMealHtml()}
     <section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>📝 Bugünü işaretle</h3></div>
       <div style="padding:16px">
@@ -9142,11 +9141,6 @@ function renderShareView(snap){
   document.querySelectorAll('[data-sv-art-pdf]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svArticlePdf(b.dataset.svArtPdf); }));
   document.querySelectorAll('[data-sv-cert]').forEach(b=>b.addEventListener('click',e=>{ e.preventDefault(); svDownloadCert(b.dataset.svCert); }));
   { const tb=document.getElementById('svTransformBtn'); if(tb) tb.addEventListener('click',svDownloadTransformCard); }
-  document.querySelectorAll('[data-sv-ba]').forEach(b=>b.addEventListener('click',()=>{
-    const inp=document.querySelector(`[data-sv-ba-input="${b.dataset.svBa}"]`); if(inp) inp.click();
-  }));
-  document.querySelectorAll('[data-sv-ba-input]').forEach(inp=>inp.addEventListener('change',()=>svHandleBAFile(inp.dataset.svBaInput,inp.files&&inp.files[0])));
-  { const bad=document.getElementById('svBADownload'); if(bad) bad.addEventListener('click',svDownloadBAComparison); }
   document.querySelectorAll('[data-sv-dm-type]').forEach(b=>b.addEventListener('click',()=>{
     const already=b.getAttribute('aria-pressed')==='true';
     document.querySelectorAll('[data-sv-dm-type]').forEach(x=>{ x.setAttribute('aria-pressed','false'); x.classList.remove('btn-primary'); });
@@ -9892,82 +9886,6 @@ function svDownloadTransformCard(){
     setTimeout(()=>URL.revokeObjectURL(a.href),4000);
     toast('Kart indirildi — paylaşabilirsin ✓');
   },'image/jpeg',0.95);
-}
-/* ══════════════ Öncesi / Sonrası fotoğraf ══════════════
-   Danışanın kendi vücut fotoğrafları — gizlilik için SADECE bu cihazda
-   (localStorage) saklanır, diyetisyene ya da buluta hiç gönderilmez
-   (regl takibiyle aynı prensip). */
-function svBAKey(slot){ return 'sv_ba_'+slot+'_'+(window.__shareTok||''); }
-function svBAGet(slot){ try{ return localStorage.getItem(svBAKey(slot))||''; }catch(e){ return ''; } }
-function svBASet(slot,data){ try{ localStorage.setItem(svBAKey(slot),data); }catch(e){ toast('Fotoğraf bu cihaza kaydedilemedi (depolama dolu olabilir)'); } }
-function svBeforeAfterHtml(){
-  const before=svBAGet('before'), after=svBAGet('after');
-  const slotHtml=(slot,label,img)=>`<div style="text-align:center">
-    <div style="aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:var(--blue-50);display:flex;align-items:center;justify-content:center;border:1px dashed var(--line)">
-      ${img?`<img src="${img}" style="width:100%;height:100%;object-fit:cover">`:`<span style="color:var(--muted);font-size:12px;padding:0 8px">${label} fotoğrafı</span>`}
-    </div>
-    <button class="btn btn-sm" data-sv-ba="${slot}" type="button" style="margin-top:8px;width:100%;justify-content:center">${img?'🔄 Değiştir':'📷 Ekle'}</button>
-    <input type="file" accept="image/*" capture="user" data-sv-ba-input="${slot}" hidden>
-  </div>`;
-  return `<section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>📸 Öncesi / Sonrası Fotoğrafın</h3></div>
-    <div style="padding:16px">
-      <p class="hint" style="margin:0 0 12px">Bu fotoğraflar sadece bu telefonda/tarayıcıda saklanır — diyetisyenine ya da buluta gönderilmez. İstersen yan yana bir karşılaştırma görseli oluşturup indirebilirsin.</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        ${slotHtml('before','Önce',before)}
-        ${slotHtml('after','Şimdi',after)}
-      </div>
-      ${(before&&after)?`<button class="btn btn-primary" id="svBADownload" type="button" style="margin-top:14px;width:100%;justify-content:center">🖼 Karşılaştırma görselini indir</button>`:''}
-    </div>
-  </section>`;
-}
-async function svHandleBAFile(slot,file){
-  if(!file) return;
-  try{
-    const raw=await blobToData(file);
-    const data=await new Promise(res=>{
-      const im=new Image();
-      im.onload=()=>{
-        const maxDim=900, scale=Math.min(1,maxDim/Math.max(im.width,im.height));
-        const w=Math.round(im.width*scale)||1, h=Math.round(im.height*scale)||1;
-        const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-        cv.getContext('2d').drawImage(im,0,0,w,h);
-        res(cv.toDataURL('image/jpeg',0.78));
-      };
-      im.onerror=()=>res(raw); im.src=raw;
-    });
-    svBASet(slot,data);
-    renderShareView(window.__shareSnap);
-  }catch(e){ toast('Fotoğraf eklenemedi, tekrar dene'); }
-}
-function svDownloadBAComparison(){
-  const before=svBAGet('before'), after=svBAGet('after'); if(!before||!after) return;
-  const snap=window.__shareSnap||{};
-  Promise.all([before,after].map(src=>new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.src=src; })))
-  .then(([imB,imA])=>{
-    const W=1080,H=760,pad=40,imgW=(W-pad*3)/2,imgH=H-200;
-    const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
-    const x=cv.getContext('2d');
-    x.fillStyle='#fff'; x.fillRect(0,0,W,H);
-    x.fillStyle='#3A222B'; x.font='700 36px Georgia, serif'; x.textAlign='center';
-    x.fillText(snap.name||'', W/2, 60);
-    [[imB,'ÖNCE',pad],[imA,'ŞİMDİ',pad*2+imgW]].forEach(([im,label,ix])=>{
-      const iy=100, scale=Math.max(imgW/im.width,imgH/im.height);
-      const sw=im.width*scale, sh=im.height*scale, sx=ix-(sw-imgW)/2, sy=iy-(sh-imgH)/2;
-      x.save(); svRoundRect(x,ix,iy,imgW,imgH,18); x.clip();
-      x.drawImage(im,sx,sy,sw,sh); x.restore();
-      x.fillStyle='rgba(92,34,56,.88)'; x.fillRect(ix,iy+imgH-44,imgW,44);
-      x.fillStyle='#fff'; x.font='700 22px Arial'; x.fillText(label,ix+imgW/2,iy+imgH-14);
-    });
-    x.fillStyle='#A4818C'; x.font='400 20px Arial';
-    x.fillText((snap.profile&&(snap.profile.clinic||snap.profile.name))||'', W/2, H-30);
-    cv.toBlob(b=>{
-      if(!b){ toast('Görsel oluşturulamadı'); return; }
-      const a=document.createElement('a'); a.href=URL.createObjectURL(b);
-      a.download='Oncesi-Sonrasi-'+String(snap.name||'').replace(/[\\/:*?"<>|]/g,'')+'.jpg'; a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),4000);
-      toast('İndirildi ✓');
-    },'image/jpeg',0.95);
-  });
 }
 /* ══════════════ Başarı rozeti / sertifika (otomatik, PDF) ══════════════ */
 function svCertEligible(snap){
