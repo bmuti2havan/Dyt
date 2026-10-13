@@ -3519,6 +3519,7 @@ async function runGen(){
   S.pasteProvider=(document.getElementById('gn-provider')||{}).value||S.pasteProvider||'gemini';
   const kcal=+((document.getElementById('gn-kcal')||{}).value)||dailyTarget(c);
   drawGen('loading');
+  S.aiFallbackUsed=false;
   try{
     const days=await generateDaysChunked(S.genDays,S.pasteProvider,
       range=>genPrompt(c,S.genDays,S.genTone,S.genExtra,kcal,pl.id,range));
@@ -3775,18 +3776,36 @@ String(raw).slice(0,12000),
    kesmesine (ve bazi gunlerin bombos kalmasina) yol acabiliyordu - bu
    yuzden artik Gemini icin de parca parca uretiliyor, ve her parcada
    istenen gun sayisi gelmezse bir kez daha denenip sonra elde ne varsa
-   onunla devam ediliyor (tamamen bos donmek yerine). */
+   onunla devam ediliyor (tamamen bos donmek yerine).
+   Ayrıca: seçilen Gemini olup bir Claude anahtarı da girilmişse, Gemini
+   bir parçada ya hata verir ya da iki denemede de eksik gün dönerse,
+   o parça otomatik olarak Claude ile tekrar üretilir — kullanıcı tekrar
+   tıklamak zorunda kalmaz. S.aiFallbackUsed bunun olup olmadığını UI'a
+   bildirmek için işaretlenir (çağrıdan önce sıfırlanmalı). */
 async function generateDaysChunked(totalDays,provider,buildPrompt){
   const CHUNK=3;
-  async function fetchChunk(range,count){
-    const maxTok=provider==='claude'?4096:8192;
+  async function tryProvider(prov,range,count){
+    const maxTok=prov==='claude'?4096:8192;
     let parsed=[];
     for(let attempt=0; attempt<2; attempt++){
-      const txt=provider==='claude'?await claudeText(buildPrompt(range),maxTok):await geminiText(buildPrompt(range),maxTok);
+      const txt=prov==='claude'?await claudeText(buildPrompt(range),maxTok):await geminiText(buildPrompt(range),maxTok);
       parsed=normDays(gemJson(txt),count);
       if(parsed.length>=count) return parsed;
     }
     return parsed; // iki denemede de eksik geldiyse elde olanla devam
+  }
+  async function fetchChunk(range,count){
+    if(provider==='claude') return await tryProvider('claude',range,count);
+    // provider === 'gemini'
+    let r=[];
+    try{ r=await tryProvider('gemini',range,count); }
+    catch(e){ if(!claudeKey()) throw e; }
+    if(r.length<count && claudeKey()){
+      S.aiFallbackUsed=true;
+      const rc=await tryProvider('claude',range,count);
+      if(rc.length>r.length) r=rc;
+    }
+    return r;
   }
   if(totalDays<=CHUNK) return await fetchChunk(null,totalDays);
   let all=[], start=1;
@@ -3813,6 +3832,7 @@ function drawPaste(state,err){
     const missing=(S.pasteDays||res.days.length)-res.days.length;
     body=`<div class="ai-load"><span style="font-size:32px">✅</span><b>${res.days.length} gün · ${filled} öğün hazır</b>
       <small>Aşağıdan gözden geçir, beğenmezsen uygulama.</small></div>
+    ${S.aiFallbackUsed?`<div style="margin-top:10px;padding:10px 12px;background:var(--blue-50,#eaf3ff);border:1px solid var(--blue-100,#bcdcff);border-radius:10px;font-size:12.5px;color:var(--blue-700,#0a5bb5)">ℹ️ Gemini bazı günlerde yanıt veremedi, o kısımlar otomatik olarak Claude ile tamamlandı.</div>`:''}
     ${missing>0?`<div style="margin-top:10px;padding:10px 12px;background:var(--warn-50,#fff7e6);border:1px solid var(--warn-200,#ffd891);border-radius:10px;font-size:12.5px;color:var(--warn-700,#9a5b00)">⚠️ İstenen ${S.pasteDays} günden sadece ${res.days.length}'i gelebildi, kalan ${missing} gün boş kaldı. Metni kısaltıp "↻ Yeniden düzenle"yi denemen daha sağlıklı sonuç verir.</div>`:''}
     <div style="max-height:46vh;overflow:auto;margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px">
       ${res.days.map((d,i)=>`<div style="margin-bottom:14px">
@@ -3866,6 +3886,7 @@ async function runPaste(){
   S.pasteProvider=(document.getElementById('pst-provider')||{}).value||S.pasteProvider||'gemini';
   if(raw.trim().length<20) return toast('Önce programın metnini yapıştır');
   drawPaste('loading');
+  S.aiFallbackUsed=false;
   try{
     let days, lastErr;
     for(let attempt=0; attempt<2; attempt++){
