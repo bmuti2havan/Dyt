@@ -1391,7 +1391,7 @@ const MEAL_STYLE={
   'Öğle':{emoji:'🥗',color:'3E6FC4',fill:'EEF3FD',web:'#3E6FC4',webbg:'#EEF3FD'},
   'Akşam':{emoji:'🌙',color:'6E7FC9',fill:'F1F2FD',web:'#6E7FC9',webbg:'#F1F2FD'}
 };
-const MEAL_PRESET=[['Kahvaltı','🥐'],['Ara Öğün','🍎'],['Öğle','🥗'],['Ara Öğün','🍎'],['Akşam','🌙']];
+const MEAL_PRESET=[['Kahvaltı','🥐'],['Ara Öğün','🍎'],['Öğle','🥗'],['Ara Öğün','🍎'],['Akşam','🌙'],['Ara Öğün','🌃']];
 const STRIP=['9EC9E8','A8D8E4','B9C7EE','C9E2F5','8FC2E4','AEDCEA','C4CFF0'];
 const DAY_TINT=['EFF7FD','ECF6FB','F0F3FD','EDF8FB','EFF6FD','EAF3FA','F1F6FE'];
 const DAY_COLOR=['156082','1F87A6','3E6FC4','2E8BD8','1F7FB8','2E9BAE','6E7FC9'];
@@ -1737,6 +1737,10 @@ function migratePlan(p){
   if(!p.days) p.days=newDays();
   p.days.forEach(d=>{
     if(!d.meals) d.meals=MEAL_PRESET.map(m=>({name:m[0],emoji:m[1],title:'',lines:[],photo:''}));
+    while(d.meals.length<MEAL_PRESET.length){                         // eski planlarda eksik olan yeni öğün slotlarını (ör. akşam sonrası ara öğün) ekle
+      const m=MEAL_PRESET[d.meals.length];
+      d.meals.push({name:m[0],emoji:m[1],title:'',lines:[],photo:''});
+    }
     if(d.sub===undefined) d.sub='';
     if(d.photo===undefined) d.photo='';
     d.meals.forEach(m=>{
@@ -3762,23 +3766,33 @@ rangeNote,
 String(raw).slice(0,12000),
 '---'].join('\n');
 }
-/* Claude icin Netlify'nin 60sn senkron fonksiyon siniri yuzunden buyuk
+/* Netlify'nin 60sn senkron fonksiyon siniri yuzunden Claude'da buyuk
    (5-7 gunluk) tek bir cagri zaman asimina ugrayip "Anthropic sunucusuna
    ulasilamadi" hatasi verebiliyordu - cikti kucuk parcalara bolunerek
    art arda birkac hizli cagri yapiliyor ve sonuclar birlestiriliyor.
-   Gemini dogrudan tarayicidan gittigi icin bu sinira takilmiyor, tek
-   cagrida kaliyor (alanda zaten calistigi kanitlanmis). */
+   Gemini bu zaman asimina takilmiyor ama tek seferde 6 oguna cikan 7
+   gunluk cikti, maxOutputTokens sinirina carpip modelin yaniti yarida
+   kesmesine (ve bazi gunlerin bombos kalmasina) yol acabiliyordu - bu
+   yuzden artik Gemini icin de parca parca uretiliyor, ve her parcada
+   istenen gun sayisi gelmezse bir kez daha denenip sonra elde ne varsa
+   onunla devam ediliyor (tamamen bos donmek yerine). */
 async function generateDaysChunked(totalDays,provider,buildPrompt){
   const CHUNK=3;
-  if(provider!=='claude' || totalDays<=CHUNK){
-    const txt=provider==='claude'?await claudeText(buildPrompt(null),8192):await geminiText(buildPrompt(null),8192);
-    return normDays(gemJson(txt),totalDays);
+  async function fetchChunk(range,count){
+    const maxTok=provider==='claude'?4096:8192;
+    let parsed=[];
+    for(let attempt=0; attempt<2; attempt++){
+      const txt=provider==='claude'?await claudeText(buildPrompt(range),maxTok):await geminiText(buildPrompt(range),maxTok);
+      parsed=normDays(gemJson(txt),count);
+      if(parsed.length>=count) return parsed;
+    }
+    return parsed; // iki denemede de eksik geldiyse elde olanla devam
   }
+  if(totalDays<=CHUNK) return await fetchChunk(null,totalDays);
   let all=[], start=1;
   while(start<=totalDays){
     const count=Math.min(CHUNK,totalDays-start+1);
-    const txt=await claudeText(buildPrompt({start,count,total:totalDays}),4096);
-    all=all.concat(normDays(gemJson(txt),count));
+    all=all.concat(await fetchChunk({start,count,total:totalDays},count));
     start+=count;
   }
   return all.slice(0,totalDays);
@@ -3796,8 +3810,10 @@ function drawPaste(state,err){
   let body;
   if(state==='done'&&res){
     const filled=res.days.reduce((a,d)=>a+d.meals.filter(m=>m.title||(m.lines||[]).length).length,0);
+    const missing=(S.pasteDays||res.days.length)-res.days.length;
     body=`<div class="ai-load"><span style="font-size:32px">✅</span><b>${res.days.length} gün · ${filled} öğün hazır</b>
       <small>Aşağıdan gözden geçir, beğenmezsen uygulama.</small></div>
+    ${missing>0?`<div style="margin-top:10px;padding:10px 12px;background:var(--warn-50,#fff7e6);border:1px solid var(--warn-200,#ffd891);border-radius:10px;font-size:12.5px;color:var(--warn-700,#9a5b00)">⚠️ İstenen ${S.pasteDays} günden sadece ${res.days.length}'i gelebildi, kalan ${missing} gün boş kaldı. Metni kısaltıp "↻ Yeniden düzenle"yi denemen daha sağlıklı sonuç verir.</div>`:''}
     <div style="max-height:46vh;overflow:auto;margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px">
       ${res.days.map((d,i)=>`<div style="margin-bottom:14px">
         <div class="t-name">${i+1}. gün — <span style="font-weight:400;color:var(--muted)">${esc(d.sub||'')}</span></div>
