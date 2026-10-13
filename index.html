@@ -70,6 +70,10 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-preg-tab{padding:8px 13px;border:1px solid #fbcfe8;background:#fff;border-radius:999px;font-size:12.5px;font-weight:600;color:#9d174d;cursor:pointer}
 .sv-preg-tab.active{background:linear-gradient(135deg,#9d174d,#db2777);border-color:transparent;color:#fff}
 .sv-preg-panels{padding:14px 15px;background:#fff;border-radius:12px;border:1px solid #fbcfe8}
+.sv-preg-card{background:#fff;border:1px solid #fbcfe8;border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.sv-preg-card:last-child{margin-bottom:0}
+.sv-preg-card-h{font-weight:700;font-size:13px;color:#9d174d;margin-bottom:6px}
+.sv-preg-card-tip{margin-top:8px;padding:8px 10px;background:#fdf2f8;border-radius:8px;font-size:12px;color:#831843;font-style:italic}
 .sv-top{display:flex;align-items:center;gap:12px}
 .sv-card{background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
 .sv-card-h{padding:14px 16px;border-bottom:1px solid var(--line-2)}
@@ -9409,6 +9413,158 @@ const SV_PREG_TRIMESTERS=[
     'Lif açısından zengin besinler (tam tahıl, sebze, meyve) bu dönemde sık görülen kabızlığa iyi gelir.',
     'Doğuma enerji biriktirmek için kompleks karbonhidratları ihmal etme, ama porsiyon kontrolüne dikkat et.']}
 ];
+function svPregCardHtml(c){
+  return `<div class="sv-preg-card">
+    <div class="sv-preg-card-h">${c.emoji} ${esc(c.title)}</div>
+    ${svPregUl(c.items)}
+    ${c.tip?`<div class="sv-preg-card-tip">💡 ${esc(c.tip)}</div>`:''}
+  </div>`;
+}
+function svPregCardsHtml(cards){ return cards.map(svPregCardHtml).join(''); }
+const SV_PREG_KALORI_CARDS=[
+  {emoji:'🍽️',title:'"Artık iki kişilik yemelisin" efsanesi',items:[
+    'İlk 3 ayda ekstra kaloriye neredeyse hiç ihtiyacın yok — bebek şu an bir mercimek, sonra bir erik büyüklüğünde.',
+    '4–6. aylarda günde yaklaşık 340 kalorilik bir fazla yeterli: 1 dilim ekmek + 1 dilim peynir + 1 bardak süt kadar.',
+    'Son 3 ayda günde yaklaşık 450 kalorilik bir fazla yeterli: 1 kase yoğurt + 1 avuç ceviz + 1 meyve kadar.'],
+   tip:'İki kişilik değil, iki kişi için iki kat KALİTELİ ye.'},
+  {emoji:'⚖️',title:'Ne kadar kilo almalısın?',items:[
+    'Gebelik öncesi zayıfsan (BKİ 18,5 altı): toplamda 12,5–18 kg',
+    'Normal kilodaysan (BKİ 18,5–24,9): toplamda 11,5–16 kg',
+    'Fazla kiloluysan (BKİ 25–29,9): toplamda 7–11,5 kg',
+    'Obezsen (BKİ 30 ve üzeri): toplamda 5–9 kg'],
+   tip:'Bu kiloların büyük kısmı bebek, plasenta, artan kan ve vücut sıvısına gider — sadece birkaç kilosu yağ deposu, o da emzirme için ayrılmış bir kumbara.'}
+];
+const SV_PREG_FACT_CARDS=[
+  {emoji:'👅',title:'Bebeğin damak zevki karnında başlıyor',items:[
+    'Bebek 4. aydan itibaren içinde yüzdüğü suyu yutmaya başlar; bu su senin yediklerinin kokusunu ve tadını taşır.',
+    'Araştırmalarda, son 3 ayda düzenli havuç suyu içen annelerin bebeklerinin havuçlu mamayı daha severek yediği gözlenmiş.'],
+   tip:'Bebeğin ileride sebze sevsin istiyorsan, tanışmayı şimdiden başlat.'},
+  {emoji:'🧂',title:'İyotlu tuzun iyodu uçabiliyor',items:[
+    'İyot bebeğin beyin gelişimi için önemli; Türkiye\'de en kolay kaynağı iyotlu sofra tuzu.',
+    'İyot ışık, nem ve sıcaktan kaçar — tuzu ocağın yanında, açık/şeffaf kapta tutmak bir kısmını kaybettirir.',
+    'Tuzu kapalı, ışık almayan bir kapta sakla ve yemeğe pişirmenin sonunda ekle.'],
+   tip:'Kaya tuzu ve deniz tuzu genelde iyotsuzdur; hamilelikte iyotlu sofra tuzunu az miktarda tercih et.'},
+  {emoji:'🫖',title:'Çay demiri "çalar"',items:[
+    'Çaydaki tanenler, yemekteki demirin emilimini belirgin şekilde azaltabilir.',
+    'Yemekten hemen sonra içilen çay, tabaktaki demirin bir kısmını bloke eder.',
+    'Demir takviyeni süt/yoğurt/çayla değil, su ya da portakal suyuyla al.'],
+   tip:'Çayı yemekten en az 1 saat sonra iç; yemeğine limon sıkmak demir emilimini artırır.'},
+  {emoji:'☀️',title:'Cam arkasındaki güneş D vitamini yapmıyor',items:[
+    'Vücut D vitaminini güneşin UVB ışınlarıyla üretir; pencere camı bu ışınları büyük ölçüde geçirmez.',
+    'Sağlık otoriteleri gebelere genelde 12. haftadan itibaren D vitamini desteği önerir — doktorunun verdiği dozu aksatma.']},
+  {emoji:'🥚',title:'Yumurta sarısındaki gizli kahraman: Kolin',items:[
+    'Kolin, bebeğin beyin ve hafıza gelişiminde rol oynayan, adı az bilinen bir besin öğesi.',
+    'Gebelikte günlük ihtiyaç yaklaşık 450 mg; 1 yumurta ortalama 150 mg kolin içerir, çoğu sarısındadır.',
+    'Diğer kaynaklar: et, tavuk, balık, süt ve bakliyat.'],
+   tip:'Yumurtanın sarısını atma — iyice pişmiş olması yeterli.'},
+  {emoji:'🌱',title:'Folik asit için "hamileyim" demeyi bekleme',items:[
+    'Bebeğin omurilik ve beyin yapısı (nöral tüp) ilk 4 hafta içinde kapanır — çoğu kadın bu dönemde hamile olduğunu henüz bilmez.',
+    'Bu yüzden folik asit idealde gebelik planlanırken başlanmalı; yeşil yapraklı sebzeler, bakliyat ve portakal da iyi kaynaklardır.']},
+  {emoji:'🧊',title:'Buz, toprak ya da kireç yeme isteği (pika)',items:[
+    'Bazı gebelerde buz çiğneme, toprak/kil/kireç/tebeşir yeme isteği görülebilir — buna "pika" denir.',
+    'Bu istek çoğu zaman demir eksikliğinin bir işaretidir.'],
+   tip:'Böyle bir istek hissedersen utanma, doktoruna söyle — basit bir kan tahliliyle anlaşılır.'}
+];
+const SV_PREG_DANGER_CARDS=[
+  {emoji:'🧀',title:'Buzdolabı her mikrobu durdurmaz: Listeria',items:[
+    'Listeria buzdolabı soğuğunda bile çoğalabilen nadir bir mikrop; gebelerde daha kolay hastalık yapar ve bebeğe geçebilir.',
+    'Pastörize edilmemiş süt, köy peyniri ve kaymaktan uzak dur; köy sütünü mutlaka kaynat.',
+    'Küflü peynirler (rokfor, brie, camembert), hazır ezmeler (pate) ve soğuk tüketilen şarküteri (sucuk, salam, pastırma) riskli — iyice pişmişse sorun yok.'],
+   tip:'Kural basit: şüphelendiğin şeyi buharı çıkana kadar ısıt, sonra ye.'},
+  {emoji:'🐱',title:'Kedini sevebilirsin ama kumunu başkası değiştirsin',items:[
+    'Toksoplazma adlı parazit kedi dışkısı, toprak, iyi yıkanmamış sebze ve az pişmiş etle bulaşabilir.',
+    'Kediyi sevmek sorun değil — kum kabını başkası temizlesin, mecbursan eldivenle ve her gün temizle.',
+    'Sebze/meyveyi bol suyla yıka, eti pembelik kalmayacak şekilde pişir; bu dönemde çiğ köfteden uzak dur.']},
+  {emoji:'🐟',title:'Balıkta "küçük olan iyidir"',items:[
+    'Balık, bebeğin beyni ve gözleri için önemli bir omega-3 kaynağı — haftada 2 porsiyon hedefle.',
+    'Büyük/uzun yaşayan balıklar (kılıç balığı, köpek balığı) daha fazla cıva biriktirir — bu dönemde tüketme.',
+    'Hamsi, istavrit, sardalya, palamut, çipura, levrek ve somon iyi seçimler; konserve ton balığını haftada 2 kutuyu geçirme.',
+    'Suşi, çiğ midye ve füme somonu bu dönemde yeme.']},
+  {emoji:'🌿',title:'"Bitkiseldir, zararı olmaz" demeyelim',items:[
+    'Maydanoz suyu kürü ve meyan kökü şerbeti bu dönemde önerilmez; salatadaki birkaç dal maydanoz sorun değil.',
+    'Adaçayını düzenli ve bol içme.',
+    'Ihlamur, papatya, rezene gibi bitki çaylarını günde 1–2 fincanı geçmeden iç.'],
+   tip:'Hiçbir bitkisel karışımı, kürü ya da takviyeyi doktoruna sormadan kullanma.'},
+  {emoji:'☕',title:'Kahve ve çayda sınır',items:[
+    'Kafein plasentadan bebeğe geçer; günlük sınır genelde 200 mg kabul edilir.',
+    'Bu, yaklaşık 2 fincan Türk kahvesi ya da 4 bardak demli çaya denk gelir.',
+    'Kola, enerji içeceği, yeşil çay ve çikolatada da kafein olduğunu unutma; enerji içeceklerinden bu dönemde tamamen uzak dur.']}
+];
+const SV_PREG_SYMPTOM_CARDS=[
+  {emoji:'🤢',title:'Bulantı',items:[
+    'Sabah yataktan kalkmadan önce birkaç galeta ya da bir avuç leblebi ye — boş mide bulantıyı artırır.',
+    'Az az ve sık ye, 2–3 saatten uzun aç kalma.',
+    'Zencefil çayı ya da zencefilli limonata bulantıya iyi gelebilir.',
+    'Sıcak yemek kokusu rahatsız ediyorsa soğuk/ılık yiyecekleri tercih et.']},
+  {emoji:'🔥',title:'Mide yanması',items:[
+    'Yemekle birlikte değil, öğün aralarında sıvı iç.',
+    'Yemekten sonra hemen uzanma; akşam yemeğini yatmadan 2–3 saat önce bitir.',
+    'Sol yanına yat, başını birkaç yastıkla yükselt.',
+    'Kızartma, acı, çok ekşi yiyecek ve gazlı içecekleri azalt.'],
+   tip:'Pişmiş elma/armut/ayvayı birkaç bademle yemek mideyi rahatlatabilir.'},
+  {emoji:'🚽',title:'Kabızlık',items:[
+    'Hamilelik hormonları bağırsakları yavaşlatır; demir hapı da kabızlığı artırabilir.',
+    'Sabah aç karnına ılık su, ardından birkaç kuru erik ya da kayısı dene.',
+    'Tam buğday ekmek, yulaf, sebze, meyve ve kefiri eksik etme.',
+    'Günde 2,5–3 litre su iç, her gün kısa yürüyüşler yap.']},
+  {emoji:'🦵',title:'Gece krampları ve ödem',items:[
+    'Kramp için gün boyu su iç; süt ürünleri, yeşil yapraklılar, kuruyemiş ve bakliyatı eksik etme, yatmadan önce baldırlarını esnet.',
+    'Ödem için tuzu, turşuyu, salamura zeytini ve hazır gıdaları azalt; ayaklarını gün içinde yükseltip dinlendir.'],
+   tip:'Ödem varsa su içmeyi azaltma — az su içmek tam tersine vücudun suyu tutmasına neden olur.'}
+];
+const SV_PREG_MYTH_CARDS=[
+  {emoji:'🧐',title:'Halk arasında söylenenler — doğru mu, yanlış mı?',items:[
+    '❌ "Ayva yersen bebeğin gamzeli olur" — gamze genetiktir, ama ayva lifli ve sağlıklı, gönül rahatlığıyla ye.',
+    '❌ "Bol süt içersen bebeğin teni beyaz olur" — ten rengini genler belirler; süt bebeğin kemikleri için değerlidir.',
+    '❌ "Tatlı istiyorsan kız, ekşi istiyorsan erkek" — canının çektiğiyle bebeğin cinsiyeti arasında bir bağ yok.',
+    '❌ "Canının çektiğini yemezsen bebekte leke olur" — doğum lekelerinin aşermeyle ilgisi yok.',
+    '✅ "Son haftalarda hurma ye, doğum kolay olur" — kısmen doğru: bazı çalışmalarda 36. haftadan sonra düzenli hurma tüketen annelerde doğumun daha rahat başladığı görülmüş (gebelik şekerin varsa önce doktoruna sor).',
+    '⚠️ "Her çocuk bir diş götürür" — yarı doğru: bebek dişini almaz ama kalsiyum yetersizse ihtiyacını senin kemiklerinden karşılar; süt ürünlerini ve diş fırçanı ihmal etme.']}
+];
+const SV_PREG_PAIRING_CARDS=[
+  {emoji:'🍅',title:'Domatesi zeytinyağıyla buluştur: Likopen',items:[
+    'Likopen domates, salça, karpuz ve pembe greyfurtta bulunan, hücreleri koruyan kırmızı bir bileşen.',
+    'Yağda çözünür — yanında biraz yağ olursa vücut çok daha iyi emer.',
+    'Domates pişince hücre duvarları açılır; zeytinyağlı domates sosu çiğ domatesten daha çok likopen verir.']},
+  {emoji:'🥕',title:'Havuç ve balkabağını yağsız bırakma: Beta-karoten',items:[
+    'Havuç, balkabağı, tatlı patates ve kayısıdaki beta-karoten vücutta A vitaminine dönüşür — o da yağda çözünür.',
+    'Havuç salatasına zeytinyağı ya da birkaç ceviz ekle; hafif pişirmek de emilimi artırır.'],
+   tip:'Bitkilerden gelen beta-karoten, takviyedeki A vitamini gibi fazla birikmez — güvenlidir.'},
+  {emoji:'🍋',title:'Demirin en iyi arkadaşı C vitamini',items:[
+    'Bitkisel demirin emilimi düşüktür; yanına C vitamini eklersen emilim belirgin artar.',
+    'Mercimek çorbasına limon sık; ıspanak/pazı/kuru fasulye yanına biberli-domatesli salata ekle.',
+    'Kahvaltıda yumurtanın yanına domates/biber/mandalina koy.']},
+  {emoji:'🥛',title:'Bazı besinler birbirini sevmez',items:[
+    'Süt/yoğurt/peynirdeki kalsiyum demirin emilimini azaltabilir — demir hapını süt ürünlerinden en az 2 saat ayır.',
+    'Kırmızı etli yemeğin yanına yoğurt yerine salata koyabilir, yoğurdu ara öğüne kaydırabilirsin.',
+    'Ispanak kalsiyumdan zengin görünür ama içindeki oksalat bu kalsiyumu bağlar — kalsiyum için süt ürünlerine güven.']},
+  {emoji:'🌾',title:'Bakliyat + tahıl = Tam protein',items:[
+    'Bakliyat ve tahıllar tek başına eksik protein içerir, birlikte yenince birbirini tamamlar.',
+    'Mercimekli bulgur pilavı, nohutlu pilav, ezogelin çorbası bu yüzden değerli.',
+    'Yanına yoğurt/ayran eklersen protein kalitesi daha da artar.']},
+  {emoji:'🌿',title:'Zerdeçal + karabiber + yağ üçlüsü',items:[
+    'Zerdeçaldaki kurkumin tek başına çok az emilir; bir tutam karabiber ve biraz yağ emilimi artırır.',
+    'Çorbaya, yumurtaya ya da sebze yemeğine zerdeçal eklerken karabiberi de unutma.'],
+   tip:'Yemekteki zerdeçal güvenlidir; kapsül/takviyesini doktoruna sormadan kullanma.'},
+  {emoji:'🦠',title:'Bağırsak dostu ikili: Probiyotik + Prebiyotik',items:[
+    'Kefir ve yoğurttaki faydalı bakteriler (probiyotik), lifli besinlerle (prebiyotik) beslenerek güçlenir.',
+    'Yoğurda yulaf/muz/rendelenmiş elma ekle; kefirin yanına bir avuç kuruyemiş ya da meyve al.'],
+   tip:'Bu ikili kabızlığa da çok iyi gelir.'}
+];
+const SV_PREG_SUMMARY_CARDS=[
+  {emoji:'🍽️',title:'Sağlıklı bir tabağın formülü',items:[
+    'Tabağının yarısı sebze ve salata',
+    'Çeyreği protein: et, tavuk, balık, yumurta ya da bakliyat',
+    'Çeyreği tam tahıl: tam buğday ekmek, bulgur, yulaf ya da karabuğday',
+    'Yanında 1 kase yoğurt/ayran, öğün aralarında meyve ve bir avuç kuruyemiş',
+    'Günde 3 ana + 2–3 ara öğün, 2,5–3 litre su']},
+  {emoji:'🚨',title:'Bu durumlarda beklemeden doktoruna başvur',items:[
+    'Gün boyu kusma, hiçbir şey tutamama',
+    'Yüzde/ellerde ani şişlik, şiddetli baş ağrısı ya da görme bulanıklığı',
+    'Hiç kilo alamama ya da çok hızlı kilo alma',
+    'Bebek hareketlerinde belirgin azalma'],
+   tip:'Sağlıklı bir hamilelik, mükemmel beslenmekle değil; dengeli ve sürdürülebilir beslenmekle olur. Kendine iyi bak!'}
+];
 const SV_PREG_BIRTH_INFO=[
   'Doğuma yaklaşırken hurma tüketiminin doğum sürecini desteklediğine dair gözlemler var — doktorunun onayıyla düzenli küçük porsiyonlar deneyebilirsin.',
   'Doğum eylemi sırasında enerjini korumak için hafif, hızlı sindirilen atıştırmalıklar (muz, hurma, bal) faydalı olabilir — hastane politikasını önceden öğren.',
@@ -9487,11 +9643,17 @@ function svPregInfoHtml(data){
   const {curWeek,curDay,daysLeft,eddISO,trimester,overdue}=svPregCompute(data);
   const moodIdx=curWeek%SV_PREG_MOTIVATION.length;
   const tabs=[
-    {id:'beslenme',label:'🍽 Beslenme',html:`<div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">${esc(trimester.label)}</div>${svPregUl(trimester.tips)}`},
+    {id:'beslenme',label:'🍽 Beslenme',html:`<div style="font-weight:700;font-size:12.5px;color:var(--blue-700);margin-bottom:6px">${esc(trimester.label)}</div>${svPregUl(trimester.tips)}<div style="margin-top:12px">${svPregCardsHtml(SV_PREG_KALORI_CARDS)}</div>`},
+    {id:'biliyormuydun',label:'💡 Biliyor Muydun',html:svPregCardsHtml(SV_PREG_FACT_CARDS)},
+    {id:'dikkat',label:'⚠️ Dikkat Et',html:svPregCardsHtml(SV_PREG_DANGER_CARDS)},
+    {id:'dertler',label:'🩹 Küçük Dertler',html:svPregCardsHtml(SV_PREG_SYMPTOM_CARDS)},
+    {id:'dogrumu',label:'🧐 Doğru mu Yanlış mı',html:svPregCardsHtml(SV_PREG_MYTH_CARDS)},
+    {id:'tabak',label:'🍽 Akıllı Tabak',html:svPregCardsHtml(SV_PREG_PAIRING_CARDS)},
     {id:'dogum',label:'🎂 Doğuma Hazırlık',html:svPregUl(SV_PREG_BIRTH_INFO)},
     {id:'sonrasi',label:'🤱 Doğum Sonrası & Emzirme',html:svPregPostpartumHtml()}
   ];
   if(data.oksapar) tabs.push({id:'oksapar',label:'💉 Oksapar',html:svPregUl(SV_PREG_OKSAPAR_INFO)});
+  tabs.push({id:'ozet',label:'📋 Özetle',html:svPregCardsHtml(SV_PREG_SUMMARY_CARDS)});
   tabs.push({id:'motiv',label:'💌 Motivasyon',html:`<p style="margin:0;font-size:13.5px;line-height:1.7;font-style:italic;text-align:center">${esc(SV_PREG_MOTIVATION[moodIdx])}</p>`});
   return `<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:12px 14px;background:var(--blue-50);border-radius:10px">
       <div style="font-size:28px">🤰</div>
