@@ -2288,7 +2288,15 @@ async function promoPublish(){
   if(!cloudReady()||!CL().enabled){ toast('Önce Ayarlar → Bulut senkronizasyonu bölümünden buluta bağlanmalısın — link bulut üzerinden çalışır',6000); return; }
   toast('Yayınlanıyor…',4000);
   try{
-    const snap={profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail},updatedAt:Date.now()};
+    const planSel=document.getElementById('promo-plan-sel');
+    const planId=planSel?planSel.value:(DB.profile.promoPlanId||'');
+    let plan=null;
+    if(planId){
+      const pSrc=DB.plans.find(x=>x.id===planId);
+      if(pSrc){ migratePlan(pSrc); plan=JSON.parse(JSON.stringify(pSrc)); delete plan.privnote; }
+    }
+    DB.profile.promoPlanId=planId;
+    const snap={profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail},plan,updatedAt:Date.now()};
     const t1=await cloudToken();
     const r=await fetch(`${CL().dbUrl}/shares/promo-landing.json?auth=${encodeURIComponent(t1)}`,
       {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
@@ -6457,6 +6465,15 @@ function pageSettings(){
       <div class="spacer"></div><span class="tag ${DB.profile.promoPublishedAt?'tag-ok':''}">${DB.profile.promoPublishedAt?'Yayında':'Yayınlanmadı'}</span></div>
       <div class="card-b">
         <p style="margin:0 0 12px;color:var(--muted);font-size:13px">Belirli bir danışana bağlı değil — reklam/tanıtım amaçlı, herkese gönderebileceğin sabit bir link. Danışmanlık hizmetini anlatan, "🤰 Hamileyim" butonuna basınca gebeliğe özel bilgi/sayaç gösteren bir tanıtım sayfası açılır. Klinik bilgilerin (isim, logo, telefon) Ayarlar'daki Klinik bilgileri bölümünden otomatik gelir.</p>
+        <div class="field full" style="margin-bottom:12px"><label>Örnek program (isteğe bağlı)</label>
+          <select id="promo-plan-sel">
+            <option value="">— Seçme, sadece tanıtım yazısı gösterilsin —</option>
+            ${DB.plans.slice().sort((a,b)=>new Date(b.start)-new Date(a.start)).map(p=>{
+              const cl=clientOf(p.clientId);
+              return `<option value="${p.id}" ${DB.profile.promoPlanId===p.id?'selected':''}>${esc((cl?cl.name+' — ':'')+(p.name||'Program'))}</option>`;
+            }).join('')}
+          </select>
+          <span class="hint">Seçersen, tanıtım sayfasında danışan adayları gerçek bir danışanın takip linkindeki gibi o programın günlerini/öğünlerini gezebilir — "herşeyi" gösterir.</span></div>
         ${DB.profile.promoPublishedAt?`<p style="font-size:12px;color:var(--muted);margin:0 0 12px">Son yayınlanma: ${trDT(DB.profile.promoPublishedAt)}</p>`:''}
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" data-act="promo-publish">${DB.profile.promoPublishedAt?'🔄 Güncelle':'📣 Yayınla'}</button>
@@ -8820,11 +8837,16 @@ function svPromoPregCalc(week){
   const tri=SV_PROMO_PREG_TRIMESTER_HINT.find(t=>w<=t.max)||SV_PROMO_PREG_TRIMESTER_HINT[2];
   return {w,daysLeft,eddISO:localISODate(edd),tri};
 }
-function svPromoHtml(profile){
+function svPromoHtml(profile,plan){
   const name=esc(profile.name||'Diyetisyeniniz');
   const clinic=esc(profile.clinic||'');
   const phoneRaw=String(profile.phone||'').replace(/[^\d]/g,'');
   const waHref=phoneRaw?`https://wa.me/${phoneRaw.replace(/^0/,'90')}?text=${encodeURIComponent('Merhaba, danışmanlık hizmetiniz hakkında bilgi almak istiyorum.')}`:'';
+  const p=svSafePlan(plan);
+  const planHtml=!p?'':`<h3>📋 Örnek Program — gerçek bir haftayı gezin</h3>
+      <p style="margin-bottom:12px">Danışanlarımın takip linkinden gördüğü gerçek bir haftalık programdan bir örnek — günlere tıklayıp o günün öğünlerini inceleyebilirsiniz.</p>
+      <div class="days" style="margin-bottom:14px" id="svDaysRow"></div>
+      <div id="svDayBody"></div>`;
   return `<div class="sv-promo-wrap">
     <div class="sv-promo-hero">
       ${profile.logo?`<img src="${profile.logo}" class="sv-promo-logo">`:''}
@@ -8842,6 +8864,7 @@ function svPromoHtml(profile){
       </div>
       <h3>📘 Haftalık Beslenme Kitapçıkları</h3>
       <p>Her hafta gönderdiğim mini kitapçıklar sayesinde beslenmeyi yakından öğrenme fırsatı buluyorsunuz. Doğru besin seçimlerini, porsiyon kontrolünü, yağ yakımını destekleyen bilimsel noktaları daha iyi kavrıyor ve öğrendiklerinizi kalıcı bir yaşam alışkanlığına dönüştürüyorsunuz. Sadece listeye uymak değil, süreci anlamak da çok önemli.</p>
+      ${planHtml}
 
       <button class="sv-promo-preg-btn" id="svPromoPregBtn" type="button">🤰 Hamile misiniz? Gebeliğe özel programımızı görün</button>
       <div id="svPromoPregBox" class="sv-promo-preg-box" hidden>
@@ -8896,13 +8919,16 @@ async function bootPromoView(){
   document.title='Beslenme Danışmanlığı';
   const root=document.getElementById('shareView'); root.hidden=false;
   root.innerHTML='<div class="sv-wrap"><p style="color:var(--muted);text-align:center;padding:60px 0">Yükleniyor…</p></div>';
-  let profile={};
+  let profile={}, plan=null;
   try{
     const r=await fetch(CLOUD_DB+'/shares/promo-landing.json');
-    if(r.ok){ const raw=await r.json(); const snap=typeof raw==='string'?JSON.parse(raw):raw; if(snap&&snap.profile) profile=snap.profile; }
+    if(r.ok){ const raw=await r.json(); const snap=typeof raw==='string'?JSON.parse(raw):raw; if(snap&&snap.profile) profile=snap.profile; if(snap&&snap.plan) plan=snap.plan; }
   }catch(e){ /* profil bilgisi çekilemezse jenerik metinle devam ederiz */ }
-  root.innerHTML=`<div class="sv-wrap">${svPromoHtml(profile)}</div>`;
+  window.__shareTok='promo-landing';
+  const safePlan=svSafePlan(plan);
+  root.innerHTML=`<div class="sv-wrap">${svPromoHtml(profile,plan)}</div>`;
   svPromoWire();
+  if(safePlan){ window.__svCurPlan=safePlan; window.__svPlans=[safePlan]; svRenderPlanBody(); }
 }
 /* Program verisi Firebase'den dönerken bozulabiliyor: Firebase Realtime
    Database boş dizileri ("lines":[]  gibi) hiç saklamıyor, geri okurken o
@@ -9768,6 +9794,22 @@ const SV_ARTICLES=[
   {t:'p',x:'Kafein, alkol ve çok baharatlı yiyecekler bazı kadınlarda sıcak basmalarını tetikleyebilir. Bu besinlerin tüketimini gözlemleyip azaltmak rahatlama sağlayabilir.'},
   {t:'h',x:'Öneriler'},
   {t:'ul',x:['Haftada en az 2-3 gün kalsiyum kaynağı tüketin (süt, yoğurt, badem vb.).','Kemik ve kas sağlığı için düzenli direnç egzersizlerini beslenmeyle birlikte sürdürün.','Rafine şekerden uzak durarak ani kilo alımının önüne geçin.','Bol su için — hormonal değişim cilt ve mukoza kuruluğunu artırabilir.']}
+ ]},
+ {id:'hamilelik-rehberi',cat:'Kadın Sağlığı',emoji:'🤰',title:'Hamilelik Rehberi',ozet:'Gebelik boyunca trimesterlere göre beslenme, doğuma hazırlık ve sık sorulan konular.',blocks:[
+  {t:'p',x:'Gebelik, hem bebeğin sağlıklı gelişimi hem de annenin kendi sağlığı için beslenmenin her zamankinden daha önemli hale geldiği özel bir dönemdir. Bu rehber, trimesterlere göre değişen ihtiyaçları ve sık merak edilen konuları özetler.'},
+  {t:'h',x:'1. Trimester (1–13. hafta)'},
+  {t:'ul',x:['Folik asit (yeşil yapraklı sebzeler, kurubaklagil) bebeğin nöral tüp gelişimi için bu dönemde özellikle önemlidir.','Bulantı oluyorsa az ve sık öğünler, ağır/yağlı yemeklerden uzak durmak rahatlatabilir.','Kafeini azaltmak, sigara ve alkolden tamamen uzak durmak kritik önemdedir.','Bol su için; zencefilli çay bulantıyı hafifletmeye yardımcı olabilir.']},
+  {t:'h',x:'2. Trimester (14–27. hafta)'},
+  {t:'ul',x:['Demir (kırmızı et, mercimek, pekmez) ve kalsiyum (süt ürünleri, susam) ihtiyacı bu dönemde artar.','Protein alımına özen gösterin — bebeğin hızlı büyüme dönemidir.','Omega-3 kaynakları (somon, ceviz, keten tohumu) bebeğin beyin gelişimini destekler.','Doktorun onayladığı ölçüde düzenli, hafif yürüyüşler sindirimi ve enerjiyi destekler.']},
+  {t:'h',x:'3. Trimester (28–40. hafta)'},
+  {t:'ul',x:['Kalsiyum ve D vitamini ihtiyacı en yüksek seviyededir; güneşlenme ve süt ürünlerine özen gösterin.','Küçük, sık öğünler mide yanmasını ve şişkinliği azaltabilir.','Lif açısından zengin besinler (tam tahıl, sebze, meyve) bu dönemde sık görülen kabızlığa iyi gelir.','Doğuma enerji biriktirmek için kompleks karbonhidratları ihmal etmeyin, ama porsiyon kontrolüne dikkat edin.']},
+  {t:'h',x:'Doğuma hazırlık ve beslenme'},
+  {t:'ul',x:['Doğuma yaklaşırken hurma tüketiminin doğum sürecini desteklediğine dair gözlemler var — doktorunuzun onayıyla düzenli küçük porsiyonlar deneyebilirsiniz.','Doğum eylemi sırasında enerjinizi korumak için hafif, hızlı sindirilen atıştırmalıklar (muz, hurma, bal) faydalı olabilir — hastane politikasını önceden öğrenin.','Doğumdan hemen sonra (özellikle emzirecekseniz) protein ve bol sıvı alımına devam etmek iyileşmeyi ve süt üretimini destekler.']},
+  {t:'h',x:'💉 Oksapar ve benzeri kan sulandırıcı iğne kullananlar için'},
+  {t:'p',x:'Oksapar (enoksaparin) gibi kan sulandırıcı iğneler doktorunuzun belirlediği bir tedavi planının parçasıdır — dozunu veya kullanım sıklığını kendi kararınızla değiştirmeyin ya da bırakmayın.'},
+  {t:'ul',x:['Enjeksiyon bölgesinde morarma, hafif şişlik ya da sertlik görülebilir; bölgeyi her uygulamada biraz değiştirmek bunu azaltabilir.','Beslenme açısından: K vitamini çok yüksek besinleri (ıspanak, lahana, brokoli gibi) günden güne ani ve büyük miktarlarda değiştirmemek genelde önerilir — alışılmış, dengeli tüketiminize sadık kalmanız yeterlidir; büyük bir değişiklik planlıyorsanız önce doktorunuza sorun.','Olağan dışı/aşırı kanama, idrarda-dışkıda kan, şiddetli baş ağrısı, ani şişlik gibi bir durum fark ederseniz vakit kaybetmeden doktorunuzu ya da acil servisi arayın.']},
+  {t:'h',x:'Unutmayın'},
+  {t:'p',x:'Gebelikte alınan kiloların çoğu doğumdan sonraki ilk aylarda kademeli olarak geri döner; aceleci, çok düşük kalorili diyetlerden özellikle emzirme döneminde uzak durun. Bu rehberdeki bilgiler genel bilgilendirme amaçlıdır, tıbbi tavsiye yerine geçmez — gebeliğinizle ilgili her durum için doktorunuzu ve diyetisyeninizi takip edin.'}
  ]},
  {id:'logusalik',cat:'Kadın Sağlığı',emoji:'🤱',title:'Doğum Sonrası (Loğusalık) Döneminde Beslenme',ozet:'Yeni doğum yapan anneler için iyileşme ve emzirme döneminde beslenme.',blocks:[
   {t:'p',x:'Doğum sonrası dönem, bedenin hem iyileştiği hem de (emziriyorsa) bebeğini beslediği, enerji ve besin öğesi ihtiyacının arttığı özel bir dönemdir. Bu süreçte hızlı kilo verme hedefi değil, dengeli ve besleyici beslenme öncelikli olmalıdır.'},
