@@ -6253,7 +6253,13 @@ function pageClient(){
 }
 
 function pagePlans(){
-  const ps=DB.plans, flt=S.season||'';
+  /* "Gizle" ile işaretlenen programlar bu genel Programlar sayfasından
+     kayboluyor (p.hidden=true) — ama danışanın KENDİ dosyasındaki
+     Programlar sekmesinde (plansOf üzerinden, hidden'a hiç bakmadan)
+     olduğu gibi görünmeye devam ediyor. Gizlenenleri yeniden bulup geri
+     açabilmek için ayrı bir "🙈 Gizlenenler" sekmesi var. */
+  const allPs=DB.plans, ps=allPs.filter(p=>!p.hidden), hiddenPs=allPs.filter(p=>p.hidden);
+  const flt=S.season||'';
   const view=S.planView||'all';
   const keyOf=x=>seasonOf(x.season)?x.season:'none';
   const inF=x=>!flt||keyOf(x)===flt;
@@ -6261,23 +6267,26 @@ function pagePlans(){
   const allT=tplAll(), tpls=allT.filter(inF);
   const oldPs=ps.filter(p=>p.status==='Tamamlandı');
   const recentPs=[...ps].sort((a,b)=>new Date(b.start)-new Date(a.start));
-  const base = view==='old'? oldPs : view==='recent'? recentPs : ps;
-  const shown = view==='tpl'? [] : base.filter(inF);
+  const base = view==='old'? oldPs : view==='recent'? recentPs : view==='hidden'? hiddenPs : ps;
+  const shown = (view==='tpl')? [] : base.filter(inF);
   const showTplSection = (view==='all'||view==='tpl') && tpls.length;
   const showTable = view!=='tpl';
+  const isHiddenView = view==='hidden';
   const sw=t=>{ const th=DOC_THEMES[t.theme]; return th? th.strip.slice(0,7).map(c=>`<i style="background:#${c}"></i>`).join('') : '<i style="background:#E4EAF0"></i>'; };
   return `<div class="page-head"><div><h1>Beslenme programları</h1><p>Danışana özel hazırlanan 7 günlük programlar. Yazdırıp PDF olarak paylaşabilirsiniz.</p></div>
   <div class="spacer"></div>${DB.clients.length?`<button class="btn btn-primary" data-newplan="">${ic('plus',15)} Yeni program</button>`:''}</div>
-  ${(ps.length||allT.length)?`<div class="chip-row" style="margin-bottom:8px">
+  ${(ps.length||allT.length||hiddenPs.length)?`<div class="chip-row" style="margin-bottom:8px">
     <button class="chip" data-plan-view="all" aria-pressed="${view==='all'}">Tümü (${ps.length})</button>
     <button class="chip" data-plan-view="tpl" aria-pressed="${view==='tpl'}">📑 Şablon liste (${allT.length})</button>
     <button class="chip" data-plan-view="old" aria-pressed="${view==='old'}">🗄 Eski liste (${oldPs.length})</button>
     <button class="chip" data-plan-view="recent" aria-pressed="${view==='recent'}">🕐 Son listeler</button>
+    ${hiddenPs.length?`<button class="chip" data-plan-view="hidden" aria-pressed="${view==='hidden'}">🙈 Gizlenenler (${hiddenPs.length})</button>`:''}
   </div>`:''}
-  ${(ps.length||allT.length)?`<div class="chip-row">
+  ${(ps.length||allT.length)&&!isHiddenView?`<div class="chip-row">
     <button class="chip" data-season-f="" aria-pressed="${!flt}">Tümü (${ps.length})</button>
     ${SEASONS.map(x=>`<button class="chip" data-season-f="${x.k}" aria-pressed="${flt===x.k}">${x.em} ${x.ad} (${cnt(x.k)})</button>`).join('')}
     <button class="chip" data-season-f="none" aria-pressed="${flt==='none'}">Mevsimsiz (${cnt('none')})</button></div>`:''}
+  ${isHiddenView?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 10px">Bu programlar genel listeden gizlendi ama ait oldukları danışanın kendi dosyasında görünmeye devam ediyor. "Göster"e basarsan genel listeye geri döner.</p>`:''}
   ${showTplSection?`<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Şablonlarım</h3>
     <div class="spacer"></div><span class="tag">${tpls.length}</span></div>
     ${tpls.map(t=>{ const th=DOC_THEMES[t.theme]; return `<div class="tpl-row">
@@ -6286,6 +6295,7 @@ function pagePlans(){
         <div class="t-sub">${th?esc(th.ad)+' teması':'<span style="color:var(--danger)">Renk seçilmemiş — Düzenle’den seç</span>'} · ${tplDays(t)} dolu gün</div>
         ${t.privNote?`<div class="t-sub priv-snip" title="${esc(t.privNote)}">🔒 ${esc(oneLine(t.privNote,110))}</div>`:''}</div>
       <select class="season-sel" data-tpl-season="${t.id}" title="Mevsim">${seasonOpts(t.season||'')}</select>
+      ${DB.clients.length?`<button class="btn btn-sm btn-primary" data-tpl-assign="${t.id}">👤 Danışana ata</button>`:''}
       <button class="btn btn-sm" data-tpl-edit="${t.id}">Düzenle</button>
       <button class="x" data-tpl-drop="${t.id}" title="Şablonu sil">✕</button></div>`; }).join('')}
     <div class="card-b" style="padding-top:12px;color:var(--muted);font-size:12.5px">Yeni program oluştururken şablonu seçersen içerik, Word renkleri ve not hazır gelir.</div>
@@ -6297,10 +6307,13 @@ function pagePlans(){
     <td><select class="season-sel" data-plan-season="${p.id}" title="Mevsim">${seasonOpts(p.season||'')}</select></td>
     <td class="num">${trDate(p.start)}</td><td class="t-right num">${f}/35</td>
     <td><span class="tag ${p.status==='Aktif'?'tag-ok':'tag-warn'}"><i class="dot"></i>${esc(p.status)}</span></td>
-    <td class="t-right"><button class="btn btn-sm" data-plan="${p.id}">Aç</button></td></tr>`}).join('')}
+    <td class="t-right" style="white-space:nowrap">
+      ${isHiddenView?`<button class="btn btn-sm" data-plan-unhide="${p.id}" title="Genel listeye geri getir">👁 Göster</button>`
+        :`<button class="btn btn-sm" data-plan-hide="${p.id}" title="Sadece danışanın dosyasında kalsın, genel listede görünmesin">🙈 Gizle</button>`}
+      <button class="btn btn-sm" data-plan="${p.id}">Aç</button></td></tr>`}).join('')}
   </tbody></table></div></section>`
-  : (!showTable? '' : ps.length
-    ? `<section class="card"><div class="empty"><h4>Bu grupta program yok</h4><p>Tablodaki mevsim kutusundan bir programın mevsimini değiştirebilir ya da <b>Tümü</b>’ne dönebilirsin.</p></div></section>`
+  : (!showTable? '' : allPs.length
+    ? `<section class="card"><div class="empty"><h4>${isHiddenView?'Gizlenmiş program yok':'Bu grupta program yok'}</h4><p>${isHiddenView?'Bir programı "🙈 Gizle" ile buraya taşıyabilirsin.':'Tablodaki mevsim kutusundan bir programın mevsimini değiştirebilir ya da <b>Tümü</b>’ne dönebilirsin.'}</p></div></section>`
     : `<section class="card"><div class="empty"><div class="eic">${ic('plus',24)}</div><h4>Program yok</h4><p>${DB.clients.length?'Bir danışan seçip 7 günlük program oluşturun.':'Önce bir danışan ekleyin; program her zaman bir kişiye bağlı hazırlanır.'}</p>
   <button class="btn btn-primary" ${DB.clients.length?'data-newplan=""':'data-modal="client"'}>${DB.clients.length?'+ Yeni program oluştur':'+ Önce danışan ekle'}</button></div></section>`)}`;
 }
@@ -6386,7 +6399,7 @@ function pagePlanEdit(){
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm" data-modal="plan-edit">Program bilgileri</button>
-        <button class="btn btn-sm" data-modal="plan-copy">⧉ Kopyala / yenile</button>
+        <button class="btn btn-sm" data-modal="plan-copy">⧉ Kopyala / başka danışana ata</button>
         <button class="btn btn-sm" data-modal="plan-tpl">☆ Şablon yap</button>
         <button class="btn btn-sm" data-act="print">${ic('print',15)} Yazdır</button>
         <button class="btn btn-sm btn-danger" data-del-plan="${p.id}">Sil</button>
@@ -7025,15 +7038,16 @@ function openModal(kind){
   if(kind==='plan-copy'){
     const p=DB.plans.find(x=>x.id===S.plan); migratePlan(p);
     const ns=addDays(p.start,7);
-    return modal('Programı kopyala / yenile',`
-      <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Aynı içerikle yeni bir program oluşturulur; üzerinde değişiklik yapabilirsin.</p>
+    return modal('Programı kopyala / başka danışana ata',`
+      <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Aynı içerikle yeni, BAĞIMSIZ bir program oluşturulur; üzerinde değişiklik yaparsın, bu kopya sadece aşağıda seçtiğin danışanın kendi dosyasında görünür. Danışanı değiştirirsen bu, programı o kişiye atamanın yoludur — eski program olduğu gibi kalır.</p>
       <div class="form-grid">
         <div class="field full"><label>Yeni program adı</label><input id="cp-name" value="${esc(p.name)}"></div>
         <div class="field"><label>Yeni başlangıç</label><input id="cp-start" type="date" value="${ns}"></div>
         <div class="field"><label>1. gün</label><select id="cp-firstday">${DAY_FULL.map((d,i)=>`<option value="${i}" ${((new Date(ns).getDay()+6)%7)===i?'selected':''}>${d}</option>`).join('')}</select></div>
         <div class="field full"><label>Danışan</label><select id="cp-client">${DB.clients.filter(c=>!c.archived).map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
         <div class="field full"><label><input type="checkbox" id="cp-photos" checked style="width:auto;margin-right:8px">Fotoğrafları da kopyala</label></div>
-        <div class="field full"><label><input type="checkbox" id="cp-close" checked style="width:auto;margin-right:8px">Eski programı "Tamamlandı" yap</label></div>
+        <div class="field full"><label><input type="checkbox" id="cp-close" style="width:auto;margin-right:8px">Eski programı "Tamamlandı" yap</label>
+          <span class="hint">Sadece AYNI danışana yeni dönem açıyorsan işaretle. Başka bir danışana atıyorsan işaretleme — eski program kendi danışanında aktif kalmaya devam eder.</span></div>
       </div>`,'Kopyala','plan-copy','620px');
   }
   if(kind==='plan-tpl'){
@@ -7063,6 +7077,19 @@ function openModal(kind){
       <div class="field"><label>Renkler (Word teması)</label><select id="te-theme"><option value="">Seçilmedi (varsayılan)</option>${Object.entries(DOC_THEMES).map(([k,x])=>`<option value="${k}" ${t.theme===k?'selected':''}>${esc(x.ad)}</option>`).join('')}</select></div>
       <div class="field full"><label>🔒 Özel not — dosyada görünmez</label><textarea id="te-note" rows="4" placeholder="Bu şablonu nasıl hazırladım?">${esc(t.privNote||'')}</textarea></div></div>
       <p class="hint" style="margin:12px 0 0">Renk seçersen bu şablondan açılan yeni programlar aynı Word teması ile gelir.</p>`,'Kaydet','tpl-edit','560px');
+  }
+  if(kind==='tpl-assign'){
+    if(!DB.clients.length) return modal('Danışana ata','<p>Önce bir danışan eklemeniz gerekiyor.</p>','Tamam','close');
+    const T=tplGet(S.assignTpl); if(!T) return toast('Şablon bulunamadı');
+    const c0=clientOf(S.newPlanClient)||DB.clients[0];
+    return modal('"'+esc(T.t.name)+'" şablonunu danışana ata',`
+      <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Şablonun BİR KOPYASI seçtiğin danışana ait yeni, bağımsız bir program olarak oluşturulur — üzerinde değişiklik yaparsın, şablonun kendisi etkilenmez ve başka danışanlara tekrar kullanılabilir kalır. Yeni program sadece bu danışanın kendi dosyasında görünür.</p>
+      <div class="form-grid">
+        <div class="field full"><label>Danışan *</label><select id="ta-client">${DB.clients.filter(x=>!x.archived).map(x=>`<option value="${x.id}" ${x.id===c0.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+        <div class="field full"><label>Program adı</label><input id="ta-name" value="${esc(T.t.name)}"></div>
+        <div class="field"><label>Başlangıç tarihi</label><input id="ta-start" type="date" value="${todayISO()}"></div>
+        <div class="field"><label>1. gün hangi gün?</label><select id="ta-firstday">${DAY_FULL.map((d,i)=>`<option value="${i}" ${((new Date().getDay()+6)%7)===i?'selected':''}>${d}</option>`).join('')}</select></div>
+      </div>`,'Danışana ata','tpl-assign','560px');
   }
 
   const c=clientOf(S.client);
@@ -7413,6 +7440,20 @@ async function handleOk(act){
     if(!val('te-name')) return toast('Şablon adı gerekli');
     Object.assign(T.t,{name:val('te-name'),season:val('te-season'),theme:val('te-theme'),privNote:val('te-note')});
     toast('Şablon güncellendi');
+  }
+  if(act==='tpl-assign'){
+    const T=tplGet(S.assignTpl); if(!T) return closeModal();
+    const cid=val('ta-client'); if(!cid) return toast('Danışan seçmelisin');
+    if(!val('ta-name')) return toast('Program adı zorunlu');
+    const start=val('ta-start')||todayISO();
+    const p={id:uid('p'),clientId:cid,name:val('ta-name'),sub:T.sub,start,
+      status:'Aktif',privNote:T.t.privNote||'',footer:T.footer||'',firstDay:+val('ta-firstday'),
+      purpose:T.purpose.slice(),closing:T.closing,days:newDays()};
+    applyTplToPlan(p,T,true);
+    p.season=seasonOf(T.t.season)?T.t.season:seasonFromDate(start);
+    DB.plans.unshift(p);
+    const cl=clientOf(cid);
+    S.plan=p.id; S.day=0; S.page='planEdit'; toast((cl?cl.name+'\'e ':'')+'atandı ✨');
   }
   if(act==='plan-new'){
     if(!val('p-name')) return toast('Program başlığı zorunlu');
@@ -8579,7 +8620,16 @@ document.addEventListener('click',async e=>{
     await save(); toast('Belge silindi'); render(); return; }
   const sfl=t.closest('[data-season-f]'); if(sfl){ S.season=sfl.dataset.seasonF; return render(); }
   const plv=t.closest('[data-plan-view]'); if(plv){ S.planView=plv.dataset.planView; return render(); }
+  const phide=t.closest('[data-plan-hide]'); if(phide){
+    const pl=DB.plans.find(x=>x.id===phide.dataset.planHide); if(pl){ pl.hidden=true; await save(); toast('Genel listeden gizlendi — danışanın dosyasında görünmeye devam ediyor'); render(); }
+    return;
+  }
+  const punhide=t.closest('[data-plan-unhide]'); if(punhide){
+    const pl=DB.plans.find(x=>x.id===punhide.dataset.planUnhide); if(pl){ pl.hidden=false; await save(); toast('Genel listede tekrar görünüyor'); render(); }
+    return;
+  }
   const tde=t.closest('[data-tpl-edit]'); if(tde){ S.editTpl=tde.dataset.tplEdit; return openModal('tpl-edit'); }
+  const tas=t.closest('[data-tpl-assign]'); if(tas){ S.assignTpl=tas.dataset.tplAssign; S.newPlanClient=S.client||''; return openModal('tpl-assign'); }
   const tdr=t.closest('[data-tpl-drop]'); if(tdr){
     const T=tplGet(tdr.dataset.tplDrop); if(!T) return;
     if(!confirm('“'+T.t.name+'” şablonu silinsin mi? 10 gün boyunca çöp kutusunda durur.')) return;
