@@ -3515,6 +3515,7 @@ rangeNote,
 '- "Sevdikleri" listesindeki besinleri mümkün olduğunca sık ve öncelikli kullan; danışan onları zaten seviyor.',
 '- Ölçüm geçmişindeki kilo/bel gidişatını dikkate al: kilo artıyorsa porsiyon ve kalori daha sıkı kontrollü olsun, hedefe yaklaşıyorsa mevcut yaklaşımı koru ve pekiştir.',
 '- "lines" içinde her satır tek besin + ev ölçüsü olsun. Örnek: "4 yemek kaşığı yoğurt", "1 küçük şeftali", "2 tam ceviz".',
+'- Ölçü birimini besine UYGUN seç — gerçek bir markette/mutfakta o besin öyle satılmaz/ölçülmezse kullanma: "demet"/"yaprak"/"salkım" SADECE taze yeşillik ve ot için (ıspanak, maydanoz, dereotu, roka, nane, semizotu gibi) — tahıl, un, bulgur, bakliyat, et, süt ürünü asla "demet" ile ölçülmez, bunlar için gram, yemek kaşığı, su bardağı, adet veya dilim kullan. "diş" sadece sarımsak için. Şüpheye düşersen gram kullan.',
 '- "title" öğünün iştah açıcı kısa adı. Ara öğünlerde title boş kalabilir.',
 '- "tip" o öğünün hazırlanış talimatı. Basit bir öğünse kısa tut, ama birden fazla adım gerektiriyorsa tüm adımları yaz — tek cümleye sıkıştırıp kısaltma. '+TONE_TXT(tone),
 '- "sub" o günün tek cümlelik teması.',
@@ -3809,6 +3810,7 @@ rangeNote,
 '- Her günde tam '+MEAL_PRESET.length+' öğün olacak; slot numaraları: '+slots+'.',
 '- Metindeki besinleri, porsiyonları ve miktarları AYNEN koru. Yeni besin uydurma, miktar değiştirme.',
 '- "lines" içinde her satır tek bir besin ve ev ölçüsü olsun. Örnek: "2 yemek kaşığı yulaf", "1 küçük şeftali", "2 tam ceviz".',
+'- Eksik günleri kendin tamamlarken ölçü birimini besine UYGUN seç: "demet"/"yaprak"/"salkım" SADECE taze yeşillik ve ot için (ıspanak, maydanoz, dereotu, roka, nane, semizotu gibi) — tahıl, un, bulgur, bakliyat, et, süt ürünü asla "demet" ile ölçülmez, bunlar için gram, yemek kaşığı, su bardağı, adet veya dilim kullan.',
 '- "title" o öğünün iştah açıcı kısa adı olsun. Örnek: "Şeftalili Yoğurt Kâsesi". Öğün boşsa title ve lines boş bırak.',
 '- "tip" alanına metindeki hazırlanış/tarif talimatını OLDUĞU GİBİ aktar — kısaltma, özetleme, tek cümleye indirme. Metinde adım adım bir tarif varsa adımların TAMAMINI yaz. Metinde hazırlanışla ilgili bir şey yoksa kısa bir püf noktası ekleyebilirsin. '+t,
 '- "sub" o günün tek cümlelik teması olsun.',
@@ -4650,7 +4652,32 @@ function pdfCoverHtml(p,c){
   }
   return h;
 }
-function pdfDayHtml(p,i){
+function _pdfLoadImgEl(src){
+  return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=rej; im.src=src; });
+}
+/* html2canvas 1.4.1 "object-fit" CSS özelliğini güvenilir biçimde
+   desteklemiyor (bazı sürüm/tarayıcı kombinasyonlarında fotoğraf PDF'e
+   hiç basılmıyor ya da gerilmiş çıkıyor) — bu yüzden fotoğrafı CSS'e
+   bırakmadan, render ÖNCESİNDE canvas ile tam hedef kutuya kırpıp
+   (object-fit:cover'ın elle yapılmış hali) sabit boyutlu bir data URL
+   üretiyoruz; HTML'de düz <img> olarak hiçbir object-fit kullanmadan
+   basılır. Hata olursa orijinal veriyi aynen döndürür (sessizce
+   fotoğrafsız kalmak yerine en azından gerilmiş halini basar). */
+async function pdfCoverCrop(dataUrl,w,h){
+  if(!dataUrl) return dataUrl;
+  try{
+    const im=await _pdfLoadImgEl(dataUrl);
+    const sw=im.naturalWidth||im.width, sh=im.naturalHeight||im.height;
+    if(!sw||!sh) return dataUrl;
+    const scale=Math.max(w/sw,h/sh);
+    const cw=Math.max(1,w/scale), ch=Math.max(1,h/scale);
+    const sx=Math.max(0,(sw-cw)/2), sy=Math.max(0,(sh-ch)/2);
+    const cv=document.createElement('canvas'); cv.width=Math.round(w); cv.height=Math.round(h);
+    cv.getContext('2d').drawImage(im,sx,sy,cw,ch,0,0,cv.width,cv.height);
+    return cv.toDataURL('image/jpeg',0.86);
+  }catch(e){ return dataUrl; }
+}
+async function pdfDayHtml(p,i){
   const d=p.days[i];
   const filled=d.meals.filter(m=>m.lines.length||m.title);
   if(!filled.length) return '';
@@ -4661,10 +4688,11 @@ function pdfDayHtml(p,i){
       ${d.sub?`<span style="opacity:.85;font-size:11.5px">— ${esc(d.sub)}</span>`:''}
     </div>
   </div>`;
-  if(d.photo) h+=`<div style="margin:0 46px"><img src="${d.photo}" style="width:100%;max-height:210px;object-fit:cover;border-radius:0 0 10px 10px;display:block"></div>`;
-  d.meals.forEach(m=>{
-    if(!m.lines.length&&!m.title) return;
+  if(d.photo){ const dp=await pdfCoverCrop(d.photo,1456,420); h+=`<div style="margin:0 46px"><img src="${dp}" style="width:100%;height:210px;border-radius:0 0 10px 10px;display:block"></div>`; }
+  for(const m of d.meals){
+    if(!m.lines.length&&!m.title) continue;
     const st=MEAL_STYLE[m.name]||{web:'#4C9A73',webbg:'#F5F7F6'};
+    const mp=m.photo? await pdfCoverCrop(m.photo,208,208) : '';
     h+=`<div style="margin:9px 46px 0;border:1px solid #E2E6EA;border-left:4px solid ${st.web};border-radius:8px;overflow:hidden">
       <div style="background:${st.webbg};padding:7px 14px;font-weight:700;color:${st.web};font-size:12px;letter-spacing:.03em">${m.emoji} ${esc(m.name).toLocaleUpperCase('tr')}</div>
       <div style="padding:9px 14px;display:flex;gap:12px">
@@ -4673,10 +4701,10 @@ function pdfDayHtml(p,i){
           ${m.lines.length?`<ul style="margin:0;padding-left:15px;color:#444;font-size:11.5px;line-height:1.55">${m.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
           ${m.tip?`<div style="margin-top:5px;color:#777;font-size:10.5px;font-style:italic">${esc(m.tip)}</div>`:''}
         </div>
-        ${m.photo?`<img src="${m.photo}" style="width:104px;height:104px;object-fit:cover;border-radius:8px;flex:0 0 auto">`:''}
+        ${mp?`<img src="${mp}" style="width:104px;height:104px;border-radius:8px;flex:0 0 auto;display:block">`:''}
       </div>
     </div>`;
-  });
+  }
   return h;
 }
 function pdfWaitImgs(host){
@@ -4708,12 +4736,12 @@ async function exportPdf(){
   const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
   migratePlan(p);
   const c=clientOf(p.clientId);
-  const dolu=p.days.some((d,i)=>pdfDayHtml(p,i));
+  const dolu=p.days.some(d=>d.meals.some(m=>m.lines.length||m.title));
   if(!dolu) return toast('Önce en az bir öğün doldurmalısın');
   toast('PDF hazırlanıyor…',8000);
   await ensurePdfLibs();
   const chunks=[pdfCoverHtml(p,c)];
-  p.days.forEach((d,i)=>{ const h=pdfDayHtml(p,i); if(h) chunks.push(h); });
+  for(let i=0;i<p.days.length;i++){ const h=await pdfDayHtml(p,i); if(h) chunks.push(h); }
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF('p','mm','a4');
   for(let i=0;i<chunks.length;i++){
@@ -4747,6 +4775,14 @@ const UNIT_G={'g':1,'gr':1,'gram':1,'ml':1,'mililitre':1,'kg':1000,'lt':1000,'li
   'dilim':30,'adet':0,'tane':0,'avuc':20,'porsiyon':0,'kepce':100,'top':50,'paket':100,
   'demet':50,'dis':3,'yaprak':15,'salkim':100,'kibrit kutusu':30,'parca':50,'kutu':100,'sise':330};
 const UNIT_KEYS=Object.keys(UNIT_G).sort((a,b)=>b.length-a.length);
+/* Bu birimler sadece belirli besin tipleri için gerçek anlam taşır
+   (demet/yaprak/salkım → yeşillik-ot; dış → sarımsak dişi). Eşleşen
+   besnin kendi 'u' tablosunda bu birim tanımlı değilse, UNIT_G'deki
+   genel ağırlığı KÖRLEMESİNE uygulamak "1 demet buğday" gibi anlamsız
+   alışveriş kalemleri üretir (buğday demetle satılmaz). Böyle bir
+   uyumsuzlukta bu birimi yok sayıp besnin kendi standart porsiyon
+   ağırlığına (f.g) düşüyoruz — bkz. parseLine().*/
+const UNIT_FOOD_SPECIFIC=new Set(['demet','yaprak','salkim','dis']);
 /* Sık yazılan kısa adların karşılığı */
 const ALIAS={'ekmek':'Tam buğday ekmeği','tam bugday':'Tam buğday ekmeği','peynir':'Beyaz peynir',
   'yumurta':'Yumurta (tam)','yogurt':'Yoğurt (yağlı)','sut':'Süt (yarım yağlı)','tavuk':'Tavuk göğsü (ızgara)',
@@ -4815,12 +4851,19 @@ function findFood(q){
     const hit=DB.foods.find(f=>f.n===t); if(hit) return hit;
   }
   const idx=foodIndex();
+  /* Sözcük sınırına saygılı alt-dizgi eşleşmesi: "bugday" aramasında
+     "karabugday" gibi bitişik bileşik sözcüklerin İÇİNE gömülü alt-dizgi
+     eşleşmesini KABUL ETME — bu, tamamen farklı besinlerin (buğday ≠
+     karabuğday/kara buğday) yanlışlıkla eşleşmesine ve alışveriş
+     listesinde anlamsız kalemlere ("1 demet buğday" gibi) yol açıyordu.
+     Regex döngü dışında TEK SEFER derleniyor (performans). */
+  const wordBoundRe=new RegExp('(^|\\s)'+s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\s|$)');
   let best=null,score=0;
   idx.forEach(it=>{
     let sc=0;
     if(it.fold===s) sc=100;
     else if(it.fold.startsWith(s+' ')||it.fold.startsWith(s+'(')) sc=80;
-    else if(it.fold.includes(s)) sc=60+Math.min(15,s.length);
+    else if(wordBoundRe.test(it.fold)) sc=60+Math.min(15,s.length);
     else{
       const qt=s.split(' ').filter(x=>x.length>2);
       const hit=qt.filter(t=>it.toks.some(w=>w.startsWith(t)||t.startsWith(w)));
@@ -4866,6 +4909,7 @@ function parseLine(raw){
   else if(out.unit==='kg'||out.unit==='lt'||out.unit==='litre') per=1000;
   else if(out.unit && fu[out.unit]!==undefined) per=fu[out.unit];
   else if(out.unit==='adet'||out.unit==='tane'||out.unit==='porsiyon') per=+f.g||100;
+  else if(out.unit && UNIT_FOOD_SPECIFIC.has(out.unit)) per=+f.g||100;
   else if(out.unit && UNIT_G[out.unit]) per=UNIT_G[out.unit];
   else if(out.unit) per=+f.g||100;
   else per=+f.g||100;
