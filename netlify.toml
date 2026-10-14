@@ -5,6 +5,14 @@
 [functions]
   node_bundler = "esbuild"
 
+# claude-proxy.js (Anthropic'e vekil) bazen 10sn'lik platform varsayılanını
+# aşıyor ve istemciye "504" olarak dönüyor (özellikle çok günlü/öğünlü
+# program üretiminde) — izin verilen üst sınıra (26sn) çekiyoruz. Gerçek
+# güvenlik ağı index.html'deki istemci tarafı küçültüp-yeniden-deneme ve
+# Gemini'ye otomatik geçiş mantığı; bu sadece ek bir pay sağlar.
+[functions."claude-proxy"]
+  timeout = 26
+
 # Randevu hatirlatma ve yeni-danisan hosgeldin mesaji kaldirildi (elle
 # tetiklenen butonlarla degistirildi). Haftalik "Otomatik Mesaj Programi"
 # ise kisi bazinda tekrar-gonderim korumasiyla (bkz. scheduled-weekly.js)

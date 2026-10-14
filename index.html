@@ -3839,8 +3839,29 @@ String(raw).slice(0,12000),
    o parça otomatik olarak Claude ile tekrar üretilir — kullanıcı tekrar
    tıklamak zorunda kalmaz. S.aiFallbackUsed bunun olup olmadığını UI'a
    bildirmek için işaretlenir (çağrıdan önce sıfırlanmalı). */
+/* Claude çağrıları tarayıcıdan doğrudan değil, CORS yüzünden kendi Netlify
+   fonksiyonumuz (claude-proxy.js) üzerinden gidiyor — ve Netlify'nin
+   SENKRON fonksiyonları platform tarafından sert bir süre sınırıyla
+   (10sn varsayılan, üst planlarda en fazla 26sn'ye kadar) kesiliyor;
+   bu sınır aşılırsa Anthropic henüz yanıt vermeden bağlantı 504 ile
+   kesiliyor ve "Anthropic sunucusu hata verdi (504)" görülüyor. Gemini
+   ise tarayıcıdan DOĞRUDAN Google'a gittiği için (Netlify'nin 10-26sn
+   sınırına değil, kendi 120sn'lik istemci zaman aşımımıza tabi) bu
+   sorunu yaşamıyor. 6 öğünlük günlerde 3 günlük tek bir Claude isteği
+   çoğu zaman bu süreyi aşıyor — bu yüzden: (a) Claude için parça
+   boyutu küçültüldü, (b) bir parça 504/zaman-aşımı/ağ hatası verirse
+   otomatik olarak TEK GÜNE kadar küçültülüp tekrar deneniyor, (c) yine
+   de olmazsa ve bir Gemini anahtarı da girilmişse o parça sessizce
+   Gemini'ye devrediliyor (kullanıcı tekrar tıklamak zorunda kalmadan).
+   S.aiFallbackUsed bunu UI'a bildirmek için işaretlenir. */
 async function generateDaysChunked(totalDays,provider,buildPrompt){
-  const CHUNK=3;
+  const CHUNK=provider==='claude'?2:3;
+  function isTransient(e){
+    const m=String((e&&e.message)||'').toLowerCase();
+    return (e&&(e.status===504||e.status===502||e.status===503))
+      || m.includes('504') || m.includes('502') || m.includes('503')
+      || m.includes('ulaşılamadı') || m.includes('zaman aşımı') || m.includes('timeout');
+  }
   async function tryProvider(prov,range,count){
     const maxTok=prov==='claude'?4096:8192;
     let parsed=[];
@@ -3851,8 +3872,32 @@ async function generateDaysChunked(totalDays,provider,buildPrompt){
     }
     return parsed; // iki denemede de eksik geldiyse elde olanla devam
   }
+  /* Claude bir parçada 504/zaman-aşımı ile patlarsa, parçayı 1 güne kadar
+     küçültüp tek tek (ardışık) tekrar dener — küçük istek daha hızlı
+     bitip Netlify'nin süre sınırının altında kalma ihtimali daha yüksek. */
+  async function tryClaudeShrinking(range,count){
+    try{ return await tryProvider('claude',range,count); }
+    catch(e){
+      if(!isTransient(e) || count<=1) throw e;
+      // İlk bölünmede range yoksa (tüm program tek parçaydı), parçalara
+      // ayrılırken artık "toplamın X.-Y. günü" notuyla üretilmesi
+      // gerekiyor — bu yüzden normalize edilmiş bir range'e geçiyoruz.
+      const base=range||{start:1,total:count};
+      const half=Math.ceil(count/2), rest=count-half;
+      const r1=await tryClaudeShrinking({start:base.start,count:half,total:base.total},half);
+      const r2=rest>0? await tryClaudeShrinking({start:base.start+half,count:rest,total:base.total},rest) : [];
+      return r1.concat(r2);
+    }
+  }
   async function fetchChunk(range,count){
-    if(provider==='claude') return await tryProvider('claude',range,count);
+    if(provider==='claude'){
+      try{ return await tryClaudeShrinking(range,count); }
+      catch(e){
+        if(!isTransient(e) || !gemKey()) throw e;
+        S.aiFallbackUsed=true;
+        return await tryProvider('gemini',range,count);
+      }
+    }
     // provider === 'gemini'
     let r=[];
     try{ r=await tryProvider('gemini',range,count); }
