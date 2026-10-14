@@ -1664,7 +1664,16 @@ function docPreview(pl,themeKey,fh,fb){
   let ban=pl.coverPhoto||'';
   if(!ban){ for(const d of pl.days){ if(d.photo){ban=d.photo;break;} const mm=d.meals.find(m=>m.photo); if(mm){ban=mm.photo;break;} } }
   const dolu=pl.days.map((d,i)=>({d,i})).filter(x=>x.d.meals.some(m=>m.title||(m.lines||[]).length)).slice(0,4);
-  const cols=[...new Set(MEAL_PRESET.map(x=>x[0]))];
+  /* MEAL_PRESET'te birden fazla slot aynı isme sahip ("Ara Öğün" 3 kez
+     geçiyor — öğleden önce, akşamdan önce, akşamdan sonra). İsme göre
+     tekilleştirip tek sütunda birleştirmek, aynı günde doldurulan diğer
+     ara öğünleri bu özet tablosundan tamamen kaybediyordu (hep ilk dolu
+     olan görünüyordu). Artık her SLOT kendi sütunu — isim tekrar etse
+     bile d.meals[i] o slota pozisyonla eşleniyor (newDays/migratePlan
+     meals dizisini her zaman MEAL_PRESET ile aynı sırada tutuyor). */
+  const colLbl=(n,i)=>{ const dup=MEAL_PRESET.filter(x=>x[0]===n).length>1; if(!dup) return n;
+    const ord=MEAL_PRESET.slice(0,i+1).filter(x=>x[0]===n).length; return n+' '+ord; };
+  const cols=MEAL_PRESET.map((x,i)=>colLbl(x[0],i));
   const sayfa2=`<div class="pv-page" style="font-family:'${B}',sans-serif;margin-top:12px">
     ${ban?`<div class="pv-ban"><img src="${ban}"></div>`:''}
     <div class="pv-block" style="background:${hx(T.brand)};margin-top:${ban?'6px':'-16px'}">
@@ -1675,8 +1684,8 @@ function docPreview(pl,themeKey,fh,fb){
       `<th style="background:${hx(T.brand)};font-family:'${H}',serif">${esc(x)}</th>`).join('')}</tr>
       ${(dolu.length?dolu:[{d:pl.days[0],i:0}]).map(({d,i})=>`<tr>
         <td style="background:${hx(T.gunFill[i])};color:${hx(T.gunRenk[i])};font-weight:700">${DAY_EMOJI[i]} ${i+1}</td>
-        ${cols.map(n=>{ const mm=d.meals.filter(m=>m.name===n).find(m=>m.title||(m.lines||[]).length);
-          return `<td style="background:${hx(T.gunFill[i])};color:${hx(T.body)}">${mm?esc(String(mm.title||(mm.lines||[])[0]||'').slice(0,16)):'—'}</td>`;}).join('')}
+        ${cols.map((_,ci)=>{ const mm=d.meals[ci];
+          return `<td style="background:${hx(T.gunFill[i])};color:${hx(T.body)}">${mm&&(mm.title||(mm.lines||[]).length)?esc(String(mm.title||(mm.lines||[])[0]||'').slice(0,16)):'—'}</td>`;}).join('')}
       </tr>`).join('')}
     </table></div>`;
   return sayfa1+sayfa2;
@@ -1970,20 +1979,24 @@ async function trashRestore(id){
 let TOKEN={v:'',exp:0}, pushTimer=null, syncing=false;
 const CLOUD_API='AIzaSyAYwAcAsMbjYN8xXdPwwpq1O3u5Rema85Y';
 const CLOUD_DB='https://dyt-aysenur-korkmaz-default-rtdb.europe-west1.firebasedatabase.app';
-/* Bu cihazda hiç bulut bağlantısı yoksa, kullanıcıdan hiçbir şey istemeden
-   otomatik olarak aşağıdaki hesaba bağlanır (Ayarlar'dan istenmişti). */
-const CLOUD_PRESET_EMAIL='Bmuti655@gmail.com';
-const CLOUD_PRESET_PASS='Asu%0508';
+/* GÜVENLİK: Buradan gerçek bir e-posta+şifre ile otomatik oturum açmaya
+   ASLA kalkışma — bu dosya hem canlı sitede (view-source ile) hem de
+   GitHub deposunda herkese açık olarak duruyor; gömülü bir şifre, siteyi
+   ziyaret eden HERKESE tüm danışan verisine (ölçüm, laboratuvar, fotoğraf,
+   telefon) tam okuma/yazma erişimi verir. Daha önce burada tam da bu
+   şekilde gömülü gerçek bir hesap şifresi vardı — kaldırıldı. Yeni bir
+   cihazda bulut bağlantısı artık Ayarlar'dan elle (bir kerelik) e-posta +
+   şifre girilerek kuruluyor; sonrasında o cihazda refreshToken saklanıp
+   kalıyor, tekrar şifre istemiyor. CLOUD_API/CLOUD_DB gizli değil (Firebase
+   Web API anahtarları erişimi değil sadece projeyi belirtir, gerçek yetki
+   kontrolü sunucu tarafındaki güvenlik kurallarında) — Ayarlar formunda
+   kolaylık olsun diye hazır geliyor, elle yazmaya gerek kalmasın.*/
 const CL=()=>DB.cloud||(DB.cloud={});
 const cloudReady=()=>{const c=CL();return !!(c.apiKey&&c.dbUrl&&c.refreshToken&&c.uid);};
 async function ensureCloudAutoConnect(){
-  if(cloudReady()) return;                 // bu cihaz zaten bağlı (veya elle bağlanmış)
-  if(DB.cloud && DB.cloud.autoSkip) return; // kullanıcı bu cihazda bağlantıyı kestiyse tekrar zorlamaz
-  try{
-    await cloudSignIn(CLOUD_API, CLOUD_DB, CLOUD_PRESET_EMAIL, CLOUD_PRESET_PASS);
-    CL().enabled=true;
-    await save({noCloud:true});
-  }catch(e){ console.error('Otomatik bulut bağlantısı başarısız:', e); }
+  // Bilerek boş bırakıldı: bu cihazda kayıtlı bir bulut bağlantısı
+  // (refreshToken) yoksa otomatik bağlanmaz — Ayarlar'dan elle bağlanman
+  // gerekir. Ayrıntı için yukarıdaki GÜVENLİK notuna bak.
 }
 
 function paintSync(txt,color){
@@ -4503,9 +4516,18 @@ async function exportDocx(share){
       body+=wP('Bütün haftayı tek bakışta görmen için hazırlandı — buzdolabına asabilirsin.',
         {align:'center',i:true,size:16,color:T.not2,before:60,after:120});
 
-      /* Tablo: satır = gün, sütun = öğün */
-      const slots=[...new Set(p.days.flatMap(d=>d.meals.map(m=>m.name)))];
-      const cols=MEAL_PRESET.map(x=>x[0]).filter(n=>slots.indexOf(n)>=0);
+      /* Tablo: satır = gün, sütun = öğün SLOTU (isme göre değil — MEAL_PRESET'te
+         "Ara Öğün" 3 kez geçiyor; isme göre birleştirip tek sütunda göstermek,
+         aynı günün farklı ara öğünlerini (öğleden önce / akşamdan önce / akşamdan
+         sonra) üçünü de aynı — ilk dolu olanı — gösterip diğer ikisini tabloda
+         kaybediyordu. Artık her slot kendi sütunu; d.meals[i] her zaman
+         MEAL_PRESET[i] ile aynı pozisyonda (newDays/migratePlan böyle kuruyor). */
+      const usedSlots=MEAL_PRESET.map((x,i)=>i).filter(i=>p.days.some(d=>{const m=d.meals[i];return m&&(m.title||(m.lines||[]).length);}));
+      const colIdx=usedSlots.length?usedSlots:MEAL_PRESET.map((x,i)=>i);
+      const dupName=n=>MEAL_PRESET.filter(x=>x[0]===n).length>1;
+      const colLabel=i=>{ const n=MEAL_PRESET[i][0]; if(!dupName(n)) return n;
+        const ord=MEAL_PRESET.slice(0,i+1).filter(x=>x[0]===n).length; return n+' '+ord; };
+      const cols=colIdx.map(colLabel);
       const gw=1150, cw2=Math.floor((W-gw)/cols.length);
       const widths=[gw,...cols.map(()=>cw2)];
       const head=[wCell(gw,wP('GÜN',{b:true,size:15,color:'FFFFFF',font:TF,after:0}),TB,'center')]
@@ -4513,8 +4535,8 @@ async function exportDocx(share){
       const rows=[head];
       dolu.forEach(({d,i})=>{
         let cells=wCell(gw,wP(DAY_EMOJI[i]+' '+(i+1)+'. GÜN',{b:true,size:15,color:T.gunRenk[i],font:TF,after:0}),T.gunFill[i],'center');
-        cols.forEach(n=>{
-          const mm=d.meals.filter(m=>m.name===n).find(m=>m.title||(m.lines||[]).length);
+        colIdx.forEach(ci=>{
+          const mm=d.meals[ci]&&(d.meals[ci].title||(d.meals[ci].lines||[]).length)?d.meals[ci]:null;
           let inner;
           if(!mm) inner=wP('—',{align:'center',size:14,color:T.not2,after:0});
           else{
@@ -5851,10 +5873,10 @@ function pageClientControl(c){
               <div style="font-size:13px;white-space:pre-wrap">${n.kind==='mf'
                 ?`<b>${esc(n.dayLabel||'')}</b> ${esc(n.mealName||'')} öğününü ${n.liked?'<span style="color:var(--ok)">beğendi</span>':'sevmedi'}`
                 :n.kind==='cn'?`"${esc(n.text||'')}"`
-                :n.kind==='mp'?`<b>${esc(n.dayLabel||'')}</b> ${esc(n.mealName||'')} fotoğrafı gönderdi<br><img src="${n.photo}" style="margin-top:6px;max-width:160px;max-height:160px;border-radius:8px;display:block">`
+                :n.kind==='mp'?`<b>${esc(n.dayLabel||'')}</b> ${esc(n.mealName||'')} fotoğrafı gönderdi${isPhoto(n.photo)?`<br><img src="${esc(n.photo)}" style="margin-top:6px;max-width:160px;max-height:160px;border-radius:8px;display:block">`:''}`
                 :n.kind==='ref'?`Arkadaşını önerdi: <b>${esc(n.friendName||'')}</b>${n.friendPhone?' · '+esc(n.friendPhone):''}${n.note?'<br><span style="color:var(--muted)">"'+esc(n.note)+'"</span>':''}`
-                :n.kind==='dm'?`${n.mealType?`<b>${esc(n.mealType)}</b>`:'Bugün ne yedi'}${n.text?(n.mealType?' — ':'')+esc(n.text):''}${n.photo?`<br><img src="${n.photo}" style="margin-top:6px;max-width:180px;max-height:180px;border-radius:8px;display:block">`:''}`
-                :`${n.water!=null&&n.water!==''?'💧 '+esc(n.water)+' bardak':''}${n.steps!=null&&n.steps!==''?' · 🚶 '+esc(n.steps)+' adım':''}${n.sleep!=null&&n.sleep!==''?' · 😴 '+esc(n.sleep)+' saat uyku':''}${n.cheated===true?' · <b style="color:var(--danger)">🍬 kaçamak yaptı</b>':n.cheated===false?' · <b style="color:var(--ok)">✅ kaçamak yapmadı</b>':''}${n.mood?' · '+n.mood:''}`}</div>
+                :n.kind==='dm'?`${n.mealType?`<b>${esc(n.mealType)}</b>`:'Bugün ne yedi'}${n.text?(n.mealType?' — ':'')+esc(n.text):''}${isPhoto(n.photo)?`<br><img src="${esc(n.photo)}" style="margin-top:6px;max-width:180px;max-height:180px;border-radius:8px;display:block">`:''}`
+                :`${n.water!=null&&n.water!==''?'💧 '+esc(n.water)+' bardak':''}${n.steps!=null&&n.steps!==''?' · 🚶 '+esc(n.steps)+' adım':''}${n.sleep!=null&&n.sleep!==''?' · 😴 '+esc(n.sleep)+' saat uyku':''}${n.cheated===true?' · <b style="color:var(--danger)">🍬 kaçamak yaptı</b>':n.cheated===false?' · <b style="color:var(--ok)">✅ kaçamak yapmadı</b>':''}${n.mood?' · '+esc(n.mood):''}`}</div>
               <div style="font-size:11.5px;color:var(--muted)">${trDT(n.at)}</div>
             </div>
             <button class="x" data-dismiss-notice="${n.kind}:${n.id}" title="Kapat">✕</button>
@@ -6168,7 +6190,7 @@ function pageClient(){
       ${ps.length? `<table><thead><tr><th>Program</th><th>Tarih</th><th class="t-right">Dolu öğün</th><th>Durum</th><th></th></tr></thead><tbody>
         ${ps.map(p=>{migratePlan(p);const f=p.days.reduce((a,d)=>a+d.meals.filter(m=>m.lines.length).length,0);
         return `<tr><td class="t-name">${esc(p.name)}</td><td class="num">${trDate(p.start)}</td>
-        <td class="t-right num">${f}/35</td>
+        <td class="t-right num">${f}/${7*MEAL_PRESET.length}</td>
         <td><span class="tag ${p.status==='Aktif'?'tag-ok':'tag-warn'}"><i class="dot"></i>${esc(p.status)}</span></td>
         <td class="t-right"><button class="btn btn-sm" data-plan="${p.id}">Aç</button></td></tr>`}).join('')}
       </tbody></table>`:`<div class="empty"><div class="eic">${ic('plus',24)}</div><h4>Program yok</h4><p>7 günlük, öğün öğün program hazırlayın; besin kütüphanesinden seçtiğinizde kalori ve makrolar otomatik hesaplanır.</p><button class="btn btn-primary" data-newplan="${c.id}">+ Yeni program oluştur</button></div>`}
@@ -6305,7 +6327,7 @@ function pagePlans(){
     ${shown.map(p=>{const c=clientOf(p.clientId);migratePlan(p);const f=p.days.reduce((a,d)=>a+d.meals.filter(m=>m.lines.length).length,0);const nt=planNote(p);
     return `<tr><td><div class="t-name">${esc(p.name)}</div>${nt?`<div class="t-sub priv-snip" title="${esc(nt)}">🔒 ${esc(oneLine(nt,110))}</div>`:''}</td><td>${esc(c?c.name:'—')}</td>
     <td><select class="season-sel" data-plan-season="${p.id}" title="Mevsim">${seasonOpts(p.season||'')}</select></td>
-    <td class="num">${trDate(p.start)}</td><td class="t-right num">${f}/35</td>
+    <td class="num">${trDate(p.start)}</td><td class="t-right num">${f}/${7*MEAL_PRESET.length}</td>
     <td><span class="tag ${p.status==='Aktif'?'tag-ok':'tag-warn'}"><i class="dot"></i>${esc(p.status)}</span></td>
     <td class="t-right" style="white-space:nowrap">
       ${isHiddenView?`<button class="btn btn-sm" data-plan-unhide="${p.id}" title="Genel listeye geri getir">👁 Göster</button>`
@@ -6395,7 +6417,7 @@ function pagePlanEdit(){
         <h1>${esc(p.name)}</h1>
         <p>${esc(p.sub)}</p>
         <div class="meta"><span>Başlangıç <b>${trDate(p.start)}</b></span>
-          <span>Dolu öğün <b>${filled}/35</b></span><span>Fotoğraf <b>${photos}</b></span></div>
+          <span>Dolu öğün <b>${filled}/${7*MEAL_PRESET.length}</b></span><span>Fotoğraf <b>${photos}</b></span></div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm" data-modal="plan-edit">Program bilgileri</button>
@@ -6423,8 +6445,8 @@ function pagePlanEdit(){
     const f=d.meals.filter(m=>m.lines.length).length, ph=d.meals.filter(m=>m.photo).length;
     return `<button class="day" data-day="${i}" aria-pressed="${i===S.day}" style="--dayc:${DAY_WEB[i]}">
       <div class="d-n">${DAY_EMOJI[i]} ${dShort(p,i)}</div><div class="d-d">${i+1}</div>
-      <div class="d-k">${f}/5${ph?' · '+ph+'📷':''}</div>
-      <span class="d-fill" style="width:${Math.round(f/5*100)}%"></span></button>`}).join('')}</div>
+      <div class="d-k">${f}/${MEAL_PRESET.length}${ph?' · '+ph+'📷':''}</div>
+      <span class="d-fill" style="width:${Math.round(f/MEAL_PRESET.length*100)}%"></span></button>`}).join('')}</div>
 
   <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
     <button class="btn btn-sm" data-act="copy-day">${ic('plans',15)} Bu günü kopyala</button>
@@ -10835,7 +10857,7 @@ function svDailyMealHtml(){
         <h4 class="sv-sub" style="margin-bottom:8px">Bugün gönderdiklerin</h4>
         <div style="display:flex;flex-direction:column;gap:10px">
           ${log.map(e=>`<div style="display:flex;gap:10px;align-items:flex-start">
-            ${e.photo?`<img src="${e.photo}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex:0 0 auto">`:''}
+            ${isPhoto(e.photo)?`<img src="${esc(e.photo)}" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex:0 0 auto">`:''}
             <div style="flex:1;min-width:0">
               <div style="font-size:12.5px">${e.mealType?`<b>${esc(e.mealType)}</b>`:''}${e.text?(e.mealType?' — ':'')+esc(e.text):''}</div>
               <div style="font-size:11px;color:var(--muted)">${new Date(e.at).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}</div>
