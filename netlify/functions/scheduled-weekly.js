@@ -151,7 +151,20 @@ function trimLog(log, todayISO) {
   Object.keys(log).forEach(k => { if (!keep.has(k)) delete log[k]; });
 }
 
+// 15.10.2026: Otomasyon TAMAMEN DURDURULDU (kullanici istegi). netlify.toml'deki
+// cron tetikleyicisi de yorum satirina alindi, ama deploy/cron on-bellegi
+// yuzunden fonksiyon yine de tetiklenirse diye burada da sifirinci satirda
+// kesin bir "hicbir sey yapma" kapisi var - bu satirlar varken fonksiyon ne
+// Firebase'e dokunur ne de Meta'ya tek bir WhatsApp istegi gonderir. Tekrar
+// acmak icin asagidaki "if (AUTOMATION_DISABLED)" blogunu silmek/yorum
+// yapmak VE netlify.toml'deki schedule satirlarinin yorumunu kaldirmak
+// gerekir.
+const AUTOMATION_DISABLED = true;
+
 exports.handler = async function () {
+  if (AUTOMATION_DISABLED) {
+    return { statusCode: 200, body: JSON.stringify({ ok: true, note: 'Otomasyon kullanici tarafindan durduruldu' }) };
+  }
   if (!TOKEN || !PHONE_ID) {
     return { statusCode: 500, body: JSON.stringify({ error: 'WA_TOKEN / WA_PHONE_ID eksik' }) };
   }
