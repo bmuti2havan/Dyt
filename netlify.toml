@@ -17,8 +17,18 @@
 # tetiklenen butonlarla degistirildi). Haftalik "Otomatik Mesaj Programi"
 # ise kisi bazinda tekrar-gonderim korumasiyla (bkz. scheduled-weekly.js)
 # geri eklendi - panel kapaliyken bile zamanindan gonderir.
-[functions."scheduled-weekly"]
-  schedule = "*/10 * * * *"
+#
+# 15.10.2026: Otomasyon SIMDILIK DURDURULDU (kullanici istegi) - asagidaki
+# [functions."scheduled-weekly"] blogu bilerek yorum satirina alindi, boylece
+# Netlify bu fonksiyonu bir daha zamanlanmis olarak CAGIRMIYOR (ne 10 dakikada
+# bir kontrol ne de gercek gonderim oluyor). Panel icindeki "Otomatik Mesaj
+# Programi" ekrani ve kayitli waSchedule verisi OLDUGU GIBI DURUYOR, hicbir
+# sey silinmedi - tekrar acmak icin asagidaki 2 satirin basindaki "# "
+# isaretlerini kaldirip (yorumdan cikar) yeniden deploy etmek yeterli.
+# Not: tek tek/elle "WhatsApp gonder" butonlari (send-whatsapp.js) bu
+# degisiklikten ETKILENMEZ, onlar ayri bir fonksiyon ve calismaya devam eder.
+# [functions."scheduled-weekly"]
+#   schedule = "*/10 * * * *"
 
 [functions."scheduled-backup"]
   schedule = "0 9,15 * * *"
