@@ -7276,15 +7276,17 @@ async function handleOk(act){
     c.weight=val('m-weight'); toast('Ölçüm kaydedildi');
   }
   if(act==='measure-edit'){
-    if(!val('m-weight')) return toast('Kilo zorunlu');
     const m0=(c.measures||[]).find(x=>x.id===S.editMeasure);
     if(!m0) return toast('Ölçüm bulunamadı');
+    // Düzenlerken kilo zorunlu DEĞİL: sadece not/çevre ölçüsü güncellemek için
+    // açılıp kiloyu bos biraktığında kayıt reddedilmesin diye (eskiden burası
+    // "Kilo zorunlu" diyip sessizce kaydetmiyordu).
     m0.date=val('m-date')||m0.date; m0.weight=val('m-weight'); m0.waist=val('m-waist');
     m0.hip=val('m-hip'); m0.fat=val('m-fat'); m0.muscle=val('m-muscle'); m0.note=val('m-note');
     m0.edited=Date.now();
     // en guncel olcumu danisan kart ozetinde de yansit (en son tarihli olcumse)
     const latest=[...c.measures].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
-    if(latest&&latest.id===m0.id) c.weight=m0.weight;
+    if(latest&&latest.id===m0.id&&m0.weight) c.weight=m0.weight;
     toast('Ölçüm güncellendi');
   }
   if(act==='appt'){
