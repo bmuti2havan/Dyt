@@ -5403,12 +5403,31 @@ function buildShopping(p){
   Object.values(groups).forEach(list=>list.sort((a,b)=>a.f.n.localeCompare(b.f.n,'tr')));
   return {groups,miss:[...new Set(miss)]};
 }
-function shoppingText(p){
+/* Otomatik listeyi tek satırlık, kategorisiz metinlere çevirir — elle
+   düzenleme kutusunu bu satırlarla doldurmak ve danışana (linke) giden
+   düz listeyi oluşturmak için kullanılır. */
+function shopFlatAuto(p){
   const {groups,miss}=buildShopping(p);
+  const out=[];
+  Object.keys(groups).sort((a,b)=>a.localeCompare(b,'tr')).forEach(cat=>{
+    groups[cat].forEach(it=>out.push(it.f.n+' — '+SHOP_HOUSE(it.f,it.g)));
+  });
+  miss.forEach(x=>out.push(x));
+  return out;
+}
+/* p.shopManual varsa (diyetisyen elle yazmış/düzenlemişse) HER YERDE —
+   admin kopyalama/indirme/WhatsApp'ta VE danışanın link üzerindeki alışveriş
+   listesinde — onun yerine o kullanılır. Yoksa programdan otomatik çıkarılır. */
+function shoppingText(p){
   const c=clientOf(p.clientId);
   const L=['HAFTALIK ALIŞVERİŞ LİSTESİ'];
   if(c) L.push(c.name);
   L.push(esc?trDate(p.start):p.start); L.push('');
+  if(Array.isArray(p.shopManual)&&p.shopManual.length){
+    p.shopManual.forEach(x=>L.push('• '+x));
+    return L.join('\n');
+  }
+  const {groups,miss}=buildShopping(p);
   Object.keys(groups).sort((a,b)=>a.localeCompare(b,'tr')).forEach(cat=>{
     L.push('── '+cat.toLocaleUpperCase('tr')+' ──');
     groups[cat].forEach(it=>L.push('• '+it.f.n+' — '+SHOP_HOUSE(it.f,it.g)));
@@ -5419,29 +5438,57 @@ function shoppingText(p){
 }
 function openShopping(){
   const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
+  const manual=Array.isArray(p.shopManual)&&p.shopManual.length;
   const {groups,miss}=buildShopping(p);
   const cats=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'tr'));
   const total=cats.reduce((a,c)=>a+groups[c].length,0);
+  const editBox=`
+    <div class="shop-g" style="margin-top:${(total||miss.length)?'18px':'0'}">
+      <h4>✏️ Elle ekle / düzenle</h4>
+      <p style="margin:0 0 8px;color:var(--muted);font-size:12.5px">Her satıra bir ürün yaz. <b>Kaydet</b>'e basınca danışana giden liste (link, kopyalama, indirme, WhatsApp) — otomatik listenin yerine — aynen burada yazdığın liste olur. Otomatik listeye dönmek istersen kutuyu boşaltıp kaydet, ya da aşağıdaki "Otomatik listeyi getir"e bas.</p>
+      <textarea id="shop-manual" rows="7" placeholder="Örn:&#10;1 kg nohut&#10;2 litre yarım yağlı süt&#10;Tam tahıllı ekmek" style="width:100%;font-family:inherit;border:1px solid var(--line);background:#fff;border-radius:var(--r-s);padding:9px 11px;outline:0;resize:vertical">${esc((manual?p.shopManual:shopFlatAuto(p)).join('\n'))}</textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" data-shop="save-manual">💾 Kaydet</button>
+        <button class="btn btn-sm" data-shop="autofill">🔄 Otomatik listeyi getir</button>
+      </div>
+      ${manual?'<p class="hint" style="margin:8px 0 0">🖊️ Şu an danışana giden liste elle düzenlenmiş durumda.</p>':''}
+    </div>`;
   modal('Alışveriş listesi',
-    total||miss.length? `
-    <p style="margin:0 0 14px;color:var(--muted);font-size:13px">
-      7 günlük programdaki tüm satırlar toplanıp gruplandı. Miktarlar <b>ev ölçüsü</b> olarak yazıldı — sağdaki soluk yazı gram karşılığıdır ve yalnızca bu ekranda görünür. Danışana giden liste, kopyalama ve Word çıktısında sadece ev ölçüsü yer alır.</p>
+    total||miss.length||manual? `
+    ${manual?`<p style="margin:0 0 14px;color:var(--muted);font-size:13px">Bu program için elle düzenlenmiş bir liste kayıtlı — danışana o gidiyor. Aşağıdaki otomatik liste sadece karşılaştırma içindir.</p>`:
+    `<p style="margin:0 0 14px;color:var(--muted);font-size:13px">
+      7 günlük programdaki tüm satırlar toplanıp gruplandı. Miktarlar <b>ev ölçüsü</b> olarak yazıldı — sağdaki soluk yazı gram karşılığıdır ve yalnızca bu ekranda görünür. Danışana giden liste, kopyalama ve Word çıktısında sadece ev ölçüsü yer alır.</p>`}
     ${cats.map(cat=>`<div class="shop-g"><h4>${esc(cat)}</h4>
       ${groups[cat].map(it=>`<div class="shop-i"><span>${esc(it.f.n)}</span>
         <b class="num">${SHOP_HOUSE(it.f,it.g)}</b>
         <small>${SHOP_UNIT(it.g)}</small></div>`).join('')}</div>`).join('')}
     ${miss.length?`<div class="shop-g"><h4>Ayrıca</h4>
       ${miss.map(x=>`<div class="shop-i"><span>${esc(x)}</span><b class="num">—</b><small>miktar yok</small></div>`).join('')}</div>`:''}
+    ${editBox}
     <div style="display:grid;gap:8px;margin-top:16px">
       <button class="btn" data-shop="copy">Listeyi kopyala</button>
       <button class="btn" data-shop="txt">Metin dosyası indir</button>
       <button class="btn" data-shop="wa">WhatsApp ile gönder</button>
     </div>`
-    : '<div class="empty"><h4>Liste boş</h4><p>Programa öğün yazdığınızda alışveriş listesi otomatik oluşur.</p></div>',
+    : `<div class="empty"><h4>Liste boş</h4><p>Programa öğün yazdığınızda alışveriş listesi otomatik oluşur — ya da aşağıya elle yazabilirsin.</p></div>${editBox}`,
     'Kapat','close','600px');
 }
 async function doShop(kind){
   const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
+  if(kind==='save-manual'){
+    const v=document.getElementById('shop-manual');
+    const lines=(v?v.value:'').split('\n').map(x=>x.trim()).filter(Boolean);
+    p.shopManual=lines.length?lines:null;
+    await save();
+    toast(lines.length?'Liste kaydedildi — danışana bu liste gidecek':'Elle liste temizlendi, otomatik listeye dönüldü');
+    openShopping();
+    return;
+  }
+  if(kind==='autofill'){
+    const v=document.getElementById('shop-manual');
+    if(v) v.value=shopFlatAuto(p).join('\n');
+    return;
+  }
   const txt=shoppingText(p), c=clientOf(p.clientId);
   if(kind==='copy'){
     try{ await navigator.clipboard.writeText(txt); toast('Alışveriş listesi kopyalandı'); }
@@ -7061,16 +7108,21 @@ function openModal(kind){
     const p=DB.plans.find(x=>x.id===S.plan); migratePlan(p);
     const ns=addDays(p.start,7);
     return modal('Programı kopyala / başka danışana ata',`
-      <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Aynı içerikle yeni, BAĞIMSIZ bir program oluşturulur; üzerinde değişiklik yaparsın, bu kopya sadece aşağıda seçtiğin danışanın kendi dosyasında görünür. Danışanı değiştirirsen bu, programı o kişiye atamanın yoludur — eski program olduğu gibi kalır.</p>
+      <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Aynı içerikle yeni, BAĞIMSIZ bir program oluşturulur; bu kopya sadece aşağıda seçtiğin danışanın kendi dosyasında görünür — eski program olduğu gibi kalır.</p>
       <div class="form-grid">
-        <div class="field full"><label>Yeni program adı</label><input id="cp-name" value="${esc(p.name)}"></div>
-        <div class="field"><label>Yeni başlangıç</label><input id="cp-start" type="date" value="${ns}"></div>
-        <div class="field"><label>1. gün</label><select id="cp-firstday">${DAY_FULL.map((d,i)=>`<option value="${i}" ${((new Date(ns).getDay()+6)%7)===i?'selected':''}>${d}</option>`).join('')}</select></div>
-        <div class="field full"><label>Danışan</label><select id="cp-client">${DB.clients.filter(c=>!c.archived).map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
-        <div class="field full"><label><input type="checkbox" id="cp-photos" checked style="width:auto;margin-right:8px">Fotoğrafları da kopyala</label></div>
-        <div class="field full"><label><input type="checkbox" id="cp-close" style="width:auto;margin-right:8px">Eski programı "Tamamlandı" yap</label>
-          <span class="hint">Sadece AYNI danışana yeni dönem açıyorsan işaretle. Başka bir danışana atıyorsan işaretleme — eski program kendi danışanında aktif kalmaya devam eder.</span></div>
-      </div>`,'Kopyala','plan-copy','620px');
+        <div class="field full"><label>Danışan *</label><select id="cp-client">${DB.clients.filter(c=>!c.archived).map(c=>`<option value="${c.id}" ${c.id===p.clientId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+      </div>
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;color:var(--muted);font-size:12.5px">⚙️ Gelişmiş — program adı, tarih, fotoğraflar</summary>
+        <div class="form-grid" style="margin-top:10px">
+          <div class="field full"><label>Yeni program adı</label><input id="cp-name" value="${esc(p.name)}"></div>
+          <div class="field"><label>Yeni başlangıç</label><input id="cp-start" type="date" value="${ns}"></div>
+          <div class="field"><label>1. gün</label><select id="cp-firstday">${DAY_FULL.map((d,i)=>`<option value="${i}" ${((new Date(ns).getDay()+6)%7)===i?'selected':''}>${d}</option>`).join('')}</select></div>
+          <div class="field full"><label><input type="checkbox" id="cp-photos" checked style="width:auto;margin-right:8px">Fotoğrafları da kopyala</label></div>
+          <div class="field full"><label><input type="checkbox" id="cp-close" style="width:auto;margin-right:8px">Eski programı "Tamamlandı" yap</label>
+            <span class="hint">Sadece AYNI danışana yeni dönem açıyorsan işaretle. Başka bir danışana atıyorsan işaretleme — eski program kendi danışanında aktif kalmaya devam eder.</span></div>
+        </div>
+      </details>`,'Kopyala / Ata','plan-copy','620px');
   }
   if(kind==='plan-tpl'){
     const p=DB.plans.find(x=>x.id===S.plan);
@@ -7105,13 +7157,18 @@ function openModal(kind){
     const T=tplGet(S.assignTpl); if(!T) return toast('Şablon bulunamadı');
     const c0=clientOf(S.newPlanClient)||DB.clients[0];
     return modal('"'+esc(T.t.name)+'" şablonunu danışana ata',`
-      <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Şablonun BİR KOPYASI seçtiğin danışana ait yeni, bağımsız bir program olarak oluşturulur — üzerinde değişiklik yaparsın, şablonun kendisi etkilenmez ve başka danışanlara tekrar kullanılabilir kalır. Yeni program sadece bu danışanın kendi dosyasında görünür.</p>
+      <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Şablonun BİR KOPYASI seçtiğin danışana ait yeni, bağımsız bir program olarak oluşturulur — şablonun kendisi etkilenmez, başka danışanlara tekrar kullanılabilir kalır. Yeni program sadece bu danışanın kendi dosyasında görünür.</p>
       <div class="form-grid">
         <div class="field full"><label>Danışan *</label><select id="ta-client">${DB.clients.filter(x=>!x.archived).map(x=>`<option value="${x.id}" ${x.id===c0.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
-        <div class="field full"><label>Program adı</label><input id="ta-name" value="${esc(T.t.name)}"></div>
-        <div class="field"><label>Başlangıç tarihi</label><input id="ta-start" type="date" value="${todayISO()}"></div>
-        <div class="field"><label>1. gün hangi gün?</label><select id="ta-firstday">${DAY_FULL.map((d,i)=>`<option value="${i}" ${((new Date().getDay()+6)%7)===i?'selected':''}>${d}</option>`).join('')}</select></div>
-      </div>`,'Danışana ata','tpl-assign','560px');
+      </div>
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;color:var(--muted);font-size:12.5px">⚙️ Gelişmiş — program adı, başlangıç tarihi</summary>
+        <div class="form-grid" style="margin-top:10px">
+          <div class="field full"><label>Program adı</label><input id="ta-name" value="${esc(T.t.name)}"></div>
+          <div class="field"><label>Başlangıç tarihi</label><input id="ta-start" type="date" value="${todayISO()}"></div>
+          <div class="field"><label>1. gün hangi gün?</label><select id="ta-firstday">${DAY_FULL.map((d,i)=>`<option value="${i}" ${((new Date().getDay()+6)%7)===i?'selected':''}>${d}</option>`).join('')}</select></div>
+        </div>
+      </details>`,'Danışana ata','tpl-assign','560px');
   }
 
   const c=clientOf(S.client);
@@ -7447,7 +7504,7 @@ async function handleOk(act){
       days.forEach(d=>{d.photo=''; d.meals.forEach(m=>m.photo='');});
     const np={...JSON.parse(JSON.stringify(src)),id:uid('p'),days,
       name:val('cp-name')||src.name,start:val('cp-start')||todayISO(),
-      firstDay:+val('cp-firstday'),clientId:val('cp-client'),status:'Aktif'};
+      firstDay:+val('cp-firstday'),clientId:val('cp-client'),status:'Aktif',hidden:false};
     DB.plans.unshift(np);
     if(document.getElementById('cp-close').checked) src.status='Tamamlandı';
     S.plan=np.id; S.day=0; toast('Program kopyalandı');
@@ -10686,13 +10743,16 @@ function svShopAiCacheGet(raw){
 }
 function svShopAiCacheSet(raw,items){ try{ localStorage.setItem(svShopAiKey(),JSON.stringify({raw,items,at:Date.now()})); }catch(e){} }
 async function svOpenShopModal(){
-  const raw=svBuildShopRawItems();
   const planName=(window.__svCurPlan&&window.__svCurPlan.name)||'';
-  if(!raw.length){
+  // Diyetisyen bu program için listeyi elle yazmış/düzenlemişse, yapay
+  // zekâya hiç gitmeden doğrudan o liste gösterilir.
+  const manual=window.__svCurPlan&&Array.isArray(window.__svCurPlan.shopManual)&&window.__svCurPlan.shopManual.length?window.__svCurPlan.shopManual:null;
+  const raw=svBuildShopRawItems();
+  if(!manual&&!raw.length){
     modal('🛒 Alışveriş Listesi',`<p style="color:var(--muted);margin:0">Güncel programında henüz öğün girilmemiş, bu yüzden listelenecek bir ürün yok.</p>`,'Kapat','close','440px');
     return;
   }
-  let aiItems=svShopAiCacheGet(raw);
+  let aiItems=manual||svShopAiCacheGet(raw);
   if(!aiItems){
     modal('🛒 Alışveriş Listesi',`<div style="padding:34px 0;text-align:center;color:var(--muted)"><div style="font-size:26px;margin-bottom:10px">🧠</div>Akıllı liste hazırlanıyor…</div>`,'Kapat','close','440px');
     try{
