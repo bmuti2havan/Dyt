@@ -5445,10 +5445,11 @@ function openShopping(){
   const editBox=`
     <div class="shop-g" style="margin-top:${(total||miss.length)?'18px':'0'}">
       <h4>✏️ Elle ekle / düzenle</h4>
-      <p style="margin:0 0 8px;color:var(--muted);font-size:12.5px">Her satıra bir ürün yaz. <b>Kaydet</b>'e basınca danışana giden liste (link, kopyalama, indirme, WhatsApp) — otomatik listenin yerine — aynen burada yazdığın liste olur. Otomatik listeye dönmek istersen kutuyu boşaltıp kaydet, ya da aşağıdaki "Otomatik listeyi getir"e bas.</p>
+      <p style="margin:0 0 8px;color:var(--muted);font-size:12.5px">Kutuya elle yazabilir, ya da başka bir yerden (not, WhatsApp...) kopyaladığın listeyi doğrudan içine yapıştırabilirsin (Ctrl+V) — ya da aşağıdaki "Panodan yapıştır" butonuna bas, kopyaladığın liste otomatik gelsin. Her satır bir ürün olmalı. <b>Kaydet</b>'e basınca danışana giden liste (link, kopyalama, indirme, WhatsApp) — otomatik listenin yerine — aynen burada yazdığın liste olur. Otomatik listeye dönmek istersen kutuyu boşaltıp kaydet, ya da "Otomatik listeyi getir"e bas.</p>
       <textarea id="shop-manual" rows="7" placeholder="Örn:&#10;1 kg nohut&#10;2 litre yarım yağlı süt&#10;Tam tahıllı ekmek" style="width:100%;font-family:inherit;border:1px solid var(--line);background:#fff;border-radius:var(--r-s);padding:9px 11px;outline:0;resize:vertical">${esc((manual?p.shopManual:shopFlatAuto(p)).join('\n'))}</textarea>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <button class="btn btn-sm btn-primary" data-shop="save-manual">💾 Kaydet</button>
+        <button class="btn btn-sm" data-shop="paste">📋 Panodan yapıştır</button>
         <button class="btn btn-sm" data-shop="autofill">🔄 Otomatik listeyi getir</button>
       </div>
       ${manual?'<p class="hint" style="margin:8px 0 0">🖊️ Şu an danışana giden liste elle düzenlenmiş durumda.</p>':''}
@@ -5487,6 +5488,17 @@ async function doShop(kind){
   if(kind==='autofill'){
     const v=document.getElementById('shop-manual');
     if(v) v.value=shopFlatAuto(p).join('\n');
+    return;
+  }
+  if(kind==='paste'){
+    const v=document.getElementById('shop-manual');
+    try{
+      const clip=(await navigator.clipboard.readText()||'').trim();
+      if(!clip) return toast('Pano boş görünüyor');
+      if(v) v.value=clip;
+    }catch(e){
+      toast('Panoya otomatik erişilemedi — tarayıcı izin istiyor olabilir. Kutuya tıklayıp doğrudan Ctrl+V ile yapıştırabilirsin.',6000);
+    }
     return;
   }
   const txt=shoppingText(p), c=clientOf(p.clientId);
