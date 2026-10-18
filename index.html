@@ -1893,6 +1893,7 @@ async function loadDB(){
   if(!DB.planTpls) DB.planTpls=[];
   if(!DB.favMeals) DB.favMeals=[];
   if(!DB.savedRecipes) DB.savedRecipes=[];
+  if(!DB.myPhotos) DB.myPhotos=[];
   logoUpgrade();
   if(PV.ok){
     try{ PV.map=await pvLoadAll(); phHydrate(DB); }catch(e){}
@@ -7616,8 +7617,8 @@ const avColor=n=>{
 
 const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
   {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},
-  {s:'Sistem'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
-const TITLES={wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar'};
+  {s:'Sistem'},{id:'myphotos',ic:'camera',t:'Fotoğraflarım'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
+const TITLES={wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Fotoğraflarım'};
 function pageSearch(){
   const q=(S.gq||'').toLocaleLowerCase('tr');
   const cl=DB.clients.filter(c=>c.name.toLocaleLowerCase('tr').includes(q));
@@ -8357,6 +8358,31 @@ function pageTrash(){
   </section>`;
 }
 
+/* ══════════════ 📷 Fotoğraflarım — tamamen özel, kimseyle paylaşılmaz ══════════════
+   DB.myPhotos buildShareSnapshot()'a hiç girmiyor, dolayısıyla danışan
+   linkine, Word/PDF çıktılarına ya da başka hiçbir yere gitmiyor —
+   sadece panelde, sadece sana görünen kişisel bir arşiv. */
+function pageMyPhotos(){
+  const q=(S.myPhotosQ||'').toLocaleLowerCase('tr');
+  const all=(DB.myPhotos||[]).slice().sort((a,b)=>(+b.at||0)-(+a.at||0));
+  const list=q? all.filter(x=>(x.name||'').toLocaleLowerCase('tr').includes(q)) : all;
+  return `<div class="page-head"><div><h1>Fotoğraflarım</h1>
+    <p>Buraya yüklediğin fotoğraflar sadece sende kalır — danışanlara, paylaşım linkine ya da herhangi bir belgeye hiçbir şekilde eklenmez. Tamamen kişisel arşivin.</p></div>
+    <div class="spacer"></div>
+    <label class="btn btn-primary" style="cursor:pointer">${ic('plus',15)} Fotoğraf yükle<input type="file" id="mp-upload" accept="image/*" multiple style="display:none"></label>
+  </div>
+  ${all.length?`<div class="searchbar" style="margin-bottom:12px">${ic('search',17)}<input id="mp-q" value="${esc(S.myPhotosQ||'')}" placeholder="Dosya adına göre ara"></div>
+  <p class="hint" style="margin:0 0 12px">${all.length} fotoğraf kayıtlı${list.length!==all.length?' · '+list.length+' tanesi gösteriliyor':''}</p>
+  <div class="gal-grid">${list.map(x=>`
+    <div class="gal-item">
+      <button data-mp-open="${x.id}" title="${esc(x.name||'')}"><img src="${x.d}" alt=""></button>
+      <span class="gal-lbl">${esc(x.name||'—')}</span>
+      <button class="gal-x" data-mp-del="${x.id}" title="Sil">✕</button>
+    </div>`).join('')}</div>`
+  :`<div class="empty"><div class="eic">${ic('camera',24)}</div><h4>Henüz fotoğraf yok</h4><p>Sağ üstteki "Fotoğraf yükle" ile bilgisayarından istediğin kadar fotoğraf seçebilirsin — tek tek ya da toplu (200-300 tane birden seçmek de sorun değil, sırayla işlenir).</p></div>`}
+  <div id="mpProgress" style="display:none;margin-top:14px;color:var(--muted);font-size:13px"></div>`;
+}
+
 function pageInvoices(){
   const inv=DB.clients.filter(c=>c.invoiced), non=DB.clients.filter(c=>!c.invoiced && !c.archived);
   const total=inv.reduce((a,c)=>a+(+c.invoiceAmount||0),0);
@@ -8387,7 +8413,7 @@ function pageInvoices(){
   </section>`;
 }
 
-const PAGES={wa:pageWa,content:pageContent,trash:pageTrash,invoices:pageInvoices,cal:pageCal,search:pageSearch,panel:pagePanel,clients:pageClients,client:pageClient,appts:pageAppts,plans:pagePlans,planEdit:pagePlanEdit,foods:pageFoods,settings:pageSettings};
+const PAGES={wa:pageWa,content:pageContent,trash:pageTrash,invoices:pageInvoices,cal:pageCal,search:pageSearch,panel:pagePanel,clients:pageClients,client:pageClient,appts:pageAppts,plans:pagePlans,planEdit:pagePlanEdit,foods:pageFoods,settings:pageSettings,myphotos:pageMyPhotos};
 
 function render(){
   document.getElementById('nav').innerHTML=NAV.map(i=>i.s?`<div class="nav-sec">${i.s}</div>`:
@@ -8693,6 +8719,12 @@ document.addEventListener('click',async e=>{
   const gd=t.closest('[data-gal-del]'); if(gd){
     DB.gallery=(DB.gallery||[]).filter(x=>x.id!==gd.dataset.galDel);
     await save(); openGallery(S.galTarget); return; }
+  const mpOpen=t.closest('[data-mp-open]'); if(mpOpen){
+    const x=(DB.myPhotos||[]).find(p=>p.id===mpOpen.dataset.mpOpen); if(x) window.open(x.d,'_blank');
+    return; }
+  const mpDel=t.closest('[data-mp-del]'); if(mpDel){
+    DB.myPhotos=(DB.myPhotos||[]).filter(x=>x.id!==mpDel.dataset.mpDel);
+    await save(); toast('Fotoğraf silindi'); render(); return; }
 
   const qa=t.closest('[data-qa-add]'); if(qa){
     const mi=+qa.dataset.qaAdd;
@@ -8945,6 +8977,8 @@ document.addEventListener('input',e=>{
   }
   if(e.target.id==='q'){ S.q=e.target.value; render();
     const i=document.getElementById('q'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }
+  if(e.target.id==='mp-q'){ S.myPhotosQ=e.target.value; render();
+    const i=document.getElementById('mp-q'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }
   if(e.target.id==='pst-raw'){ S.pasteRaw=e.target.value; }
   if(e.target.id==='it-food'||e.target.id==='it-gram'){
     const f=DB.foods.find(x=>x.n.toLocaleLowerCase('tr')===val('it-food').toLocaleLowerCase('tr'));
@@ -8959,6 +8993,27 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',async e=>{
   if(e.target.id==='pst-days'){ S.pasteDays=+e.target.value||S.pasteDays; }
   if(e.target.id==='pst-tone'){ S.pasteTone=e.target.value||S.pasteTone; }
+  if(e.target.id==='mp-upload' && e.target.files && e.target.files.length){
+    const files=Array.from(e.target.files);
+    DB.myPhotos=DB.myPhotos||[];
+    const prog=document.getElementById('mpProgress');
+    if(prog) prog.style.display='block';
+    let okN=0, failN=0;
+    for(let i=0;i<files.length;i++){
+      const f=files[i];
+      if(prog) prog.textContent=`Yükleniyor… ${i+1}/${files.length}`;
+      try{
+        if(!f.type.startsWith('image/')){ failN++; continue; }
+        const data=await shrink(f,1400,0.78,false);
+        DB.myPhotos.unshift({id:uid('mp'),name:f.name,d:data,at:Date.now()});
+        okN++;
+      }catch(err){ failN++; }
+    }
+    await save();
+    toast(okN+' fotoğraf eklendi'+(failN?', '+failN+' tanesi eklenemedi (resim değil ya da bozuk)':''));
+    render();
+    return;
+  }
   const docUp=e.target.closest('[data-doc-upload]');
   if(docUp && docUp.files && docUp.files.length){
     const cc=DB.clients.find(x=>x.id===docUp.dataset.docUpload);
