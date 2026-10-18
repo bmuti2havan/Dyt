@@ -8723,7 +8723,11 @@ document.addEventListener('click',async e=>{
     DB.gallery=(DB.gallery||[]).filter(x=>x.id!==gd.dataset.galDel);
     await save(); openGallery(S.galTarget); return; }
   const mpOpen=t.closest('[data-mp-open]'); if(mpOpen){
-    const x=(DB.myPhotos||[]).find(p=>p.id===mpOpen.dataset.mpOpen); if(x) window.open(x.d,'_blank');
+    const x=(DB.myPhotos||[]).find(p=>p.id===mpOpen.dataset.mpOpen);
+    // window.open(dataURL) bazı mobil tarayıcılarda (ör. Chrome/Android)
+    // boş bir about:blank sekmesi açıp görseli hiç göstermiyor — bunun
+    // yerine doğrudan burada, modal içinde büyük gösteriyoruz.
+    if(x) modal(esc(x.name||'Fotoğraf'),`<img src="${x.d}" alt="" style="width:100%;height:auto;border-radius:10px;display:block">`,'Kapat','close','720px');
     return; }
   const mpDel=t.closest('[data-mp-del]'); if(mpDel){
     DB.myPhotos=(DB.myPhotos||[]).filter(x=>x.id!==mpDel.dataset.mpDel);
