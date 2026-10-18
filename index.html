@@ -8369,7 +8369,10 @@ function pageMyPhotos(){
   return `<div class="page-head"><div><h1>Fotoğraflarım</h1>
     <p>Buraya yüklediğin fotoğraflar sadece sende kalır — danışanlara, paylaşım linkine ya da herhangi bir belgeye hiçbir şekilde eklenmez. Tamamen kişisel arşivin.</p></div>
     <div class="spacer"></div>
-    <label class="btn btn-primary" style="cursor:pointer">${ic('plus',15)} Fotoğraf yükle<input type="file" id="mp-upload" accept="image/*" multiple style="display:none"></label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <label class="btn btn-primary" style="cursor:pointer">${ic('plus',15)} Fotoğraf yükle<input type="file" id="mp-upload" accept="image/*" multiple style="display:none"></label>
+      <label class="btn" style="cursor:pointer">📁 Klasör yükle<input type="file" id="mp-upload-folder" webkitdirectory directory multiple style="display:none"></label>
+    </div>
   </div>
   ${all.length?`<div class="searchbar" style="margin-bottom:12px">${ic('search',17)}<input id="mp-q" value="${esc(S.myPhotosQ||'')}" placeholder="Dosya adına göre ara"></div>
   <p class="hint" style="margin:0 0 12px">${all.length} fotoğraf kayıtlı${list.length!==all.length?' · '+list.length+' tanesi gösteriliyor':''}</p>
@@ -8993,7 +8996,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('change',async e=>{
   if(e.target.id==='pst-days'){ S.pasteDays=+e.target.value||S.pasteDays; }
   if(e.target.id==='pst-tone'){ S.pasteTone=e.target.value||S.pasteTone; }
-  if(e.target.id==='mp-upload' && e.target.files && e.target.files.length){
+  if((e.target.id==='mp-upload'||e.target.id==='mp-upload-folder') && e.target.files && e.target.files.length){
     const files=Array.from(e.target.files);
     DB.myPhotos=DB.myPhotos||[];
     const prog=document.getElementById('mpProgress');
