@@ -1639,8 +1639,8 @@ function docPreview(pl,themeKey,fh,fb){
   const ms=day.meals.filter(m=>m.title||(m.lines||[]).length).slice(0,2);
   const ornek=ms.length?ms:[{name:'Kahvaltı',emoji:'🥐',title:'Örnek öğün başlığı',lines:['4 yemek kaşığı yoğurt','1 küçük şeftali'],tip:''}];
 
-  const gun=`<div class="pv-day" style="background:${hx(T.gunFill[di])};${T.kapak==='rule'?'border:1px solid '+hx(T.cizgi)+';':''}">
-      <div class="pv-dh" style="font-family:'${H}',serif;color:${hx(T.gunRenk[di])}">${DAY_EMOJI[di]}&nbsp; ${di+1}. GÜN</div>
+  const gun=`<div class="pv-day" style="background:${hx(T.gunFill[di%T.gunFill.length])};${T.kapak==='rule'?'border:1px solid '+hx(T.cizgi)+';':''}">
+      <div class="pv-dh" style="font-family:'${H}',serif;color:${hx(T.gunRenk[di%T.gunRenk.length])}">${DAY_EMOJI[di%DAY_EMOJI.length]}&nbsp; ${di+1}. GÜN</div>
       ${day.sub?`<div class="pv-ds" style="color:${hx(T.body)}">${esc(String(day.sub).slice(0,60))}</div>`:''}</div>
     ${ornek.map((m,i)=>{
       const th=T.ogun[m.name]||[T.brand,T.kutu.fill];
@@ -1683,9 +1683,9 @@ function docPreview(pl,themeKey,fh,fb){
     <table class="pv-tbl"><tr>${['GÜN',...cols].map(x=>
       `<th style="background:${hx(T.brand)};font-family:'${H}',serif">${esc(x)}</th>`).join('')}</tr>
       ${(dolu.length?dolu:[{d:pl.days[0],i:0}]).map(({d,i})=>`<tr>
-        <td style="background:${hx(T.gunFill[i])};color:${hx(T.gunRenk[i])};font-weight:700">${DAY_EMOJI[i]} ${i+1}</td>
+        <td style="background:${hx(T.gunFill[i%T.gunFill.length])};color:${hx(T.gunRenk[i%T.gunRenk.length])};font-weight:700">${DAY_EMOJI[i%DAY_EMOJI.length]} ${i+1}</td>
         ${cols.map((_,ci)=>{ const mm=d.meals[ci];
-          return `<td style="background:${hx(T.gunFill[i])};color:${hx(T.body)}">${mm&&(mm.title||(mm.lines||[]).length)?esc(String(mm.title||(mm.lines||[])[0]||'').slice(0,16)):'—'}</td>`;}).join('')}
+          return `<td style="background:${hx(T.gunFill[i%T.gunFill.length])};color:${hx(T.body)}">${mm&&(mm.title||(mm.lines||[]).length)?esc(String(mm.title||(mm.lines||[])[0]||'').slice(0,16)):'—'}</td>`;}).join('')}
       </tr>`).join('')}
     </table></div>`;
   return sayfa1+sayfa2;
@@ -3981,7 +3981,7 @@ function drawPaste(state,err){
       <span class="hint">Word'den, WhatsApp'tan ya da elle yazdığın not — dağınık olması sorun değil.</span></div>
     <div class="form-grid">
       <div class="field"><label>Kaç gün</label>
-        <select id="pst-days">${[1,3,5,7].map(n=>`<option value="${n}" ${(S.pasteDays||7)===n?'selected':''}>${n} gün</option>`).join('')}</select></div>
+        <select id="pst-days">${[1,3,5,7,8].map(n=>`<option value="${n}" ${(S.pasteDays||7)===n?'selected':''}>${n} gün</option>`).join('')}</select></div>
       <div class="field"><label>Anlatım dili</label>
         <select id="pst-tone">
           <option value="samimi" ${S.pasteTone==='samimi'?'selected':''}>Samimi ve teşvik edici</option>
@@ -4030,6 +4030,10 @@ async function runPaste(){
 async function applyPaste(){
   const p=DB.plans.find(x=>x.id===S.plan); if(!p||!S.pasteRes) return;
   const withPhoto=!!((document.getElementById('pst-photo')||{}).checked);
+  while(p.days.length<S.pasteRes.days.length){                       // AI 8 gun ürettiyse plani da 8 güne büyüt
+    const i=p.days.length;
+    p.days.push({sub:DAY_SUB[i%DAY_SUB.length],photo:'',meals:MEAL_PRESET.map(m=>({name:m[0],emoji:m[1],title:'',lines:[],photo:''}))});
+  }
   S.pasteRes.days.forEach((d,di)=>{
     if(di>=p.days.length) return;
     const day=p.days[di];
@@ -4544,7 +4548,7 @@ async function exportDocx(share){
         .concat(cols.map(n=>wCell(cw2,wP(n.toLocaleUpperCase('tr'),{align:'center',b:true,size:15,color:'FFFFFF',font:TF,after:0}),TB,'center'))).join('');
       const rows=[head];
       dolu.forEach(({d,i})=>{
-        let cells=wCell(gw,wP(DAY_EMOJI[i]+' '+(i+1)+'. GÜN',{b:true,size:15,color:T.gunRenk[i],font:TF,after:0}),T.gunFill[i],'center');
+        let cells=wCell(gw,wP(DAY_EMOJI[i%DAY_EMOJI.length]+' '+(i+1)+'. GÜN',{b:true,size:15,color:T.gunRenk[i%T.gunRenk.length],font:TF,after:0}),T.gunFill[i%T.gunFill.length],'center');
         colIdx.forEach(ci=>{
           const mm=d.meals[ci]&&(d.meals[ci].title||(d.meals[ci].lines||[]).length)?d.meals[ci]:null;
           let inner;
@@ -4554,7 +4558,7 @@ async function exportDocx(share){
             (mm.lines||[]).slice(0,3).forEach(l=>{inner+=wP('· '+l,{size:13,color:TC,after:20});});
             if((mm.lines||[]).length>3) inner+=wP('· +'+((mm.lines.length)-3)+' madde',{size:12,color:T.not2,after:0});
           }
-          cells+=wCell(cw2,inner,T.gunFill[i],'top');
+          cells+=wCell(cw2,inner,T.gunFill[i%T.gunFill.length],'top');
         });
         rows.push(cells);
       });
@@ -4573,9 +4577,9 @@ async function exportDocx(share){
        Word gerektiğinde kendi sayfa sonunu veriyor.*/
     if(idx===0 && summaryRendered) body+=wBreak();
     else if(idx>0) body+=wP('',{size:6,after:0,before:160});
-    let head=wP(`${DAY_EMOJI[i]}  ${i+1}. GÜN  ·  ${dFull(p,i).toLocaleUpperCase('tr')}`,{b:true,size:30,color:T.gunRenk[i],font:TF,after:d.sub?40:0});
+    let head=wP(`${DAY_EMOJI[i%DAY_EMOJI.length]}  ${i+1}. GÜN  ·  ${dFull(p,i).toLocaleUpperCase('tr')}`,{b:true,size:30,color:T.gunRenk[i%T.gunRenk.length],font:TF,after:d.sub?40:0});
     if(d.sub) head+=wP(d.sub,{i:true,size:19,color:TC,after:0});
-    body+=wTable([W],wCell(W,head,T.gunFill[i]), T.kapak==='rule'?T.cizgi:'');
+    body+=wTable([W],wCell(W,head,T.gunFill[i%T.gunFill.length]), T.kapak==='rule'?T.cizgi:'');
     if(d.photo){ const r=addImg(d.photo);
       if(r){ const [cw,ch]=fitEMU(DIM[d.photo]||{w:16,h:9},DAYPH_MAXW,DAYPH_MAXH);
         body+=wImg(r,imgId,cw,ch)+wP('',{size:10,after:80}); } }
@@ -4759,8 +4763,8 @@ async function pdfDayHtml(p,i){
   const filled=d.meals.filter(m=>m.lines.length||m.title);
   if(!filled.length) return '';
   let h=`<div style="padding:30px 46px 0">
-    <div style="display:flex;align-items:center;gap:9px;padding:9px 16px;background:${DAY_WEB[i]};border-radius:10px;color:#fff">
-      <span style="font-size:17px">${DAY_EMOJI[i]}</span>
+    <div style="display:flex;align-items:center;gap:9px;padding:9px 16px;background:${DAY_WEB[i%DAY_WEB.length]};border-radius:10px;color:#fff">
+      <span style="font-size:17px">${DAY_EMOJI[i%DAY_EMOJI.length]}</span>
       <span style="font-weight:700;font-size:14px;letter-spacing:.02em">${esc(dFull(p,i)).toLocaleUpperCase('tr')}</span>
       ${d.sub?`<span style="opacity:.85;font-size:11.5px">— ${esc(d.sub)}</span>`:''}
     </div>
@@ -6259,7 +6263,7 @@ function pageClient(){
       ${ps.length? `<table><thead><tr><th>Program</th><th>Tarih</th><th class="t-right">Dolu öğün</th><th>Durum</th><th></th></tr></thead><tbody>
         ${ps.map(p=>{migratePlan(p);const f=p.days.reduce((a,d)=>a+d.meals.filter(m=>m.lines.length).length,0);
         return `<tr><td class="t-name">${esc(p.name)}</td><td class="num">${trDate(p.start)}</td>
-        <td class="t-right num">${f}/${7*MEAL_PRESET.length}</td>
+        <td class="t-right num">${f}/${p.days.length*MEAL_PRESET.length}</td>
         <td><span class="tag ${p.status==='Aktif'?'tag-ok':'tag-warn'}"><i class="dot"></i>${esc(p.status)}</span></td>
         <td class="t-right"><button class="btn btn-sm" data-plan="${p.id}">Aç</button></td></tr>`}).join('')}
       </tbody></table>`:`<div class="empty"><div class="eic">${ic('plus',24)}</div><h4>Program yok</h4><p>7 günlük, öğün öğün program hazırlayın; besin kütüphanesinden seçtiğinizde kalori ve makrolar otomatik hesaplanır.</p><button class="btn btn-primary" data-newplan="${c.id}">+ Yeni program oluştur</button></div>`}
@@ -6396,7 +6400,7 @@ function pagePlans(){
     ${shown.map(p=>{const c=clientOf(p.clientId);migratePlan(p);const f=p.days.reduce((a,d)=>a+d.meals.filter(m=>m.lines.length).length,0);const nt=planNote(p);
     return `<tr><td><div class="t-name">${esc(p.name)}</div>${nt?`<div class="t-sub priv-snip" title="${esc(nt)}">🔒 ${esc(oneLine(nt,110))}</div>`:''}</td><td>${esc(c?c.name:'—')}</td>
     <td><select class="season-sel" data-plan-season="${p.id}" title="Mevsim">${seasonOpts(p.season||'')}</select></td>
-    <td class="num">${trDate(p.start)}</td><td class="t-right num">${f}/${7*MEAL_PRESET.length}</td>
+    <td class="num">${trDate(p.start)}</td><td class="t-right num">${f}/${p.days.length*MEAL_PRESET.length}</td>
     <td><span class="tag ${p.status==='Aktif'?'tag-ok':'tag-warn'}"><i class="dot"></i>${esc(p.status)}</span></td>
     <td class="t-right" style="white-space:nowrap">
       ${isHiddenView?`<button class="btn btn-sm" data-plan-unhide="${p.id}" title="Genel listeye geri getir">👁 Göster</button>`
@@ -6486,7 +6490,7 @@ function pagePlanEdit(){
         <h1>${esc(p.name)}</h1>
         <p>${esc(p.sub)}</p>
         <div class="meta"><span>Başlangıç <b>${trDate(p.start)}</b></span>
-          <span>Dolu öğün <b>${filled}/${7*MEAL_PRESET.length}</b></span><span>Fotoğraf <b>${photos}</b></span></div>
+          <span>Dolu öğün <b>${filled}/${p.days.length*MEAL_PRESET.length}</b></span><span>Fotoğraf <b>${photos}</b></span></div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn btn-sm" data-modal="plan-edit">Program bilgileri</button>
@@ -6512,10 +6516,14 @@ function pagePlanEdit(){
 
   <div class="days no-print" style="margin-top:16px">${p.days.map((d,i)=>{
     const f=d.meals.filter(m=>m.lines.length).length, ph=d.meals.filter(m=>m.photo).length;
-    return `<button class="day" data-day="${i}" aria-pressed="${i===S.day}" style="--dayc:${DAY_WEB[i]}">
-      <div class="d-n">${DAY_EMOJI[i]} ${dShort(p,i)}</div><div class="d-d">${i+1}</div>
+    return `<button class="day" data-day="${i}" aria-pressed="${i===S.day}" style="--dayc:${DAY_WEB[i%DAY_WEB.length]}">
+      <div class="d-n">${DAY_EMOJI[i%DAY_EMOJI.length]} ${dShort(p,i)}</div><div class="d-d">${i+1}</div>
       <div class="d-k">${f}/${MEAL_PRESET.length}${ph?' · '+ph+'📷':''}</div>
       <span class="d-fill" style="width:${Math.round(f/MEAL_PRESET.length*100)}%"></span></button>`}).join('')}</div>
+  <div class="no-print" style="margin:6px 0 12px">
+    ${p.days.length<8?`<button class="btn btn-sm" data-act="plan-add-day">➕ 8. gün ekle <span style="color:var(--muted);font-weight:400">(isteğe bağlı)</span></button>`
+      :`<button class="btn btn-sm" data-act="plan-drop-day">🗑 8. günü kaldır</button>`}
+  </div>
 
   <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
     <button class="btn btn-sm" data-act="copy-day">${ic('plans',15)} Bu günü kopyala</button>
@@ -6530,7 +6538,7 @@ function pagePlanEdit(){
     <div class="spacer"></div>
     <button class="btn btn-sm" data-act="save-tpl">Şablon olarak kaydet</button>
   </div>
-  <section class="card no-print" style="margin-bottom:14px;border-left:4px solid ${DAY_WEB[S.day]}">
+  <section class="card no-print" style="margin-bottom:14px;border-left:4px solid ${DAY_WEB[S.day%DAY_WEB.length]}">
     <div class="card-b day-head">
       <div>
         <div class="day-fields">
@@ -6621,7 +6629,7 @@ function reorderCellTxt(m){
 }
 function reorderGridHtml(p){
   const sel=S.swapSel;
-  const head=p.days.map((d,i)=>`<th>${DAY_EMOJI[i]} ${esc(dShort(p,i))}</th>`).join('');
+  const head=p.days.map((d,i)=>`<th>${DAY_EMOJI[i%DAY_EMOJI.length]} ${esc(dShort(p,i))}</th>`).join('');
   const rows=MEAL_PRESET.map((mp,mi)=>{
     const cells=p.days.map((d,di)=>{
       const m=d.meals[mi];
@@ -8897,6 +8905,20 @@ document.addEventListener('click',async e=>{
       pl.days[S.day].photo='';
       await save(); toast('Gün temizlendi'); return render();
     }
+    if(a==='plan-add-day'){
+      const pl=DB.plans.find(x=>x.id===S.plan); if(!pl) return;
+      if(pl.days.length>=8) return toast('En fazla 8 gün eklenebilir');
+      const i=pl.days.length;
+      pl.days.push({sub:DAY_SUB[i%DAY_SUB.length],photo:'',meals:MEAL_PRESET.map(m=>({name:m[0],emoji:m[1],title:'',lines:[],photo:''}))});
+      await save(); toast('8. gün eklendi'); S.day=i; return render();
+    }
+    if(a==='plan-drop-day'){
+      const pl=DB.plans.find(x=>x.id===S.plan); if(!pl||pl.days.length<=7) return;
+      if(!confirm('8. gün kaldırılsın mı? Bu güne girilmiş içerik silinir.')) return;
+      pl.days.length=7;
+      if(S.day>=7) S.day=6;
+      await save(); toast('8. gün kaldırıldı'); return render();
+    }
     if(a==='reorder'){ openReorder(); return; }
     if(a==='save-tpl'){ return openModal('plan-tpl'); }
     if(a==='del-tpl'){
@@ -10767,8 +10789,8 @@ function svPlanKey(){ const p=window.__svCurPlan; return p&&p.id?p.id:'cur'; }
 function svDaysTabsHtml(plan){
   return plan.days.map((d,i)=>{
     const f=d.meals.filter(m=>m.lines.length||m.title).length;
-    return `<button class="day sv-day" data-sv-day="${i}" aria-pressed="${i===0}" style="--dayc:${DAY_WEB[i]}">
-      <div class="d-n">${DAY_EMOJI[i]} ${esc(DAY_FULL[((+plan.firstDay||0)+i)%7])}</div><div class="d-d">${i+1}</div>
+    return `<button class="day sv-day" data-sv-day="${i}" aria-pressed="${i===0}" style="--dayc:${DAY_WEB[i%DAY_WEB.length]}">
+      <div class="d-n">${DAY_EMOJI[i%DAY_EMOJI.length]} ${esc(DAY_FULL[((+plan.firstDay||0)+i)%7])}</div><div class="d-d">${i+1}</div>
       <div class="d-k">${f}/5</div></button>`;
   }).join('');
 }
