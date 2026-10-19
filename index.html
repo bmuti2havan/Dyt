@@ -1894,6 +1894,7 @@ async function loadDB(){
   if(!DB.favMeals) DB.favMeals=[];
   if(!DB.savedRecipes) DB.savedRecipes=[];
   if(!DB.myPhotos) DB.myPhotos=[];
+  if(!DB.myPhotosNote) DB.myPhotosNote=null;
   logoUpgrade();
   if(PV.ok){
     try{ PV.map=await pvLoadAll(); phHydrate(DB); }catch(e){}
@@ -7165,6 +7166,15 @@ function openModal(kind){
       <div class="field full"><label>🔒 Özel not — dosyada görünmez</label><textarea id="te-note" rows="4" placeholder="Bu şablonu nasıl hazırladım?">${esc(t.privNote||'')}</textarea></div></div>
       <p class="hint" style="margin:12px 0 0">Renk seçersen bu şablondan açılan yeni programlar aynı Word teması ile gelir.</p>`,'Kaydet','tpl-edit','560px');
   }
+  if(kind==='mp-note-edit'){
+    const n=DB.myPhotosNote;
+    return modal('💌 Not yaz',`
+      <p style="margin:0 0 14px;color:var(--muted);font-size:13px">Kaydettiğin an bugünün tarihiyle işaretlenir — bugün sayfayı açınca büyük ve belirgin görünür, sonraki günlerde ise altta küçük bir dipnot olarak kalır. Tekrar kaydedersen yine "bugünün notu" olur.</p>
+      <div class="form-grid">
+        <div class="field full"><label>Başlık</label><input id="mpn-title" value="${esc(n&&n.title||'Sevgiliye küçük bir not')}"></div>
+        <div class="field full"><label>Not</label><textarea id="mpn-text" rows="9">${esc(n&&n.text||'')}</textarea></div>
+      </div>`,'Kaydet','mp-note','560px');
+  }
   if(kind==='tpl-assign'){
     if(!DB.clients.length) return modal('Danışana ata','<p>Önce bir danışan eklemeniz gerekiyor.</p>','Tamam','close');
     const T=tplGet(S.assignTpl); if(!T) return toast('Şablon bulunamadı');
@@ -7535,6 +7545,12 @@ async function handleOk(act){
     Object.assign(T.t,{name:val('te-name'),season:val('te-season'),theme:val('te-theme'),privNote:val('te-note')});
     toast('Şablon güncellendi');
   }
+  if(act==='mp-note'){
+    const text=val('mpn-text');
+    if(!text) return toast('Not boş olamaz');
+    DB.myPhotosNote={title:val('mpn-title')||'Küçük bir not',text,date:todayISO()};
+    toast('Not kaydedildi 💌');
+  }
   if(act==='tpl-assign'){
     const T=tplGet(S.assignTpl); if(!T) return closeModal();
     const cid=val('ta-client'); if(!cid) return toast('Danışan seçmelisin');
@@ -7617,8 +7633,8 @@ const avColor=n=>{
 
 const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
   {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},
-  {s:'Sistem'},{id:'myphotos',ic:'camera',t:'Fotoğraflarım'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
-const TITLES={wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Fotoğraflarım'};
+  {s:'Sistem'},{id:'myphotos',ic:'camera',t:'Cilvenazımla Fotiler'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
+const TITLES={wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Cilvenazımla Fotiler'};
 function pageSearch(){
   const q=(S.gq||'').toLocaleLowerCase('tr');
   const cl=DB.clients.filter(c=>c.name.toLocaleLowerCase('tr').includes(q));
@@ -8366,14 +8382,32 @@ function pageMyPhotos(){
   const q=(S.myPhotosQ||'').toLocaleLowerCase('tr');
   const all=(DB.myPhotos||[]).slice().sort((a,b)=>(+b.at||0)-(+a.at||0));
   const list=q? all.filter(x=>(x.name||'').toLocaleLowerCase('tr').includes(q)) : all;
-  return `<div class="page-head"><div><h1>Fotoğraflarım</h1>
+  const note=DB.myPhotosNote;
+  const isToday=note&&note.date===todayISO();
+  const noteTop=(note&&isToday)?`
+    <section class="card" style="margin-bottom:18px;background:linear-gradient(135deg,#FFF0F4,#FFE6EC);border:1px solid #FFD2DE">
+      <div class="card-b" style="padding:20px;display:flex;align-items:flex-start;gap:12px">
+        <span style="font-size:28px;line-height:1">💌</span>
+        <div style="flex:1;min-width:0">
+          <h3 style="margin:0 0 8px;color:#B3123F">${esc(note.title||'Küçük bir not')}</h3>
+          <p style="margin:0;white-space:pre-wrap;line-height:1.6;color:#4A1626">${esc(note.text||'')}</p>
+        </div>
+        <button class="btn btn-sm" data-modal="mp-note-edit" title="Notu düzenle" style="flex:0 0 auto">✏️</button>
+      </div>
+    </section>` : '';
+  const noteFoot=(note&&!isToday)?`
+    <p class="hint" style="margin-top:22px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">💌 <i>${esc(note.title||'')}</i><button class="btn btn-sm" data-modal="mp-note-edit" style="margin-left:auto">✏️ Notu düzenle</button></p>` : '';
+  const noteAddBtn=!note?`<button class="btn btn-sm" data-modal="mp-note-edit" style="flex:0 0 auto">💌 Not ekle</button>`:'';
+  return `<div class="page-head"><div><h1>Cilvenazımla Fotiler</h1>
     <p>Buraya yüklediğin fotoğraflar sadece sende kalır — danışanlara, paylaşım linkine ya da herhangi bir belgeye hiçbir şekilde eklenmez. Tamamen kişisel arşivin.</p></div>
     <div class="spacer"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      ${noteAddBtn}
       <label class="btn btn-primary" style="cursor:pointer">${ic('plus',15)} Fotoğraf yükle<input type="file" id="mp-upload" accept="image/*" multiple style="display:none"></label>
       <label class="btn" style="cursor:pointer">📁 Klasör yükle<input type="file" id="mp-upload-folder" webkitdirectory directory multiple style="display:none"></label>
     </div>
   </div>
+  ${noteTop}
   ${all.length?`<div class="searchbar" style="margin-bottom:12px">${ic('search',17)}<input id="mp-q" value="${esc(S.myPhotosQ||'')}" placeholder="Dosya adına göre ara"></div>
   <p class="hint" style="margin:0 0 12px">${all.length} fotoğraf kayıtlı${list.length!==all.length?' · '+list.length+' tanesi gösteriliyor':''}</p>
   <div class="gal-grid">${list.map(x=>`
@@ -8383,7 +8417,8 @@ function pageMyPhotos(){
       <button class="gal-x" data-mp-del="${x.id}" title="Sil">✕</button>
     </div>`).join('')}</div>`
   :`<div class="empty"><div class="eic">${ic('camera',24)}</div><h4>Henüz fotoğraf yok</h4><p>Sağ üstteki "Fotoğraf yükle" ile bilgisayarından istediğin kadar fotoğraf seçebilirsin — tek tek ya da toplu (200-300 tane birden seçmek de sorun değil, sırayla işlenir).</p></div>`}
-  <div id="mpProgress" style="display:none;margin-top:14px;color:var(--muted);font-size:13px"></div>`;
+  <div id="mpProgress" style="display:none;margin-top:14px;color:var(--muted);font-size:13px"></div>
+  ${noteFoot}`;
 }
 
 function pageInvoices(){
