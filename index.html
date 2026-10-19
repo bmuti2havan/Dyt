@@ -9591,6 +9591,7 @@ function renderShareView(snap){
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
           <button class="btn btn-sm btn-primary" id="svWordBtn">⬇ Word olarak indir</button>
           <button class="btn btn-sm btn-primary" id="svPdfBtn">⬇ PDF olarak indir</button>
+          <button class="btn btn-sm" id="svShopBtn" type="button">🛒 Alışveriş Listesi</button>
         </div>
         <div class="days" style="margin-bottom:14px" id="svDaysRow"></div>
         <div id="svDayBody"></div>
@@ -9618,7 +9619,6 @@ function renderShareView(snap){
         <p>${mood}</p></div>
       </div>
       ${snap.nextAppt?`<div class="sv-appt"><span style="font-size:19px">📅</span><div>Sıradaki randevun<br><b>${trDT(snap.nextAppt.when)}</b> · ${esc(snap.nextAppt.type||'')}</div></div>`:''}
-      ${p?`<button class="btn btn-sm" id="svShopBtn" type="button" style="margin-top:16px;width:100%;justify-content:center">🛒 Alışveriş Listesi</button>`:''}
       <button class="btn btn-sm" id="svInstallBtn" type="button" style="margin-top:8px;width:100%;justify-content:center">📲 Ana ekrana ekle</button>
     </div>
     <nav class="sv-qn">
