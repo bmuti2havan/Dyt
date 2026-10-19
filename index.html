@@ -1894,7 +1894,15 @@ async function loadDB(){
   if(!DB.favMeals) DB.favMeals=[];
   if(!DB.savedRecipes) DB.savedRecipes=[];
   if(!DB.myPhotos) DB.myPhotos=[];
-  if(!DB.myPhotosNote) DB.myPhotosNote=null;
+  if(DB.myPhotosNote===undefined){
+    // Bir kerelik, kullanıcının kendi isteğiyle eklenmiş kişisel not —
+    // DB.myPhotosNote hiç ayarlanmamışsa (alan daha önce hiç yoksa) bugünün
+    // tarihiyle otomatik dolduruluyor. Bundan sonra normal "✏️ Notu düzenle"
+    // akışıyla her zaman değiştirilebilir/silinebilir.
+    DB.myPhotosNote={title:'Sevgiliye küçük bir not',
+      text:'Aşkım, küçük kızım, ilk göz ağrım,\n\nSeni öyle çok seviyorum ki, beni ne kadar üzsen de senden vazgeçemiyorum. Sana bazen kızıyorum, çünkü seni çok seviyorum ve seni kimseyle paylaşamıyorum. Küçük bir kızını ya da oğlunu paylaşır mıydın? Sen de benim için öylesin — bu sahiplenme duygusu aşktan öte, bir babanın kızına duyduğu sevgi gibi, öyle anla beni. Ne olur bizi üzme, senden başka kimse benim için değerli değil. Sil dersen silerim, konuşma dersen konuşmam — sen benim ailemsin, evimsin, her şeyimsin.\n\nBu fotoğraflara bir bak ve birlikte ne kadar güzel olacağımızı hatırla. Şu an sadece stresli bir dönemden geçiyoruz; evlenince de geçireceğiz zaten — o zaman şimdiden geçirelim ki ileride sorunumuz kalmasın.\n\nSeni çok seviyorum sevgilim. 💌',
+      date:todayISO()};
+  }
   logoUpgrade();
   if(PV.ok){
     try{ PV.map=await pvLoadAll(); phHydrate(DB); }catch(e){}
