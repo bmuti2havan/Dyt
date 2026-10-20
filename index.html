@@ -72,6 +72,23 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-promo-wa-btn{display:inline-block;padding:13px 28px;background:#25D366;color:#fff;border-radius:999px;font-weight:600;font-size:14.5px;text-decoration:none}
 .sv-promo-foot{text-align:center;color:var(--muted);font-size:12px;padding:18px 0}
 @media(max-width:480px){.sv-promo-hero h1{font-size:22px}}
+.sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
+.sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
+.sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
+.sv-promo-step{display:flex;gap:14px;align-items:flex-start;padding:16px;border-radius:14px;background:linear-gradient(135deg,var(--blue-50),#fff);border:1px solid var(--blue-50)}
+.sv-promo-step-n{flex:0 0 auto;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--blue-900),var(--blue-600));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
+.sv-promo-step b{display:block;font-size:14.5px;margin-bottom:3px;color:var(--blue-900)}
+.sv-promo-step p{margin:0;font-size:13.5px;line-height:1.55;color:var(--ink-2)}
+.sv-promo-faq{margin:0 0 24px;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.sv-promo-faq details{border-bottom:1px solid var(--line)}
+.sv-promo-faq details:last-child{border-bottom:none}
+.sv-promo-faq summary{list-style:none;cursor:pointer;padding:14px 16px;font-weight:600;font-size:14px;color:var(--ink);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sv-promo-faq summary::-webkit-details-marker{display:none}
+.sv-promo-faq summary::after{content:'+';font-size:20px;font-weight:400;color:var(--muted);flex:0 0 auto;transition:transform .15s}
+.sv-promo-faq details[open] summary::after{transform:rotate(45deg)}
+.sv-promo-faq p{margin:0;padding:0 16px 16px;font-size:13.5px;line-height:1.6;color:var(--ink-2)}
+.sv-promo-sticky-wa{position:fixed;left:16px;right:16px;bottom:16px;z-index:40;display:flex;justify-content:center;animation:svFadeUp .4s ease}
+.sv-promo-sticky-wa a{display:flex;align-items:center;gap:8px;padding:13px 22px;background:#25D366;color:#fff;border-radius:999px;font-weight:700;font-size:14.5px;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.22)}
 .sv-preg-tabrow{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px}
 .sv-preg-tab{padding:11px 18px;border:1px solid #fbcfe8;background:#fff;border-radius:999px;font-size:14.5px;font-weight:700;color:#9d174d;cursor:pointer}
 .sv-preg-tab.active{background:linear-gradient(135deg,#9d174d,#db2777);border-color:transparent;color:#fff}
@@ -9435,14 +9452,26 @@ function svPromoHtml(profile,plan){
       <p style="margin-bottom:12px">Danışanlarımın takip linkinden gördüğü gerçek bir haftalık programdan bir örnek — günlere tıklayıp o günün öğünlerini inceleyebilirsiniz.</p>
       <div class="days" style="margin-bottom:14px" id="svDaysRow"></div>
       <div id="svDayBody"></div>`;
-  return `<div class="sv-promo-wrap">
+  return `<div class="sv-promo-wrap" style="${waHref?'margin-bottom:76px':''}">
     <div class="sv-promo-hero">
       ${profile.logo?`<img src="${profile.logo}" class="sv-promo-logo">`:''}
       <h1>Kişiye Özel Beslenme Danışmanlığı</h1>
       <p class="sv-promo-sub">${name}${clinic?' · '+clinic:''}</p>
+      <div class="sv-promo-badges">
+        <span class="sv-promo-badge">🥗 Kişiye özel program</span>
+        <span class="sv-promo-badge">💬 Günlük WhatsApp desteği</span>
+        <span class="sv-promo-badge">📱 Kişisel takip sayfası</span>
+      </div>
     </div>
     <div class="sv-promo-body">
       <p class="sv-promo-lead">Hazırladığım programda her hafta farklı, dengeli ve besleyici tariflerle ilerliyoruz. Böylece <i>"bugün ne pişirsem?"</i> derdiniz ortadan kalkıyor; her gün hem damak tadınıza hem de vücudunuzun o dönemki ihtiyaçlarına uygun yönlendirme alıyorsunuz. 🌸</p>
+
+      <h3>🔎 Nasıl Başlıyoruz?</h3>
+      <div class="sv-promo-steps">
+        <div class="sv-promo-step"><div class="sv-promo-step-n">1</div><div><b>Tanışma görüşmesi</b><p>WhatsApp'tan ya da yüz yüze kısa bir görüşmeyle hedeflerinizi, alışkanlıklarınızı ve varsa sağlık geçmişinizi birlikte konuşuyoruz.</p></div></div>
+        <div class="sv-promo-step"><div class="sv-promo-step-n">2</div><div><b>Size özel ilk program</b><p>Sevdiğiniz/sevmediğiniz besinlere, bütçenize ve günlük temponuza göre hazırlanmış ilk haftalık programınız ve alışveriş listeniz elinizde olur.</p></div></div>
+        <div class="sv-promo-step"><div class="sv-promo-step-n">3</div><div><b>Haftalık takip ve güncelleme</b><p>Ölçümlerinizi, fotoğraflarınızı kişisel takip sayfanızdan paylaşırsınız; ben de bunlara göre programı her hafta yeniden şekillendiririm.</p></div></div>
+      </div>
       <div class="sv-promo-feat">
         <div>✨ <b>Size özel</b> hazırlanmış 7 günlük tarif listesi</div>
         <div>🛒 Alışveriş listesi iletilir</div>
@@ -9496,12 +9525,37 @@ function svPromoHtml(profile,plan){
       ${svPregSectionHtml({})}
       ${svArticlesLibHtml()}
 
+      <h3 style="margin-top:22px">❓ Sık Sorulan Sorular</h3>
+      <div class="sv-promo-faq">
+        <details>
+          <summary>Her hafta aynı şeyleri mi yiyeceğim?</summary>
+          <p>Hayır — programınız her hafta yeniden hazırlanır. Hem o haftaki sonuçlarınıza hem de "bu hafta şunu denesem" dediğiniz isteklere göre tarifler değişir, tek düzelik olmaz.</p>
+        </details>
+        <details>
+          <summary>İşim/günüm çok yoğun, yine de uyar mı?</summary>
+          <p>Evet. Program hazırlanırken günlük temponuz, dışarıda yeme sıklığınız ve mutfakta ne kadar vakit ayırabildiğiniz birlikte konuşulur; pratik ve hazırlaması kolay seçeneklere ağırlık verilir.</p>
+        </details>
+        <details>
+          <summary>Sevmediğim besinler listeden çıkarılıyor mu?</summary>
+          <p>Kesinlikle. Sevmediğiniz veya alerjiniz olan besinler programa hiç girmez, yerine sevdiğiniz ve dengeyi bozmayan alternatifler konur.</p>
+        </details>
+        <details>
+          <summary>Takip nasıl oluyor, her gün mesajlaşacak mıyız?</summary>
+          <p>İhtiyacınız oldukça WhatsApp'tan ulaşabilirsiniz; ayrıca kişisel takip sayfanızdan kilonuzu, ölçümlerinizi ve "bugün ne yedim" fotoğraflarınızı paylaştıkça ben de buradan takip ederim.</p>
+        </details>
+        <details>
+          <summary>Fiyat ve randevu için ne yapmalıyım?</summary>
+          <p>En güncel bilgi ve uygun gün/saat için aşağıdaki WhatsApp butonundan yazmanız yeterli — birlikte sizin için en uygun süreci planlarız.</p>
+        </details>
+      </div>
+
       <div class="sv-promo-cta">
         <p>Bu yaklaşımla danışmanlık hizmeti veriyorum, sizin için de uygun olan bir günde randevulaşabiliriz 🫶🏻🙏</p>
         ${waHref?`<a href="${waHref}" target="_blank" class="sv-promo-wa-btn">💬 WhatsApp'tan yazın</a>`:`<p class="hint">İletişim için diyetisyeninize ulaşın.</p>`}
       </div>
     </div>
     <p class="sv-promo-foot">💧 ${name}${clinic?' · '+clinic:''}</p>
+    ${waHref?`<div class="sv-promo-sticky-wa"><a href="${waHref}" target="_blank">💬 WhatsApp'tan yazın</a></div>`:''}
   </div>`;
 }
 function svPromoWire(){
