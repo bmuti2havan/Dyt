@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /netlify/
+Sitemap: https://takip.dytaysenurkorkmazantalya.com.tr/sitemap.xml
