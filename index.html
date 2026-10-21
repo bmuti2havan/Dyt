@@ -10,7 +10,19 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Dyt. Ayşenur">
 <meta name="application-name" content="Dyt. Ayşenur KORKMAZ">
-<meta name="description" content="Beslenme danışmanlığı yönetim paneli">
+<meta name="description" content="Dyt. Ayşenur Korkmaz — kişiye özel beslenme danışmanlığı, Muratpaşa Antalya">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:site_name" content="Dyt. Ayşenur Korkmaz">
+<meta property="og:title" content="Dyt. Ayşenur Korkmaz · Kişiye Özel Beslenme Danışmanlığı">
+<meta property="og:description" content="Hayatınıza uyan, uygulanabilir beslenme planı. Muratpaşa, Antalya · Yüz yüze ve online. Örnek programı inceleyin, WhatsApp'tan yazın.">
+<meta property="og:image" content="https://takip.dytaysenurkorkmazantalya.com.tr/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dyt. Ayşenur Korkmaz · Kişiye Özel Beslenme Danışmanlığı">
+<meta name="twitter:description" content="Hayatınıza uyan, uygulanabilir beslenme planı. Muratpaşa, Antalya · Yüz yüze ve online.">
+<meta name="twitter:image" content="https://takip.dytaysenurkorkmazantalya.com.tr/og.jpg">
 <link rel="icon" type="image/png" href="img/4bdef6c99a.png">
 <link rel="apple-touch-icon" href="img/4bdef6c99a.png">
 <style>
@@ -177,6 +189,10 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-script{font-family:'Dancing Script','Segoe Script','Brush Script MT',cursive!important;font-size:46px!important;font-weight:700!important;line-height:1.1;margin:2px 0 4px!important;background:linear-gradient(90deg,#FFE29A,#FFC1D6 50%,#FFFFFF);-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent;letter-spacing:0}
 .pm-hand{font-family:'Caveat','Segoe Script',cursive;font-size:24px!important;line-height:1.25!important;color:#FFD9A8;max-width:320px!important;opacity:1!important}
 .pm-hero .pm-eyebrow{color:#FFD9A8;letter-spacing:.2em}
+.pm-dis-grid{display:flex;flex-wrap:wrap;gap:8px}
+.pm-dis{display:inline-flex;align-items:center;gap:7px;padding:10px 14px;border:1px solid var(--line);background:#fff;border-radius:999px;font-size:13.5px;font-weight:600;color:var(--blue-900);cursor:pointer}
+.pm-dis i{font-style:normal;font-size:16px}
+.pm-dis:active{background:var(--blue-50)}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9783,6 +9799,13 @@ function svPromoHtml(profile,plan){
     <div id="pmGuideBox" hidden style="margin-top:14px">${svPregSectionHtml({})}${svArticlesLibHtml()}</div>
   </section>
 
+  <section class="pm-sec" id="pm-hastalik">
+    <h2>Hastalıklara göre beslenme</h2>
+    <p class="pm-muted">Merak ettiğiniz konuya dokunun, o hastalıkta beslenmeyle ilgili kısa ve sade bilgiyi okuyun.</p>
+    <div class="pm-dis-grid"><button type="button" class="pm-dis" data-pm-dis="tip2-diyabet"><i>🩺</i>Diyabet</button><button type="button" class="pm-dis" data-pm-dis="insulin-direnci"><i>🩸</i>İnsülin direnci</button><button type="button" class="pm-dis" data-pm-dis="tiroid"><i>🦋</i>Tiroid</button><button type="button" class="pm-dis" data-pm-dis="pcos"><i>🌙</i>PKOS</button><button type="button" class="pm-dis" data-pm-dis="tansiyon-dash"><i>💓</i>Yüksek tansiyon</button><button type="button" class="pm-dis" data-pm-dis="kolesterol"><i>🫀</i>Kolesterol</button><button type="button" class="pm-dis" data-pm-dis="karaciger-yaglanma"><i>🫁</i>Yağlı karaciğer</button><button type="button" class="pm-dis" data-pm-dis="reflu"><i>🔥</i>Reflü</button><button type="button" class="pm-dis" data-pm-dis="gastrit"><i>🥣</i>Gastrit</button><button type="button" class="pm-dis" data-pm-dis="ibs"><i>🌀</i>IBS (bağırsak)</button><button type="button" class="pm-dis" data-pm-dis="kabizlik-beslenme"><i>🚽</i>Kabızlık</button><button type="button" class="pm-dis" data-pm-dis="colyak-gluten"><i>🌾</i>Çölyak</button><button type="button" class="pm-dis" data-pm-dis="laktoz-intoleransi"><i>🥛</i>Laktoz intoleransı</button><button type="button" class="pm-dis" data-pm-dis="gut-urik-asit"><i>🦶</i>Gut</button><button type="button" class="pm-dis" data-pm-dis="bobrek-beslenme"><i>🧪</i>Böbrek</button><button type="button" class="pm-dis" data-pm-dis="osteoporoz"><i>🦴</i>Osteoporoz</button><button type="button" class="pm-dis" data-pm-dis="demir-anemi"><i>🩸</i>Anemi (demir)</button><button type="button" class="pm-dis" data-pm-dis="menopoz"><i>🌸</i>Menopoz</button><button type="button" class="pm-dis" data-pm-dis="bagisiklik-beslenme"><i>🍊</i>Bağışıklık</button><button type="button" class="pm-dis" data-pm-dis="migren-beslenme"><i>🤕</i>Migren</button></div>
+    <p class="pm-muted" style="margin:12px 0 0;font-size:12px">Bu bilgiler genel bilgilendirme amaçlıdır; tanı ve tedavi yerine geçmez. Kişiye özel plan için görüşme yapmak gerekir.</p>
+  </section>
+
   <section class="pm-sec pm-about" id="pm-kimdir">
     <img src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="306" height="543" decoding="async">
     <h2>Diyetisyen Ayşenur Korkmaz kimdir?</h2>
@@ -9856,11 +9879,14 @@ function svPromoHtml(profile,plan){
   <section class="pm-sec">
     <h2>Sık sorulan sorular</h2>
     <div class="pm-faq">
-      <details><summary>Her hafta aynı şeyleri mi yiyeceğim?</summary><p>Hayır — programınız her hafta yeniden hazırlanır. Hem o haftaki sonuçlarınıza hem de isteklerinize göre tarifler değişir.</p></details>
-      <details><summary>İşim çok yoğun, yine de uyar mı?</summary><p>Evet. Program hazırlanırken günlük temponuz ve mutfakta ayırabildiğiniz vakit birlikte konuşulur; pratik seçeneklere ağırlık verilir.</p></details>
-      <details><summary>Sevmediğim besinler listeden çıkarılıyor mu?</summary><p>Kesinlikle. Sevmediğiniz veya alerjiniz olan besinler programa girmez; yerine sevdiğiniz alternatifler konur.</p></details>
-      <details><summary>Takip nasıl oluyor?</summary><p>İhtiyacınız oldukça WhatsApp'tan ulaşabilirsiniz; kişisel sayfanızdan kilonuzu ve öğün fotoğraflarınızı paylaştıkça ben de buradan takip ederim.</p></details>
-      <details><summary>Fiyat ve randevu için ne yapmalıyım?</summary><p>WhatsApp'tan yazmanız yeterli — size uygun gün ve süreci birlikte planlarız.</p></details>
+      <details><summary>İlk görüşmede neler oluyor?</summary><p>Hedefinizi, günlük düzeninizi, sevdiğiniz ve sevmediğiniz besinleri, varsa sağlık durumunuzu ve kullandığınız ilaçları konuşuruz. Ölçümlerinizi alırım. Bunların ardından size özel ilk programınızı ve alışveriş listenizi hazırlarım.</p></details>
+      <details><summary>Ne kadar sürede sonuç alırım?</summary><p>Sağlıklı ve kalıcı kilo kaybı genellikle haftada 0,5-1 kg civarındadır. Hızı kişiye göre değişir; önemli olan hızlı değil, geri gelmeyen bir sonuç almaktır. Her hafta ölçümlerinize bakıp programı buna göre ayarlıyoruz.</p></details>
+      <details><summary>Sevmediğim besinleri yemek zorunda kalır mıyım?</summary><p>Hayır. Sevmediğiniz ya da alerjiniz olan besinler programa girmez; yerine sevdiğiniz ve dengeyi bozmayan seçenekler konur. Yasak listesi değil, sizin sofranıza uyan bir düzen kurarız.</p></details>
+      <details><summary>İşim yoğun ya da evde yemek yapamıyorum, yine de olur mu?</summary><p>Olur. Program, günlük temponuza ve mutfakta ayırabildiğiniz vakte göre hazırlanır. Pratik tarifler, dışarıda yeme ya da hazır yemek durumlarına uygun seçenekler de konuşulur.</p></details>
+      <details><summary>Diyabet, tiroid, PKOS gibi rahatsızlığım var; program yapılır mı?</summary><p>Yapılır. Programı bu durumunuza uygun hazırlarım. İlaç kullanıyorsanız ya da tedavi gören bir hastalığınız varsa, bunu ilk görüşmede mutlaka belirtin; gerektiğinde doktorunuzla uyumlu ilerleriz.</p></details>
+      <details><summary>Hamile, emziren ya da çocuk için de danışmanlık veriyor musunuz?</summary><p>Evet. Hamilelik, emzirme ve çocuklarda büyüme dönemi için ayrı ihtiyaçları dikkate alan programlar hazırlıyorum. Çocuklarda tarifleri tüm ailenin yiyebileceği şekilde kurarız.</p></details>
+      <details><summary>Görüşmeler yüz yüze mi, online mı?</summary><p>İkisi de mümkün. Muratpaşa, Antalya'daki ofiste yüz yüze görüşebiliriz; uzaktaysanız online devam ederiz. İşaret dili bildiğim için işitme engelli danışanlarımla doğrudan iletişim kurabiliyorum.</p></details>
+      <details><summary>Randevu ve ücret için ne yapmalıyım?</summary><p>WhatsApp'tan yazmanız yeterli. Size uygun gün ve saati, ücret ve süreç hakkındaki bilgiyi oradan paylaşırım.</p></details>
     </div>
   </section>
 
@@ -9889,6 +9915,14 @@ function svPromoNoPlan(){
   const k=document.querySelector('#pm-ornek .pm-muted'); if(k) k.style.display='none';
 }
 function svPromoWire(){
+  document.querySelectorAll('[data-pm-dis]').forEach(b=>b.addEventListener('click',()=>{
+    const gb=document.getElementById('pmGuideBtn'), gx=document.getElementById('pmGuideBox');
+    if(gx&&gx.hidden&&gb) gb.click();
+    const q=document.getElementById('svArtQ'); if(q&&q.value){ q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); }
+    const art=document.querySelector('.sv-art[data-art-id="'+b.dataset.pmDis+'"]'); if(!art) return;
+    const cat=art.closest('.sv-artcat'); if(cat) cat.open=true; art.open=true;
+    setTimeout(()=>art.scrollIntoView({behavior:'smooth',block:'start'}),120);
+  }));
   const gb=document.getElementById('pmGuideBtn'), gx=document.getElementById('pmGuideBox');
   if(gb&&gx) gb.addEventListener('click',()=>{
     gx.hidden=!gx.hidden; gb.setAttribute('aria-expanded',String(!gx.hidden));
@@ -11441,7 +11475,7 @@ function svArticlesLibHtml(){
       ${cats.map(cat=>`
         <details class="sv-artcat" style="margin-top:12px"><summary style="cursor:pointer;list-style:none;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-900);padding:9px 2px;border-bottom:1px solid var(--line)">${esc(cat)} <span style="color:var(--muted);font-weight:600">· ${SV_ARTICLES.filter(a=>a.cat===cat).length}</span></summary><div style="padding-top:8px">
         ${SV_ARTICLES.filter(a=>a.cat===cat).map(a=>`
-          <details class="sv-art" style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">
+          <details class="sv-art" data-art-id="${a.id}" style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">
             <summary style="list-style:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px">
               <span style="font-size:16px">${a.emoji}</span>
               <span style="flex:1">${esc(a.title)}<div style="font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px">${esc(a.ozet)}</div></span>
