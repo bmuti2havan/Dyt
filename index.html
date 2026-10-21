@@ -172,6 +172,11 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-hero-btns{flex-wrap:nowrap!important}
 .pm-hero-btns{gap:8px!important}.pm-hero-btns .pm-btn{flex:1 1 0;padding:13px 8px;font-size:13.5px;white-space:nowrap;gap:6px}
 @media(max-width:360px){.pm-hero-btns{flex-wrap:wrap!important}}
+.pm-photo{width:min(62%,250px);margin:4px auto 14px;transform:rotate(-2deg);border-radius:22px;padding:6px;background:linear-gradient(135deg,#FFE29A,#FFB3C7 55%,#FFFFFF);box-shadow:0 16px 36px rgba(0,0,0,.35)}
+.pm-photo img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;object-position:50% 36%;border-radius:17px}
+.pm-script{font-family:'Dancing Script','Segoe Script','Brush Script MT',cursive!important;font-size:46px!important;font-weight:700!important;line-height:1.1;margin:2px 0 4px!important;background:linear-gradient(90deg,#FFE29A,#FFC1D6 50%,#FFFFFF);-webkit-background-clip:text;background-clip:text;color:transparent!important;-webkit-text-fill-color:transparent;letter-spacing:0}
+.pm-hand{font-family:'Caveat','Segoe Script',cursive;font-size:24px!important;line-height:1.25!important;color:#FFD9A8;max-width:320px!important;opacity:1!important}
+.pm-hero .pm-eyebrow{color:#FFD9A8;letter-spacing:.2em}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9738,10 +9743,10 @@ function svPromoHtml(profile,plan){
   return `<div class="pm">
   <section class="pm-hero">
     <div id="pmLogo"></div>
-    <img class="pm-avatar" src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="116" height="116" fetchpriority="high" decoding="async">
+    <div class="pm-photo"><img src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="300" height="375" fetchpriority="high" decoding="async"></div>
     <span class="pm-eyebrow">Diyetisyen</span>
-    <h1>Ayşenur Korkmaz</h1>
-    <p class="pm-tag">Hayatınıza uyan, uygulanabilir bir beslenme planı</p>
+    <h1 class="pm-script">Ayşenur Korkmaz</h1>
+    <p class="pm-tag pm-hand">Hayatınıza uyan, uygulanabilir bir beslenme planı</p>
     <div class="pm-chips"><span>📍 Muratpaşa, Antalya</span><span>💻 Yüz yüze &amp; online</span><span>🤟 İşaret dili</span></div>
     <div class="pm-hero-btns">
       <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} WhatsApp'tan yazın</a>
@@ -9922,6 +9927,8 @@ async function bootPromoView(){
   document.querySelector('.app').style.display='none';
   const lockEl=document.getElementById('lock'); lockEl.hidden=true; lockEl.style.display='none';
   document.title='Beslenme Danışmanlığı';
+  { const l=document.createElement('link'); l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Dancing+Script:wght@700&display=swap'; document.head.appendChild(l); }
   const root=document.getElementById('shareView'); root.hidden=false;
   window.__shareTok='promo-landing';
   root.innerHTML=`<div class="sv-wrap">${svPromoHtml({},null)}</div>`;   // beklemeden hemen göster
