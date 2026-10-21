@@ -140,6 +140,14 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-cta p{margin:0 0 20px;opacity:.9}
 .pm-foot{text-align:center;color:var(--muted);font-size:12px;padding:20px 0 96px}
 @media(max-width:380px){.pm-feat,.pm-facts{grid-template-columns:1fr}}
+.pm-guide{display:flex;align-items:center;gap:14px;width:100%;padding:18px 18px;border:0;border-radius:20px;cursor:pointer;text-align:left;color:#fff;background:linear-gradient(135deg,#E8A33D,#D9567B 55%,#9C3F60);box-shadow:0 10px 28px rgba(217,86,123,.38);animation:pmPulse 2.4s ease-in-out infinite}
+.pm-guide-ic{font-size:34px;flex:0 0 auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.2))}
+.pm-guide-tx{flex:1;display:flex;flex-direction:column;gap:3px}
+.pm-guide-tx b{font-size:18px;font-family:var(--serif)}
+.pm-guide-tx small{font-size:12.5px;opacity:.95;line-height:1.4}
+.pm-guide-go{flex:0 0 auto;background:#fff;color:#9C3F60;font-weight:800;font-size:13px;padding:9px 16px;border-radius:999px}
+@keyframes pmPulse{0%,100%{box-shadow:0 10px 28px rgba(217,86,123,.38),0 0 0 0 rgba(217,86,123,.45)}50%{box-shadow:0 10px 28px rgba(217,86,123,.38),0 0 0 10px rgba(217,86,123,0)}}
+@media(prefers-reduced-motion:reduce){.pm-guide{animation:none}}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9715,6 +9723,15 @@ function svPromoHtml(profile,plan){
     </div>
   </section>
 
+  <section class="pm-sec" style="padding-top:22px">
+    <button class="pm-guide" id="pmGuideBtn" type="button" aria-expanded="false">
+      <span class="pm-guide-ic">📚</span>
+      <span class="pm-guide-tx"><b>Beslenme Rehberi</b><small>${SV_ARTICLES.length} konuda ücretsiz bilgi · merak ettiğini oku</small></span>
+      <span class="pm-guide-go" id="pmGuideGo">Aç</span>
+    </button>
+    <div id="pmGuideBox" hidden style="margin-top:14px">${svPregSectionHtml({})}${svArticlesLibHtml()}</div>
+  </section>
+
   <section class="pm-sec pm-about" id="pm-kimdir">
     <img src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="306" height="543" decoding="async">
     <h2>Diyetisyen Ayşenur Korkmaz kimdir?</h2>
@@ -9790,11 +9807,6 @@ function svPromoHtml(profile,plan){
     </div>
   </section>
 
-  <section class="pm-sec">
-    <h2>Rehberler ve bilgilendirici yazılar</h2>
-    <details class="pm-det"><summary>Hamilelik rehberi ve beslenme kütüphanesi</summary>
-      <div class="pm-det-body">${svPregSectionHtml({})}${svArticlesLibHtml()}</div></details>
-  </section>
 
   <section class="pm-sec">
     <h2>Sık sorulan sorular</h2>
@@ -9831,6 +9843,12 @@ function svPromoApply(profile,plan){
   }
 }
 function svPromoWire(){
+  const gb=document.getElementById('pmGuideBtn'), gx=document.getElementById('pmGuideBox');
+  if(gb&&gx) gb.addEventListener('click',()=>{
+    gx.hidden=!gx.hidden; gb.setAttribute('aria-expanded',String(!gx.hidden));
+    document.getElementById('pmGuideGo').textContent=gx.hidden?'Aç':'Kapat';
+    if(!gx.hidden) gx.scrollIntoView({behavior:'smooth',block:'start'});
+  });
   const pcb=document.getElementById('svPcBtn');
   if(pcb) pcb.addEventListener('click',()=>{
     const kg=+document.getElementById('svPcKg').value, cm=+document.getElementById('svPcCm').value;
@@ -10995,6 +11013,269 @@ const SV_ARTICLES=[
   {t:'p',x:'Kalıcı sonuç, hız değil süreklilik ister. Diyetisyeninizle birlikte oluşturduğunuz program, tam olarak bu sürekliliği hedefler.'}
  ]}
 ];
+/* ── 50 ek bilgilendirme yazısı (genel bilgi amaçlı; kişisel tedavi yerine geçmez) ── */
+const SV_ART_EXTRA=[
+['karbonhidrat','Besin Ögeleri','🍞','Karbonhidrat: Düşman mı, Dost mu?','Karbonhidratın türleri ve doğru seçimler.',
+ 'Karbonhidrat vücudun ve beynin ana enerji kaynağıdır. Sorun karbonhidratın kendisi değil, hangi türünü ve ne kadar yediğimizdir.',
+ [['Hangi karbonhidratlar tercih edilmeli?',['Tam tahıllar, bulgur, yulaf, baklagiller ve sebzeler lif içerir ve yavaş sindirilir.','Beyaz ekmek, şekerli içecekler ve hamur işleri hızlı sindirilir, kan şekerini çabuk yükseltir.']],
+  ['Pratik ipucu','Karbonhidratı tek başına yemek yerine protein ve sebzeyle birlikte almak kan şekerinin daha dengeli seyretmesine yardımcı olur.']],
+ 'Tamamen çıkarmak yerine miktarı ve kalitesini ayarlamak çoğu insan için daha sürdürülebilirdir.'],
+['saglikli-yaglar','Besin Ögeleri','🫒','Sağlıklı Yağlar','Zeytinyağı, kuruyemiş ve balık: hangi yağ neden önemli?',
+ 'Yağ her öğünden kaçınılacak bir şey değildir; vücut yağda çözünen vitaminleri emmek ve hormonlarını üretmek için yağa ihtiyaç duyar.',
+ [['İyi yağ kaynakları',['Zeytinyağı, avokado ve fındık gibi tekli doymamış yağlar.','Somon, sardalya gibi yağlı balıklar ve ceviz (omega-3).']],
+  ['Dikkat','Yağ kalorisi yüksektir; bir yemek kaşığı zeytinyağı yaklaşık 90 kcal verir. Yani "sağlıklı" olması "sınırsız" olduğu anlamına gelmez.']],
+ 'Pişirmede ölçülü, salatada ve soğuk yemeklerde kullanmak iyi bir başlangıçtır.'],
+['doymus-trans-yag','Besin Ögeleri','🥓','Doymuş ve Trans Yağlar','Kalp sağlığı için sınırlanması önerilen yağlar.',
+ 'Tereyağı, kırmızı etin yağlı kısımları ve işlenmiş etlerde doymuş yağ; bazı hazır kek, bisküvi ve kızartmalarda ise trans yağ bulunabilir.',
+ [['Neden sınırlanmalı?','Yüksek miktarda doymuş yağ ve özellikle trans yağ, "kötü" kolesterol olarak bilinen LDL düzeyini yükseltebilir.'],
+  ['Ne yapılabilir?',['Etiketlerde "kısmen hidrojenize yağ" ifadesine dikkat edin.','Kızartma yerine fırın, ızgara veya haşlamayı deneyin.','Sosis, salam gibi işlenmiş etleri sık tüketmeyin.']]],
+ 'Amaç yağı tamamen bırakmak değil, türünü iyileştirmektir.'],
+['d-vitamini','Besin Ögeleri','☀️','D Vitamini: Güneşin Vitamini','Kemik ve bağışıklık için neden önemli, nasıl alınır?',
+ 'D vitamini kalsiyumun emilimi, kemik ve kas sağlığı için gereklidir. Türkiye\'de eksikliği oldukça yaygındır.',
+ [['Nereden alınır?',['Güneş ışığı (cilt vitamin D üretir) — ancak mevsim, kıyafet ve güneş kremi miktarı etkiler.','Yağlı balık, yumurta sarısı ve D vitamini ile zenginleştirilmiş besinler.']],
+  ['Takviye gerekir mi?','Eksiklik kan tahliliyle anlaşılır. Doz kişiye göre değiştiği için takviyeye doktorunuzla birlikte karar vermek en doğrusudur.']],
+ 'Fazlası da zararlı olabileceğinden kendi başınıza yüksek doz kullanmayın.'],
+['demir-anemi','Besin Ögeleri','🩸','Demir ve Anemi','Demir eksikliği belirtileri ve emilimi artıran ipuçları.',
+ 'Demir, kanda oksijen taşıyan hemoglobinin yapısında bulunur. Eksikliğinde yorgunluk, halsizlik, solukluk ve çabuk nefes nefese kalma görülebilir.',
+ [['İyi kaynaklar',['Kırmızı et, karaciğer ve tavuk (hem demir, daha iyi emilir).','Mercimek, nohut, ıspanak, kuru kayısı (bitkisel demir).']],
+  ['Emilimi artırmak için',['Demir içeren yemeğin yanında limon, biber gibi C vitamini kaynakları tüketin.','Çay ve kahveyi yemekle birlikte değil, en az bir saat arayla için.']]],
+ 'Anemi şüphesinde mutlaka tahlil yaptırın; kendi başınıza demir takviyesi başlamayın.'],
+['kalsiyum-kemik','Besin Ögeleri','🦴','Kalsiyum ve Kemik Sağlığı','Kemiklerinizi korumak için günlük kalsiyum.',
+ 'Kemik kütlesinin büyük bölümü gençlik yıllarında kazanılır; ilerleyen yaşlarda amaç mevcut kemiği korumaktır.',
+ [['Kalsiyum kaynakları',['Süt, yoğurt, peynir ve kefir.','Susam (tahin), badem, yeşil yapraklı sebzeler ve kemiğiyle yenen balık.']],
+  ['Kemiğe iyi gelen alışkanlıklar',['D vitamini düzeyini yeterli tutmak.','Düzenli yük bindiren hareket (yürüyüş, direnç egzersizi).','Aşırı tuz, sigara ve fazla kafeinden kaçınmak.']]],
+ 'Yetişkinlerde günlük ihtiyaç genellikle 1000 mg civarındadır; kişisel ihtiyacınız için diyetisyeninize danışın.'],
+['b12-vitamini','Besin Ögeleri','🥚','B12 Vitamini','Sinir sistemi ve kan yapımı için kritik bir vitamin.',
+ 'B12 vitamini sinir hücreleri ve kırmızı kan hücrelerinin sağlığı için gereklidir. Neredeyse yalnızca hayvansal gıdalarda bulunur.',
+ [['Kimler risk altında?',['Vegan ve vejetaryenler.','Mide asidi düşük olanlar, ileri yaştakiler.','Uzun süre bazı mide ve şeker ilaçlarını kullananlar.']],
+  ['Belirtiler','Yorgunluk, el-ayak uyuşması, dilde yanma ve unutkanlık görülebilir.']],
+ 'Şüphe halinde kan değeri bakılmalı; gerekiyorsa tedaviyi doktor planlamalıdır.'],
+['omega-3','Besin Ögeleri','🐟','Omega-3 Yağ Asitleri','Balık, ceviz ve keten tohumunun gücü.',
+ 'Omega-3, kalp, beyin ve göz sağlığıyla ilişkilendirilen esansiyel bir yağ asididir; vücut kendisi üretemez.',
+ [['Kaynaklar',['Somon, uskumru, sardalya, hamsi gibi yağlı balıklar (haftada 2 kez).','Ceviz, keten tohumu ve chia tohumu (bitkisel form).']],
+  ['Not','Balık tüketmeyenler için takviye gündeme gelebilir; ancak kan sulandırıcı kullananlar doktorlarına danışmalıdır.']],
+ 'Önce sofrayı zenginleştirmek, sonra gerekirse takviyeyi düşünmek iyi bir sıradır.'],
+['magnezyum','Besin Ögeleri','🌰','Magnezyum','Kas, sinir ve uyku düzeni için önemli bir mineral.',
+ 'Magnezyum yüzlerce enzim reaksiyonunda rol alır; kas gevşemesi, sinir iletimi ve enerji üretiminde gereklidir.',
+ [['Kaynaklar',['Badem, fındık, kabak çekirdeği.','Tam tahıllar, baklagiller, yeşil yapraklı sebzeler ve bitter çikolata.']],
+  ['İhtiyacı artıran durumlar','Yoğun stres, aşırı alkol ve bazı ilaçlar magnezyum kaybını artırabilir.']],
+ 'Dengeli beslenmeyle çoğu kişinin ihtiyacı karşılanır; takviye öncesi doktorunuza danışın.'],
+['cinko-bagisiklik','Besin Ögeleri','🛡️','Çinko ve Bağışıklık','Yara iyileşmesi ve bağışıklık için gerekli mineral.',
+ 'Çinko bağışıklık hücrelerinin çalışması, yara iyileşmesi, tat ve koku duyusu için gereklidir.',
+ [['Kaynaklar',['Kırmızı et, tavuk, deniz ürünleri.','Kabak çekirdeği, nohut, mercimek ve süt ürünleri.']],
+  ['Dikkat','Yüksek dozda uzun süreli çinko takviyesi bakır emilimini bozabilir; bilinçsiz kullanılmamalıdır.']],
+ 'Çeşitli ve dengeli bir tabak çoğu zaman yeterlidir.'],
+['tuz-sodyum','Besin Ögeleri','🧂','Tuz, Sodyum ve Potasyum','Tuzu azaltmak neden bu kadar önemli?',
+ 'Fazla sodyum tansiyonu yükseltebilir ve kalp-damar riskini artırır. Tuzun büyük kısmı tuzluktan değil; ekmek, peynir, turşu ve hazır gıdalardan gelir.',
+ [['Tuzu azaltmanın yolları',['Yemeğe sofrada tuz eklemeyin.','Baharat, limon, sarımsak ve otlarla lezzet artırın.','Hazır çorba ve atıştırmalıklarda etiketi kontrol edin.']],
+  ['Potasyum desteği','Muz, patates, domates ve baklagiller potasyum içerir; sodyumun etkisini dengelemeye yardımcı olur (böbrek hastalarına özel kısıtlamalar olabilir).']],
+ 'Damak tadı zamanla uyum sağlar; birkaç haftada daha az tuzlu yemekler normal gelir.'],
+['antioksidanlar','Besin Ögeleri','🫐','Antioksidanlar','Renkli sofranın gizli gücü.',
+ 'Antioksidanlar, hücreleri zarar verici moleküllere (serbest radikaller) karşı korumaya yardımcı olan bileşiklerdir.',
+ [['Nerelerde bulunur?',['Yaban mersini, nar, çilek gibi renkli meyveler.','Domates, havuç, brokoli, ıspanak ve yeşil çay.']],
+  ['Önemli nokta','Faydası besinin bütününden gelir; tek bir "süper gıda" ya da hap yerine çeşitliliğe odaklanmak daha etkilidir.']],
+ 'Tabağınızda ne kadar çok renk varsa, o kadar çeşitli koruyucu bileşik almış olursunuz.'],
+['probiyotik-prebiyotik','Besin Ögeleri','🦠','Probiyotik ve Prebiyotik','Bağırsak dostu besinler.',
+ 'Probiyotikler yararlı canlı bakterilerdir; prebiyotikler ise bu bakterilerin besini olan liflerdir.',
+ [['Probiyotik kaynakları','Yoğurt, kefir, turşu (sirkesiz, fermente), ayran.'],
+  ['Prebiyotik kaynakları','Soğan, sarımsak, pırasa, muz, yulaf ve baklagiller.'],
+  ['Birlikte tüketin','İkisini aynı gün içinde almak bağırsak florasının çeşitliliğini destekler.']],
+ 'Bağırsak şikâyetleriniz uzun sürüyorsa kendi başınıza takviye yerine uzmana başvurun.'],
+['glisemik-indeks','Besin Ögeleri','📈','Glisemik İndeks','Kan şekerini ne kadar hızlı yükselttiği.',
+ 'Glisemik indeks (Gİ), bir besinin kan şekerini ne kadar hızlı yükselttiğini gösterir.',
+ [['Düşük Gİ\'li besinler','Baklagiller, yulaf, çoğu sebze, elma, yoğurt.'],
+  ['Yüksek Gİ\'li besinler','Beyaz ekmek, pirinç pilavı, patates püresi, şekerli içecekler.'],
+  ['Pratik ipucu',['Yüksek Gİ\'li bir besini lif, protein veya sağlıklı yağla birlikte yiyin.','Meyveyi meyve suyu yerine bütün olarak tercih edin.']]],
+ 'Gİ tek başına yeterli bir ölçüt değil; porsiyon ve öğün bileşimi de önemlidir.'],
+['seker-tatlandirici','Besin Ögeleri','🍬','Şeker ve Tatlandırıcılar','Ne kadar şeker çok şeker?',
+ 'Dünya Sağlık Örgütü, eklenmiş şekerin günlük enerjinin %10\'undan az, mümkünse %5\'inden az olmasını önerir. Bu, yetişkinde yaklaşık 25-50 gram demektir.',
+ [['Gizli şeker kaynakları','Meyveli yoğurt, hazır soslar, gazlı ve meyve aromalı içecekler, kahvaltılık gevrekler.'],
+  ['Tatlandırıcılar','Kalorisiz tatlandırıcılar şekeri azaltmada geçici bir araç olabilir; ancak tatlı damak tadını değiştirmeden kalıcı çözüm olmaz.']],
+ 'Önce sıvı şekerleri (içecekleri) azaltmak en kolay ve en etkili adımlardan biridir.'],
+['tip2-diyabet','Hastalıklarda Beslenme','🩺','Tip 2 Diyabet ve Beslenme','Kan şekeri dengesi için temel yaklaşımlar.',
+ 'Tip 2 diyabette amaç kan şekerini dengede tutmak ve komplikasyon riskini azaltmaktır. Beslenme tedavinin önemli bir parçasıdır.',
+ [['Temel ilkeler',['Öğünleri düzenli saatlerde ve dengeli yiyin.','Karbonhidratı porsiyon kontrollü alın, lifli seçenekleri tercih edin.','Şekerli içecekleri ve rafine ürünleri azaltın.','Her öğüne protein ve sebze ekleyin.']],
+  ['Önemli','İlaç veya insülin kullanıyorsanız öğün planı hekiminizle birlikte yapılmalıdır; öğün atlamak kan şekerini düşürebilir.']],
+ 'Kişiye özel plan için diyetisyeninizle çalışın.'],
+['tansiyon-dash','Hastalıklarda Beslenme','💓','Yüksek Tansiyon ve DASH Diyeti','Tansiyonu beslenmeyle desteklemek.',
+ 'DASH diyeti, yüksek tansiyonu desteklemek için geliştirilmiş; sebze, meyve, tam tahıl ve az yağlı süt ürünlerine dayanan bir beslenme biçimidir.',
+ [['Ana ilkeler',['Tuzu azaltın.','Günde en az 5 porsiyon sebze-meyve tüketin.','Tam tahıl, baklagil ve kuruyemişi artırın.','İşlenmiş et ve şekeri azaltın.']],
+  ['Hareket','Haftada en az 150 dakika tempolu yürüyüş tansiyon kontrolüne katkı sağlar.']],
+ 'Tansiyon ilacı kullanıyorsanız ilaçları kendi kararınızla bırakmayın.'],
+['kolesterol','Hastalıklarda Beslenme','🫀','Kolesterol ve Kalp Sağlığı','LDL, HDL ve beslenme.',
+ 'Kolesterolün büyük kısmı karaciğerde üretilir; beslenme, özellikle doymuş yağ ve lif miktarı bu dengeyi etkiler.',
+ [['LDL\'yi düşürmeye yardımcı olanlar',['Yulaf, arpa ve baklagil gibi çözünür lifler.','Zeytinyağı, ceviz, badem.','Haftada iki öğün balık.']],
+  ['Azaltılması gerekenler','Trans yağ, işlenmiş et ve sık kızartma.']],
+ 'Yumurta çoğu kişide ölçülü tüketildiğinde sorun değildir; ancak yüksek riskli kişiler hekimlerine danışmalıdır.'],
+['karaciger-yaglanma','Hastalıklarda Beslenme','🫁','Karaciğer Yağlanması','Beslenme ve kilo kontrolüyle iyileştirmek mümkün.',
+ 'Alkole bağlı olmayan yağlı karaciğer hastalığı artık çok yaygındır ve genellikle kilo, insülin direnci ve beslenme ile ilişkilidir.',
+ [['Faydalı adımlar',['Vücut ağırlığının %5-10\'unu yavaş yavaş vermek karaciğer yağını belirgin azaltabilir.','Şekerli içecekleri ve rafine karbonhidratı azaltmak.','Akdeniz tarzı beslenmeyi benimsemek.','Düzenli hareket etmek.']],
+  ['Kaçınılması gereken','Çok hızlı kilo kaybı ve mucize detoks ürünleri karaciğeri yorabilir.']],
+ 'Tanı ve takip için mutlaka hekiminize başvurun.'],
+['reflu','Hastalıklarda Beslenme','🔥','Reflü ve Mide Yanması','Şikâyetleri azaltan alışkanlıklar.',
+ 'Reflüde mide içeriği yemek borusuna kaçar; yanma, ekşime ve göğüste rahatsızlık yapar.',
+ [['Yardımcı olabilecekler',['Küçük ve sık öğünler yemek.','Yattıktan hemen önce yemek yememek (en az 2-3 saat ara).','Fazla kiloyu vermek.','Yatak başını hafif yükseltmek.']],
+  ['Tetikleyici olabilecekler','Yağlı ve kızartma yemekler, çikolata, kahve, gazlı içecek, baharatlı ve çok asitli besinler (kişiden kişiye değişir).']],
+ 'Şikâyetler sıkça tekrarlıyorsa muayene gereklidir.'],
+['gastrit','Hastalıklarda Beslenme','🥣','Gastrit ve Mide Hassasiyeti','Mideyi yormayan beslenme.',
+ 'Gastrit, mide mukozasının iltihaplanmasıdır. Nedeni bazen bakteri (H. pylori), bazen ilaç ya da stres olabilir; tedavi hekim kontrolündedir.',
+ [['Beslenmede dikkat',['Öğünleri atlamamak, yavaş yemek.','Haşlama, fırın ve buğulama gibi hafif pişirme yöntemleri.','Alkol, sigara ve aşırı acıdan uzak durmak.']],
+  ['Kişisel tolerans','Her kişide tetikleyici farklıdır; hangi besinin rahatsız ettiğini not ederek bulabilirsiniz.']],
+ 'Kilo kaybı, kanlı kusma veya siyah dışkı varsa acilen hekime başvurun.'],
+['ibs','Hastalıklarda Beslenme','🌀','İrritabl Bağırsak Sendromu (IBS)','Şişkinlik ve düzensiz bağırsak için beslenme ipuçları.',
+ 'IBS karın ağrısı, şişkinlik, kabızlık ve/veya ishal ile seyreden, çok yaygın bir fonksiyonel bağırsak rahatsızlığıdır.',
+ [['Faydalı olabilecek yaklaşımlar',['Düzenli ve yavaş yemek.','Tetikleyici besinleri günlük tutarak belirlemek.','Stres yönetimi ve uyku düzeni.','Gerektiğinde uzman gözetiminde düşük FODMAP planı denemek.']],
+  ['Uyarı','Düşük FODMAP diyeti uzun süre ve kontrolsüz uygulanmamalı, mutlaka diyetisyen eşliğinde yapılmalıdır.']],
+ 'Alarm belirtileri (kilo kaybı, kanlı dışkı, gece şikâyeti) varsa vakit kaybetmeden doktora gidin.'],
+['colyak-gluten','Hastalıklarda Beslenme','🌾','Çölyak ve Glutensiz Beslenme','Gluten ne zaman sorun olur?',
+ 'Çölyak, glutenin ince bağırsağa zarar verdiği otoimmün bir hastalıktır. Tek tedavisi yaşam boyu glutensiz beslenmedir.',
+ [['Gluten nerede bulunur?','Buğday, arpa ve çavdar ile bunlardan yapılan ekmek, makarna, bulgur ve birçok hazır ürün.'],
+  ['Glutensiz olanlar','Pirinç, mısır, patates, baklagiller, et, süt ürünleri, sebze-meyve ve sertifikalı glutensiz ürünler.'],
+  ['Önemli','Teşhis konmadan glutensiz beslenmeye başlamayın; tetkik sonucunu bozabilir.']],
+ 'Etiket okumak ve çapraz bulaşmaya dikkat etmek çok önemlidir.'],
+['laktoz-intoleransi','Hastalıklarda Beslenme','🥛','Laktoz İntoleransı','Süt sorun mu yaratıyor?',
+ 'Laktoz intoleransı, süt şekeri olan laktozu parçalayan enzimin az olması durumudur; süt içtikten sonra şişkinlik, gaz ve ishal yapabilir.',
+ [['Neler yapılabilir?',['Yoğurt, kefir ve olgun peynirler genellikle daha iyi tolere edilir.','Laktozsuz süt ve ürünleri tercih edilebilir.','Süt ürünlerini azar azar ve yemekle birlikte denemek.']],
+  ['Kalsiyum','Süt ürünleri azaltılıyorsa kalsiyum açığı olmaması için alternatif kaynaklar planlanmalıdır.']],
+ 'Süt alerjisi ile intolerans farklı şeylerdir; şüphe varsa hekime başvurun.'],
+['gut-urik-asit','Hastalıklarda Beslenme','🦶','Gut ve Ürik Asit','Ürik asit yüksekliğinde beslenme.',
+ 'Gut, kandaki ürik asit yükselmesiyle eklemlerde ani ağrı ve şişlik atakları yapan bir hastalıktır.',
+ [['Dikkat edilecekler',['Sakatat, kırmızı et ve bazı deniz ürünlerini sınırlamak.','Alkolden (özellikle bira) kaçınmak.','Fruktozlu şekerli içeceklerden uzak durmak.','Bol su içmek.']],
+  ['Kilo','Yavaş ve kontrollü kilo vermek ataklarını azaltabilir; aşırı hızlı kilo kaybı ise tetikleyebilir.']],
+ 'İlaç tedavisi hekim tarafından düzenlenir; beslenme bunu destekleyici bir unsurdur.'],
+['kabizlik-beslenme','Hastalıklarda Beslenme','🚽','Kabızlık İçin Beslenme','Bağırsakları doğal yoldan çalıştırmak.',
+ 'Kabızlık en sık lif ve su azlığı, hareketsizlik ve düzensiz tuvalet alışkanlığıyla ilişkilidir.',
+ [['Ne yapılabilir?',['Günde 25-30 gram lif hedefleyin (sebze, meyve, tam tahıl, baklagil).','Lifi yavaş artırın, aynı anda suyu da artırın.','Kuru kayısı, erik ve keten tohumu faydalı olabilir.','Düzenli yürüyüş yapın.']],
+  ['Alışkanlık','Her gün aynı saatte tuvalet için zaman ayırmak bağırsak ritmini oturtur.']],
+ 'Uzun süren veya yeni başlayan kabızlıkta doktora başvurun.'],
+['bobrek-beslenme','Hastalıklarda Beslenme','🧪','Böbrek Sağlığı ve Beslenme','Böbreği korumak için temel bilgiler.',
+ 'Böbrekler kandaki atıkları süzer. Sağlıklı beslenme, tansiyon ve kan şekeri kontrolü böbrek korumasının temelidir.',
+ [['Koruyucu alışkanlıklar',['Tuzu azaltmak.','Yeterli sıvı almak (hekimin kısıtlaması yoksa).','Ağrı kesicileri gereksiz ve sık kullanmamak.','Aşırı protein takviyelerinden kaçınmak.']],
+  ['Böbrek hastalığı varsa','Protein, potasyum ve fosfor kısıtlamaları kişiye göre değişir; mutlaka nefrolog ve diyetisyen ile planlanmalıdır.']],
+ 'Kendi başınıza kısıtlama yapmayın; yanlış diyet de zarar verebilir.'],
+['osteoporoz','Hastalıklarda Beslenme','🦴','Osteoporoz ve Beslenme','Kemik erimesinin önlenmesinde beslenme.',
+ 'Osteoporozda kemikler incelir ve kırılma riski artar. Menopoz sonrası kadınlarda ve ileri yaşta daha sık görülür.',
+ [['Beslenme ve yaşam tarzı',['Yeterli kalsiyum ve D vitamini.','Yeterli protein.','Direnç ve yük bindiren egzersiz.','Sigara ve aşırı alkolden uzak durmak.']],
+  ['Dikkat','Aşırı tuz ve çok fazla kafein kalsiyum kaybını artırabilir.']],
+ 'Kemik yoğunluğu ölçümü ve tedavi için hekiminize başvurun.'],
+['bagisiklik-beslenme','Hastalıklarda Beslenme','🍊','Bağışıklık ve Beslenme','Mucize yok; denge var.',
+ 'Bağışıklık sistemini "güçlendiren" tek bir besin ya da takviye yoktur; ancak yetersiz beslenme sistemin zayıflamasına neden olabilir.',
+ [['Destekleyici unsurlar',['Yeterli protein, C, D vitamini, çinko ve demir.','Renkli sebze-meyve çeşitliliği.','Yeterli uyku ve stres yönetimi.','Düzenli hareket.']],
+  ['Efsane','"Detoks" çayları ve ürünleri bağışıklığı artırdığına dair güçlü kanıta sahip değildir.']],
+ 'Sağlıklı bir yaşam biçimi en iyi bağışıklık desteğidir.'],
+['migren-beslenme','Hastalıklarda Beslenme','🤕','Migren ve Beslenme','Tetikleyicileri tanımak.',
+ 'Migrenli bazı kişilerde belirli besinler veya öğün atlama atakları tetikleyebilir; ancak tetikleyiciler kişiden kişiye büyük farklılık gösterir.',
+ [['Yapılabilecekler',['Baş ağrısı günlüğü tutup yediklerinizi not edin.','Öğün atlamamak, uzun açlıktan kaçınmak.','Yeterli su içmek.','Kafein miktarını dengede tutmak.']],
+  ['Olası tetikleyiciler','Eski peynir, alkol (özellikle kırmızı şarap), işlenmiş etler ve bazı katkı maddeleri bazı kişilerde tetikleyici olabilir.']],
+ 'Sık veya şiddetli baş ağrılarında nöroloji değerlendirmesi gerekir.'],
+['su-icmek','Yaşam Tarzı','💧','Su İçmenin Önemi','Günde ne kadar su yeterli?',
+ 'Su vücut sıcaklığının düzenlenmesi, sindirim ve atıkların atılması için gereklidir. İhtiyaç kiloya, hava sıcaklığına ve aktiviteye göre değişir.',
+ [['Genel bir rehber','Yetişkinlerde günlük sıvı ihtiyacı çoğu zaman 1,5-2,5 litre aralığındadır. İdrarın açık sarı renkte olması iyi bir göstergedir.'],
+  ['Alışkanlık haline getirmek',['Güne bir bardak suyla başlayın.','Yanınızda şişe taşıyın.','Her öğünle bir bardak su için.']]],
+ 'Böbrek veya kalp hastalığınız varsa sıvı miktarını hekiminizle konuşun.'],
+['kahvalti','Yaşam Tarzı','🍳','Kahvaltı Neden Önemli?','Güne dengeli başlamak.',
+ 'Dengeli bir kahvaltı gün içi enerjiyi, dikkati ve tokluk hissini destekler. Ancak "kahvaltı yapmazsam kilo alırım" gibi kesin bir kural yoktur; önemli olan günün toplam düzenidir.',
+ [['İyi bir kahvaltı tabağı',['Protein: yumurta, peynir, yoğurt.','Lif: tam tahıllı ekmek, yulaf, sebze.','Sağlıklı yağ: zeytin, ceviz.']],
+  ['Dikkat','Sadece beyaz ekmek, reçel ve çay üçlüsü kan şekerini çabuk yükseltip kısa sürede acıktırabilir.']],
+ 'Kahvaltıda protein eklemek öğle yemeğine kadar tokluğu belirgin uzatır.'],
+['porsiyon-kontrolu','Yaşam Tarzı','🍽️','Porsiyon Kontrolü','Kalori saymadan miktarı ayarlamak.',
+ 'Ne yediğimiz kadar ne kadar yediğimiz de önemlidir. Büyük tabaklar ve paket yemek alışkanlığı farkında olmadan fazla yemeye yol açar.',
+ [['Pratik yöntemler',['Tabağın yarısı sebze, çeyreği protein, çeyreği karbonhidrat olsun.','Daha küçük tabak kullanın.','Atıştırmalığı pakete değil tabağa koyup yiyin.','Yavaş yiyin; tokluk sinyali 15-20 dakikada gelir.']],
+  ['El ölçüsü','Avuç içi kadar protein, yumruk kadar karbonhidrat, baş parmak kadar yağ yaklaşık bir porsiyondur.']],
+ 'Gözle ölçmek zamanla alışkanlık olur.'],
+['etiket-okuma','Yaşam Tarzı','🏷️','Besin Etiketi Okuma','Paketin arkasındaki gerçekler.',
+ 'Etiket, ürünün gerçekte ne içerdiğini gösterir. Ön yüzdeki "light", "doğal", "fit" gibi ifadeler her zaman sağlıklı olduğu anlamına gelmez.',
+ [['Nelere bakmalı?',['İçindekiler listesi: en başta yazan en çok bulunan maddedir.','100 gramdaki şeker, doymuş yağ ve tuz miktarı.','Porsiyon büyüklüğü.']],
+  ['İpucu','İçindekiler listesi kısa ve tanıdık maddelerden oluşan ürünler genellikle daha az işlenmiştir.']],
+ 'Şeker; glikoz şurubu, fruktoz, maltodekstrin gibi farklı adlarla da yazılabilir.'],
+['islenmis-gida','Yaşam Tarzı','🍟','Ultra İşlenmiş Gıdalar','Hazır ürünleri azaltmak neden önemli?',
+ 'Gazlı içecekler, hazır çorba, paketli atıştırmalıklar ve fast food ultra işlenmiş gıdalara örnektir. Genellikle şeker, tuz ve yağ bakımından yüksek, lif bakımından düşüktür.',
+ [['Neden sorunlu?','Aşırı lezzetli ve doyurucu olmayacak şekilde tasarlandıkları için kolay fazla yenir; düzenli tüketimi kilo artışı ve metabolik hastalık riskiyle ilişkilendirilir.'],
+  ['Nasıl azaltılır?',['Evde taze malzemeyle basit yemekler yapın.','Atıştırmalık olarak meyve, kuruyemiş ve yoğurt bulundurun.','Bir anda bırakmak yerine haftada bir ürünü değiştirin.']]],
+ 'Tamamen yasak koymak yerine sıklığı azaltmak daha sürdürülebilirdir.'],
+['disarida-yemek','Yaşam Tarzı','🍴','Dışarıda Yemek','Dengeyi bozmadan dışarıda yemenin yolları.',
+ 'Dışarıda yemek sosyal hayatın bir parçasıdır; planlı yaklaşınca diyeti bozmak zorunda değildir.',
+ [['Akıllı seçimler',['Izgara, haşlama, fırın seçenekleri tercih edin.','Sosları ayrı isteyin.','Yanında salata veya sebze ekleyin.','Ekmek sepetini masadan uzaklaştırın.']],
+  ['Öncesinde','Çok aç gitmemek için hafif bir ara öğün yapmak aşırı yemeyi önler.']],
+ 'Bir öğünün sapması tüm süreci bozmaz; bir sonraki öğünde yola devam edin.'],
+['market-alisveris','Mutfak ve Pratik','🛒','Akıllı Market Alışverişi','Listeyle gidin, dengeli dönün.',
+ 'Sağlıklı beslenme çoğu zaman marketten başlar: evde ne varsa onu yeriz.',
+ [['İpuçları',['Haftalık menüye göre liste yapın.','Tok karnına alışverişe gidin.','Taze reyonlarla (sebze, meyve, et, süt) başlayın.','Etiket okuyun.']],
+  ['Evde bulundurun','Yumurta, yoğurt, baklagil, donmuş sebze, yulaf, kuruyemiş ve zeytinyağı iyi bir temel stok oluşturur.']],
+ 'Evde olmayan atıştırmalığı yemek zorlaşır; bu en basit ama en etkili stratejidir.'],
+['meal-prep','Mutfak ve Pratik','🥡','Haftalık Yemek Hazırlığı','Vakti az olanlar için pratik plan.',
+ 'Haftalık yemek hazırlığı, "bugün ne pişirsem" stresini ve sağlıksız hazır seçeneklere yönelmeyi azaltır.',
+ [['Nasıl yapılır?',['Hafta sonu 1-2 saat ayırın.','Baklagil, tahıl ve protein kaynağını toplu pişirin.','Sebzeleri yıkayıp doğrayın, kutularda saklayın.','Porsiyonlara bölüp dondurun.']],
+  ['Güvenlik','Pişmiş yemekleri hızlıca soğutup buzdolabında en fazla 3-4 gün saklayın.']],
+ 'Basit başlayın: önce sadece öğle yemeğini hazırlayın.'],
+['mevsimsel-beslenme','Mutfak ve Pratik','🍅','Mevsiminde Beslenme','Taze, ucuz ve besleyici.',
+ 'Mevsiminde yetişen sebze ve meyveler hem daha lezzetli hem daha uygun fiyatlı hem de çoğu zaman besin değeri açısından daha zengindir.',
+ [['Örnekler',['Kış: lahana, karnabahar, portakal, mandalina, pırasa.','İlkbahar: enginar, taze fasulye, çilek.','Yaz: domates, salatalık, şeftali, karpuz.','Sonbahar: kabak, nar, elma, ayva.']],
+  ['Pratik','Mevsim dışı ürünlerde dondurulmuş sebze iyi ve hesaplı bir alternatiftir.']],
+ 'Pazara gitmek tabağınızı çeşitlendirmenin en kolay yoludur.'],
+['akdeniz-diyeti','Mutfak ve Pratik','🌿','Akdeniz Tarzı Beslenme','Bölgemizin mutfağı zaten sağlıklı.',
+ 'Akdeniz beslenmesi; sebze, meyve, baklagil, tam tahıl, zeytinyağı ve balığı temel alır; kırmızı eti ve işlenmiş gıdayı azaltır.',
+ [['Temel özellikler',['Bol sebze ve zeytinyağı.','Haftada birkaç kez balık.','Baklagil ve kuruyemiş.','Ölçülü süt ürünü, az kırmızı et.']],
+  ['Faydaları','Kalp sağlığı, kilo kontrolü ve metabolik sağlıkla ilişkili olduğu pek çok çalışmada gösterilmiştir.']],
+ 'Antalya\'da yaşıyorsanız bu mutfağın malzemelerine zaten kolayca ulaşabilirsiniz.'],
+['ramazan-beslenme','Yaşam Tarzı','🌙','Ramazanda Sağlıklı Beslenme','Sahur ve iftarda dengeyi korumak.',
+ 'Ramazanda öğün düzeni değişir; doğru planlanırsa oruç sağlıklı geçirilebilir.',
+ [['Sahur',['Yulaf, yumurta, peynir, zeytin, tam tahıllı ekmek gibi tok tutan besinler.','Bol su (iftar ile sahur arasında dağıtarak).','Aşırı tuzlu yiyeceklerden kaçının.']],
+  ['İftar',['Hurma ve su veya çorba ile yavaş başlayın.','Ana yemeği ölçülü yiyin, kızartmayı azaltın.','Tatlıyı ara sıra ve küçük porsiyon olarak tercih edin.']]],
+ 'Kronik hastalığı olanlar ve ilaç kullananlar oruç öncesi hekimlerine danışmalıdır.'],
+['kafein-kahve','Yaşam Tarzı','☕','Kafein ve Kahve','Ne kadar kahve fazla?',
+ 'Sağlıklı yetişkinler için günlük yaklaşık 400 mg kafein (3-4 fincan kahve) genellikle güvenli kabul edilir; ancak hassasiyet kişiden kişiye değişir.',
+ [['Dikkat edin',['Uykuya yakın saatlerde kafein almamak uykuyu korur.','Çarpıntı, kaygı, mide yanması yapıyorsa azaltın.','Hamilelikte günlük sınır daha düşüktür (yaklaşık 200 mg).','Şekerli ve kremalı kahveler kalori ekler.']],
+  ['Not','Çay, çikolata ve enerji içecekleri de kafein içerir.']],
+ 'Kahveyi yemekle değil, yemekler arasında içmek demir emilimini daha az etkiler.'],
+['stres-beslenme','Davranış','🧘','Stres ve Beslenme','Stres yemeyi nasıl etkiler?',
+ 'Stres kimilerinde iştahı artırır, kimilerinde azaltır. Uzun süreli stres kortizolü yükselterek özellikle karın çevresinde yağlanmayı kolaylaştırabilir.',
+ [['Stres yönetimi için',['Düzenli uyku ve hareket.','Nefes ve gevşeme egzersizleri.','Duygularla başa çıkmak için yemek dışında seçenekler (yürüyüş, arkadaşla konuşma).']],
+  ['Beslenme ile destek','Düzenli öğünler, yeterli protein, magnezyum ve omega-3 kaynakları ruh halini destekleyebilir.']],
+ 'Stres belirtileri günlük yaşamı bozuyorsa psikolojik destek almak da bir seçenektir.'],
+['cocuk-beslenme','Çocuk ve Aile','🧒','Çocuklarda Sağlıklı Beslenme','Sağlıklı alışkanlıkları erken kazandırmak.',
+ 'Çocukluk döneminde kazanılan beslenme alışkanlıkları yetişkinlikte de büyük oranda sürer.',
+ [['Ebeveynlere öneriler',['Aile birlikte, düzenli ve masada yesin.','Yemeği ödül veya ceza aracı yapmayın.','Yeni besini 10-15 kez farklı şekillerde sunmak gerekebilir.','Evde sağlıklı atıştırmalık bulundurun, şekerli içeceği sınırlayın.']],
+  ['Ekran','Yemek sırasında televizyon veya telefon, tokluk sinyalini fark etmeyi zorlaştırır.']],
+ 'Çocuğun büyüme takibi için hekim ve diyetisyen kontrolü önemlidir.'],
+['beslenme-cantasi','Çocuk ve Aile','🎒','Okul Çantası Beslenme Fikirleri','Çocuğunuzun çantasına neler koyabilirsiniz?',
+ 'Okulda enerjik ve dikkatli olmak için çantadaki beslenmenin dengeli olması gerekir.',
+ [['Fikirler',['Peynirli veya haşlanmış yumurtalı tam tahıllı sandviç.','Meyve dilimleri, havuç çubukları.','Küçük kutuda ceviz, fındık, kuru kayısı (alerji ve boğulma riskine dikkat).','Yoğurt veya ayran, su.']],
+  ['Kaçının','Paketli bisküvi, kek, şekerli içecek ve meyve suyu.']],
+ 'Çocuğun kendi seçimine katılması yemeyi sahiplenmesini artırır.'],
+['spor-beslenme','Spor ve Aktivite','🏃','Spor Öncesi ve Sonrası Beslenme','Performans ve toparlanma için ne yemeli?',
+ 'Egzersizin etkisini artırmak ve toparlanmayı hızlandırmak için zamanlama ve bileşim önemlidir.',
+ [['Antrenman öncesi (1-3 saat)','Muz, yulaf, tam tahıllı ekmek gibi kolay sindirilen karbonhidrat ve az miktarda protein.'],
+  ['Antrenman sonrası (1-2 saat içinde)','Protein ve karbonhidrat birlikte: yoğurt-meyve, yumurta-ekmek, tavuk-pilav gibi.'],
+  ['Sıvı','Egzersiz öncesi, sırasında ve sonrasında yeterli su içmek önemlidir.']],
+ 'Çoğu kişi için özel takviyeye gerek yoktur; dengeli beslenme yeterlidir.'],
+['yasli-beslenme','Yaşam Tarzı','👵','İleri Yaşta Beslenme','Daha az kalori, daha çok besin değeri.',
+ 'Yaşla birlikte enerji ihtiyacı azalır ama protein, D vitamini, kalsiyum ve B12 ihtiyacı sürer veya artar.',
+ [['Dikkat edilecekler',['Kas kaybını önlemek için her öğünde protein alın.','İştah azalıyorsa küçük ve sık öğünler deneyin.','Susama hissi azalabilir; düzenli su için.','Hafif direnç egzersizi yapın.']],
+  ['Çiğneme ve yutma','Diş veya yutma sorunları varsa besinlerin kıvamını değiştirin ve uzmana danışın.']],
+ 'Bilinçsiz kilo kaybı yaşlıda ciddi bir uyarı işaretidir; hekime başvurun.'],
+['vejetaryen-vegan','Yaşam Tarzı','🥗','Vejetaryen ve Vegan Beslenme','Dengeli bitkisel beslenme nasıl olur?',
+ 'İyi planlanmış bitkisel beslenme her yaşta sağlıklı olabilir; ancak bazı besin ögeleri için dikkat gerekir.',
+ [['Dikkat edilecek besin ögeleri',['B12 (vegan olanlar için takviye gerekir).','Demir, çinko, kalsiyum ve omega-3.','Yeterli protein: baklagil, tofu, kuruyemiş, tam tahıl.']],
+  ['İpucu','Baklagil ve tahılı aynı gün içinde birlikte tüketmek protein kalitesini dengeler.']],
+ 'Hamilelik, çocukluk ve emzirme döneminde mutlaka uzman desteğiyle planlayın.'],
+['gece-yeme','Davranış','🌃','Gece Yeme ve Atıştırma','Akşamları kontrolsüz yemenin nedenleri.',
+ 'Gece yeme çoğu zaman gün içinde yetersiz yemek, stres, sıkıntı veya alışkanlıkla ilişkilidir.',
+ [['Neler yardımcı olur?',['Gün içinde yeterli ve düzenli yemek (özellikle öğle ve ara öğün).','Akşam yemeğinde protein ve lif eklemek.','Yemekten sonra dişleri fırçalamak veya bitki çayı içmek.','Atıştırmalığı gözün önünden kaldırmak.']],
+  ['Sorgulayın','Gerçekten aç mıyım, yoksa sıkıldım/stresliyim mi diye kendinize sorun.']],
+ 'Sık ve kontrolsüz tekrarlıyorsa bir uzmandan destek almak faydalıdır.'],
+['takviyeler','Yaşam Tarzı','💊','Besin Takviyeleri: Gerçekten Gerekli mi?','Hap yerine önce sofra.',
+ 'Vitamin ve mineral takviyeleri belirli durumlarda gereklidir (eksiklik, hamilelik, bazı hastalıklar); ancak sağlıklı ve dengeli beslenen çoğu kişinin ihtiyacı yoktur.',
+ [['Dikkat edilecekler',['Takviyeyi tahlil ve uzman önerisine göre kullanın.','Fazla doz zararlı olabilir (özellikle yağda çözünen vitaminler).','"Mucize" vaat eden, hızlı kilo veren ürünlerden uzak durun.','İlaç etkileşimlerini hekiminize sorun.']],
+  ['Öncelik','Önce beslenmeyi düzeltmek, takviyeyi son basamak olarak düşünmek en güvenlisidir.']],
+ 'Sağlık ürünü satın almadan önce güvenilir bir kaynaktan doğrulayın.']
+];
+SV_ART_EXTRA.forEach(a=>{
+  const blocks=[{t:'p',x:a[5]}];
+  a[6].forEach(s=>{ blocks.push({t:'h',x:s[0]}); blocks.push(Array.isArray(s[1])?{t:'ul',x:s[1]}:{t:'p',x:s[1]}); });
+  if(a[7]) blocks.push({t:'p',x:a[7]});
+  SV_ARTICLES.push({id:a[0],cat:a[1],emoji:a[2],title:a[3],ozet:a[4],blocks});
+});
 /* Her makalenin kısa "bu bilgi nereden geliyor" notu — danışana şeffaflık için.
    Belirli bir dergi/çalışma adı uydurmak yerine, içeriğin hangi genel bilgi
    alanından derlendiğini dürüstçe belirtir. */
@@ -11012,6 +11293,7 @@ const SV_KAYNAK={
   'uyku-kilo':'Uyku ile iştah ve kilo yönetimi ilişkisine dair güncel beslenme ve uyku literatüründeki genel bulgular derlenerek hazırlanmıştır.',
   'yoyo-diyet':'Tekrarlayan diyet döngülerinin metabolizmaya etkisine dair güncel obezite ve beslenme literatüründeki genel bulgular derlenerek hazırlanmıştır.'
 };
+SV_ARTICLES.forEach(a=>{ if(!SV_KAYNAK[a.id]) SV_KAYNAK[a.id]='Güncel genel beslenme bilgisi ve yaygın kabul gören klinik beslenme kaynakları derlenerek hazırlanmıştır; kişisel tıbbi tavsiye yerine geçmez.'; });
 function svArtBlocksHtml(bl){
   return bl.map(b=>{
     if(b.t==='h') return `<div style="font-weight:700;color:var(--blue-700);font-size:13.5px;margin:14px 0 6px">${esc(b.x)}</div>`;
@@ -11105,9 +11387,10 @@ function svArticlesLibHtml(){
   const cats=[...new Set(SV_ARTICLES.map(a=>a.cat))];
   return `<section class="sv-card" id="sv-rehber" style="margin-top:16px"><div class="sv-card-h"><h3>📚 Bilgilendirme Kitapçığı</h3></div>
     <div style="padding:14px 16px 16px">
-      <p class="hint" style="margin:0 0 12px">Beslenmeyle ilgili merak ettiğin konularda kısa, sade yazılar — okumak için başlığa dokun, istersen Word veya PDF olarak indir.</p>
+      <p class="hint" style="margin:0 0 12px">${SV_ARTICLES.length} konuda kısa, sade yazılar — okumak için başlığa dokun, istersen Word veya PDF olarak indir.</p>
+      <input type="search" id="svArtQ" placeholder="🔎 Konu ara (örn. diyabet, demir, su)" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:14px;margin-bottom:6px">
       ${cats.map(cat=>`
-        <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:14px 0 6px">${esc(cat)}</div>
+        <details class="sv-artcat" style="margin-top:12px"><summary style="cursor:pointer;list-style:none;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-900);padding:9px 2px;border-bottom:1px solid var(--line)">${esc(cat)} <span style="color:var(--muted);font-weight:600">· ${SV_ARTICLES.filter(a=>a.cat===cat).length}</span></summary><div style="padding-top:8px">
         ${SV_ARTICLES.filter(a=>a.cat===cat).map(a=>`
           <details class="sv-art" style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">
             <summary style="list-style:none;cursor:pointer;padding:11px 14px;display:flex;align-items:center;gap:10px;font-weight:600;font-size:13.5px">
@@ -11124,10 +11407,19 @@ function svArticlesLibHtml(){
                 <button class="btn btn-sm" type="button" data-sv-art-pdf="${a.id}" style="flex:1;justify-content:center">⬇ PDF</button>
               </div>
             </div>
-          </details>`).join('')}`).join('')}
+          </details>`).join('')}</div></details>`).join('')}
     </div>
   </section>`;
 }
+document.addEventListener('input',e=>{
+  if(!e.target||e.target.id!=='svArtQ') return;
+  const q=e.target.value.trim().toLocaleLowerCase('tr');
+  document.querySelectorAll('.sv-artcat').forEach(c=>{
+    let any=false;
+    c.querySelectorAll('.sv-art').forEach(a=>{ const hit=!q||a.textContent.toLocaleLowerCase('tr').includes(q)&&true; a.style.display=hit?'':'none'; if(hit) any=true; });
+    c.style.display=any?'':'none'; if(q&&any) c.open=true;
+  });
+});
 function svPlanKey(){ const p=window.__svCurPlan; return p&&p.id?p.id:'cur'; }
 function svDaysTabsHtml(plan){
   return plan.days.map((d,i)=>{
