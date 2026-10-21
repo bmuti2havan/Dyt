@@ -759,6 +759,22 @@ main>*{animation:rise .22s ease both}
 .doc-list{display:flex;flex-direction:column;gap:8px}
 .doc-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line-2);border-radius:10px}
 .doc-ic{font-size:20px;flex:0 0 auto}
+/* İçerik takvimi */
+.aw-filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.aw-filters .chip{display:inline-flex;align-items:center;gap:7px;cursor:pointer}
+.aw-filters .chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.aw-theme{padding:0 18px 10px;font-size:12.5px;color:var(--ink-2)}
+.aw-row{display:grid;grid-template-columns:54px minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 18px;border-top:1px solid var(--line-2)}
+.aw-row.aw-past{opacity:.55}
+.aw-date{border-radius:10px;padding:6px 0;text-align:center;display:grid;line-height:1}
+.aw-date b{font-size:20px;font-variant-numeric:tabular-nums}
+.aw-date span{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.aw-info{min-width:0}
+.aw-tags{display:flex;gap:5px;flex-wrap:wrap}
+.aw-cat{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.aw-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.aw-st{cursor:pointer;font:inherit;font-size:11.5px}
+@media (max-width:640px){.aw-row{grid-template-columns:48px minmax(0,1fr);padding:11px 14px}.aw-act{grid-column:2;justify-content:flex-start}}
 </style>
 </head>
 <body>
@@ -6052,6 +6068,7 @@ function pagePanel(){
       <button class="btn btn-sm" ${a.act}>${a.btn}</button></div>`).join('')}</div>
   </section>`:''})()}
 
+  ${awPanelCard()}
   <section class="card no-print" style="margin-top:16px">
     <div class="card-h"><h3>🍽️ Bugünün fit tarifleri</h3><div class="spacer"></div>
       <button class="btn btn-sm" data-act="recipe-shuffle">↻ Farklı tarifler göster</button></div>
@@ -6757,7 +6774,7 @@ function pageAppts(){
 function pageSettings(){
   const p=DB.profile; p.cloudOn=!!(DB.cloud&&DB.cloud.uid&&DB.cloud.enabled);
   return `<div class="page-head"><div><h1>Ayarlar</h1><p>Yazdırılan programın üstünde görünen bilgiler ve veri yönetimi.</p></div>
-    <div class="spacer"></div><span class="tag">Sürüm v45 · 19 Ağu 2026</span></div>
+    <div class="spacer"></div><span class="tag">Sürüm v46 · 21 Eki 2026</span></div>
   <div class="grid g-2">
     <section class="card"><div class="card-h"><h3>Klinik bilgileri</h3></div><div class="card-b">
       <div class="form-grid">
@@ -7665,9 +7682,9 @@ const avColor=n=>{
 };
 
 const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
-  {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},
+  {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},{id:'aware',ic:'appts',t:'İçerik takvimi'},
   {s:'Sistem'},{id:'myphotos',ic:'camera',t:'Cilvenazımla Fotiler'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
-const TITLES={wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Cilvenazımla Fotiler'};
+const TITLES={aware:'İçerik takvimi',wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Cilvenazımla Fotiler'};
 function pageSearch(){
   const q=(S.gq||'').toLocaleLowerCase('tr');
   const cl=DB.clients.filter(c=>c.name.toLocaleLowerCase('tr').includes(q));
@@ -8250,6 +8267,150 @@ msg:['','ÇIKTI: Danışanlara gönderilecek toplu WhatsApp mesajı.',
   return base.concat(per,['','KONU:',String(topic).slice(0,600),
     extra?('\nEK NOT:\n'+String(extra).slice(0,600)):'']).join('\n');
 }
+/* ══════════════ İçerik takvimi: beslenmeyle ilgili farkındalık günleri ══════════════
+   Her kayıt her yıl kendiliğinden tekrar eder:
+   d:[ay,gün] sabit tarih · nth:[ay,haftaGünü(0=Paz),kaçıncı(-1=son)] · last:ay (ayın son günü)
+   y:{yıl:[ay,gün]} yıla göre elle girilen tarih (dini günler, değişkenler) · approx: tahmini tarih
+   Durum (çekildi/paylaşıldı) DB.awareness içinde "id-yıl" anahtarıyla saklanır, bulutla senkron olur. */
+const AW_CATS={hastalik:{t:'Hastalık',c:'#B23A31',bg:'#FBECEA'},gida:{t:'Gıda',c:'#3F6B54',bg:'#EAF2EE'},
+  yasam:{t:'Yaşam',c:'#0F7B96',bg:'#E3F4F8'},donem:{t:'Dönem',c:'#9A6B06',bg:'#FCF3E1'}};
+const AW_MONTH_THEMES=['Veganuary · Kuru Ocak (alkolsüz ay) · Tiroid Farkındalık Ayı','Kalp Ayı','Beslenme Ayı · Kolon Kanseri Farkındalık Ayı',
+  'İrritabl Bağırsak Sendromu (IBS) Farkındalık Ayı','Çölyak Farkındalık Ayı','Yaz beslenmesi ve sıvı tüketimi','Sıcak havada beslenme',
+  'Emzirme ve okula dönüş','PKOS Farkındalık Ayı · Çocukluk Çağı Obezitesi Farkındalık Ayı','Meme Kanseri Farkındalık Ayı',
+  'Diyabet Farkındalık Ayı · Movember (erkek sağlığı)','Yılbaşı ve kış beslenmesi'];
+const AW_EVENTS=[
+ {id:'vegan',d:[11,1],c:'gida',t:'Dünya Vegan Günü',i:'Bitkisel beslenmede protein, B12 ve demir nasıl tamamlanır?'},
+ {id:'diyabet',d:[11,14],c:'hastalik',t:'Dünya Diyabet Günü',i:'Kan şekerini dengeleyen bir tabak nasıl kurulur? Tabak modeli anlatımı.'},
+ {id:'antibiyotik',d:[11,18],c:'hastalik',t:'Antibiyotik Farkındalık Haftası (18–24 Kasım)',i:'Antibiyotik sonrası bağırsak florası: probiyotik ve prebiyotik besinler.',tag:'Hafta'},
+ {id:'zeytin',d:[11,26],c:'gida',t:'Dünya Zeytin Günü',i:'Zeytinyağının kalp sağlığına etkisi ve doğru pişirme ısısı.'},
+ {id:'yerlimali',d:[12,12],c:'gida',t:'Yerli Malı Haftası (12–18 Aralık)',i:'Mevsiminde yerli sebze-meyve: kış pazarı alışveriş listesi.',tag:'Hafta'},
+ {id:'kis',d:[12,21],c:'yasam',t:'Kış gündönümü',i:'D vitamini eksikliği: güneş azaldığında hangi besinler destekler?',tag:'İçerik'},
+ {id:'yilbasi',d:[12,31],c:'yasam',t:'Yılbaşı gecesi',i:'Yılbaşı sofrasında dengeyi kaybetmeden keyif yapmanın 5 yolu.',tag:'İçerik'},
+ {id:'yeniyil',d:[1,1],c:'yasam',t:'Yeni yıl hedefleri',i:'Şok diyet yerine sürdürülebilir 3 alışkanlık.',tag:'İçerik'},
+ {id:'kanser',d:[2,4],c:'hastalik',t:'Dünya Kanser Günü',i:'Kanser riskini azaltmada beslenmenin rolü: lif, işlenmiş et, alkol.'},
+ {id:'bakliyat',d:[2,10],c:'gida',t:'Dünya Bakliyat Günü',i:'Nohut, mercimek, fasulye: şişkinlik yapmadan nasıl pişirilir?'},
+ {id:'yemebozuk',nth:[2,1,-1],c:'hastalik',t:'Yeme Bozuklukları Farkındalık Haftası',i:'Yemekle barışmak: yasak listesi yerine esnek beslenme.',tag:'Hafta'},
+ {id:'nadir',last:2,c:'hastalik',t:'Nadir Hastalıklar Günü',i:'Fenilketonüri (PKU) gibi diyetle yönetilen nadir hastalıklar.'},
+ {id:'ramazan',y:{2027:[2,8],2028:[1,28],2029:[1,16]},approx:1,c:'donem',t:'Ramazan başlangıcı',i:'Sahurda tok tutan menü ve iftarda sindirim dostu sıralama.'},
+ {id:'rbayram',y:{2027:[3,9],2028:[2,26],2029:[2,14]},approx:1,c:'donem',t:'Ramazan Bayramı',i:'Bayram tatlılarına karşı akıllı porsiyon stratejileri.'},
+ {id:'obezite',d:[3,4],c:'hastalik',t:'Dünya Obezite Günü',i:'Obezite bir irade sorunu değil: kilo yönetiminde bilimsel yaklaşım.'},
+ {id:'kadin',d:[3,8],c:'yasam',t:'Dünya Kadınlar Günü',i:'Kadın sağlığı için demir, kalsiyum ve folat.'},
+ {id:'bobrek',nth:[3,4,2],c:'hastalik',t:'Dünya Böbrek Günü',i:'Böbrek dostu beslenme: tuz, protein ve sıvı dengesi.'},
+ {id:'uyku',y:{2027:[3,19],2028:[3,17],2029:[3,16]},c:'yasam',t:'Dünya Uyku Günü',i:'Uykuyu destekleyen akşam yemekleri ve kafeinin son saati.'},
+ {id:'agiz',d:[3,20],c:'yasam',t:'Dünya Ağız Sağlığı Günü',i:'Şeker, asitli içecekler ve diş sağlığı.'},
+ {id:'su',d:[3,22],c:'gida',t:'Dünya Su Günü',i:'Günde ne kadar su? Kişiye göre hesaplama ve su içmeyi kolaylaştıran ipuçları.'},
+ {id:'saglik',d:[4,7],c:'yasam',t:'Dünya Sağlık Günü',i:'Sağlıklı beslenmenin 10 temel kuralı.'},
+ {id:'parkinson',d:[4,11],c:'hastalik',t:'Dünya Parkinson Günü',i:"Parkinson'da ilaç–protein zamanlaması ve kabızlık yönetimi."},
+ {id:'astim',nth:[5,2,1],c:'hastalik',t:'Dünya Astım Günü',i:'Antiinflamatuar beslenme ve astım.'},
+ {id:'fibro',d:[5,12],c:'hastalik',t:'Fibromiyalji ve Kronik Yorgunluk Günü',i:'Yorgunlukla savaşan besinler ve kan şekeri dengesi.'},
+ {id:'avobezite',nth:[5,6,3],c:'hastalik',t:'Avrupa Obezite Günü',i:'Çocuk ve yetişkinde obeziteyi önleyen aile alışkanlıkları.'},
+ {id:'colyak',d:[5,16],c:'hastalik',t:'Uluslararası Çölyak Günü',i:'Glutensiz beslenme: gizli gluten kaynakları ve etiket okuma.'},
+ {id:'kurban',y:{2027:[5,16],2028:[5,5],2029:[4,24]},approx:1,c:'donem',t:'Kurban Bayramı',i:'Bayramda kırmızı et: güvenli saklama, pişirme ve porsiyon.'},
+ {id:'tansiyon',d:[5,17],c:'hastalik',t:'Dünya Hipertansiyon Günü',i:'Tuzu azaltmanın pratik yolları ve DASH diyeti.'},
+ {id:'ibh',d:[5,19],c:'hastalik',t:'Dünya İnflamatuar Bağırsak Hastalıkları Günü',i:'Crohn ve ülseratif kolitte atak dönemi beslenmesi.'},
+ {id:'tiroid',d:[5,25],c:'hastalik',t:'Dünya Tiroid Günü',i:"Haşimoto'da beslenme: iyot, selenyum ve gerçekler."},
+ {id:'sindirim',d:[5,29],c:'hastalik',t:'Dünya Sindirim Sağlığı Günü',i:'Bağırsak dostu bir gün: kahvaltıdan akşama örnek menü.'},
+ {id:'tutun',d:[5,31],c:'yasam',t:'Dünya Tütünsüz Günü',i:'Sigarayı bırakırken kilo almamak için beslenme önerileri.'},
+ {id:'sut',d:[6,1],c:'gida',t:'Dünya Süt Günü',i:'Süt ve süt ürünleri: laktoz intoleransında alternatifler.'},
+ {id:'gidaguv',d:[6,7],c:'gida',t:'Dünya Gıda Güvenliği Günü',i:'Buzdolabı düzeni ve yazın besin zehirlenmesinden korunma.'},
+ {id:'gastronomi',d:[6,18],c:'gida',t:'Sürdürülebilir Gastronomi Günü',i:'Mutfakta israfı azaltan artık yemek tarifleri.'},
+ {id:'babalar',nth:[6,0,3],c:'yasam',t:'Babalar Günü',i:'Erkek sağlığı: kalp, prostat ve göbek çevresi.'},
+ {id:'hepatit',d:[7,28],c:'hastalik',t:'Dünya Hepatit Günü',i:'Karaciğer yağlanması ve karaciğeri koruyan beslenme.'},
+ {id:'emzirme',d:[8,1],c:'yasam',t:'Dünya Emzirme Haftası (1–7 Ağustos)',i:'Emziren annenin beslenmesi: kalori, sıvı ve süt artıran mitler.',tag:'Hafta'},
+ {id:'okul',d:[8,30],c:'yasam',t:'Okula dönüş',i:'Beslenme çantası fikirleri ve okul öncesi kahvaltı.',tag:'İçerik'},
+ {id:'pkos',d:[9,1],c:'hastalik',t:'PKOS Farkındalık Ayı başlıyor',i:"PKOS'ta insülin direnci ve beslenme: neye dikkat etmeli?",tag:'Ay'},
+ {id:'alzheimer',d:[9,21],c:'hastalik',t:'Dünya Alzheimer Günü',i:'Beyin dostu MIND diyeti.'},
+ {id:'kalp',d:[9,29],c:'hastalik',t:'Dünya Kalp Günü',i:'Kalbi koruyan 5 besin ve kolesterol mitleri.'},
+ {id:'vejetaryen',d:[10,1],c:'gida',t:'Dünya Vejetaryen Günü',i:'Dengeli vejetaryen tabak nasıl hazırlanır?'},
+ {id:'meme',d:[10,1],c:'hastalik',t:'Meme Kanseri Farkındalık Ayı başlıyor',i:'Meme kanseri riskini azaltan yaşam tarzı ve beslenme.',tag:'Ay'},
+ {id:'yumurta',nth:[10,5,2],c:'gida',t:'Dünya Yumurta Günü',i:'Yumurta ve kolesterol: günde kaç tane?'},
+ {id:'ruh',d:[10,10],c:'yasam',t:'Dünya Ruh Sağlığı Günü',i:'Bağırsak-beyin ekseni: ruh hâline iyi gelen besinler.'},
+ {id:'gida',d:[10,16],c:'gida',t:'Dünya Gıda Günü / Dünya Ekmek Günü',i:'Tam tahıllı ekmek nasıl seçilir? Etiket okuma rehberi.'},
+ {id:'osteo',d:[10,20],c:'hastalik',t:'Dünya Osteoporoz Günü',i:'Kemik sağlığı: kalsiyum, D vitamini ve K2.'},
+];
+function awDateOf(e,y){
+  if(e.d) return new Date(y,e.d[0]-1,e.d[1]);
+  if(e.last) return new Date(y,e.last,0);
+  if(e.y){ const v=e.y[y]; return v? new Date(y,v[0]-1,v[1]) : null; }
+  if(e.nth){ const [m,wd,n]=e.nth;
+    if(n>0){ const f=new Date(y,m-1,1); return new Date(y,m-1,1+((wd-f.getDay()+7)%7)+(n-1)*7); }
+    const l=new Date(y,m,0); return new Date(y,m-1,l.getDate()-((l.getDay()-wd+7)%7)); }
+  return null;
+}
+/* from..to aralığındaki tüm günler, tarihe göre sıralı */
+function awRange(from,to){
+  const out=[];
+  for(let y=from.getFullYear(); y<=to.getFullYear(); y++) AW_EVENTS.forEach(e=>{
+    const dt=awDateOf(e,y); if(dt&&dt>=from&&dt<=to) out.push({e,dt,key:e.id+'-'+y});
+  });
+  return out.sort((a,b)=>a.dt-b.dt||a.e.t.localeCompare(b.e.t,'tr'));
+}
+function awToday(){ const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate()); }
+function awSt(key){ return (DB.awareness||{})[key]||''; }
+const AW_ST={'':{t:'Çekilmedi',cls:''},cekildi:{t:'🎬 Çekildi',cls:'tag-warn'},paylasildi:{t:'✅ Paylaşıldı',cls:'tag-ok'}};
+function awStBtn(key){ const s=AW_ST[awSt(key)];
+  return `<button class="tag ${s.cls} aw-st" data-aw-st="${key}" title="Durumu değiştir: çekilmedi → çekildi → paylaşıldı">${s.t}</button>`; }
+function awDays(dt){ const n=Math.round((dt-awToday())/86400000);
+  return n===0?'Bugün':n===1?'Yarın':n<0?(-n)+' gün önce':n+' gün sonra'; }
+function awRow(o,past){
+  const cat=AW_CATS[o.e.c], wd=o.dt.toLocaleDateString('tr-TR',{weekday:'short'});
+  return `<div class="aw-row${past?' aw-past':''}" data-aw-cat="${o.e.c}">
+    <div class="aw-date" style="background:${cat.bg};color:${cat.c}"><b>${o.dt.getDate()}</b><span>${esc(wd)}</span></div>
+    <div class="aw-info">
+      <div class="aw-tags"><span class="aw-cat" style="color:${cat.c}">${cat.t}</span>${o.e.tag?`<span class="aw-cat">· ${o.e.tag}</span>`:''}${o.e.approx?'<span class="aw-cat">· tahmini tarih</span>':''}</div>
+      <div class="t-name">${esc(o.e.t)}</div>
+      <div class="t-sub">🎬 ${esc(o.e.i)}</div>
+    </div>
+    <div class="aw-act">${awStBtn(o.key)}<button class="btn btn-sm" data-aw-write="${o.e.id}">✨ İçerik yaz</button></div>
+  </div>`;
+}
+function pageAware(){
+  const t0=awToday(), from=new Date(t0.getFullYear(),t0.getMonth(),1), to=new Date(t0.getFullYear(),t0.getMonth()+12,0);
+  const f=S.awF||'all';
+  const all=awRange(from,to), list=all.filter(o=>f==='all'||o.e.c===f);
+  const done=all.filter(o=>awSt(o.key)==='paylasildi').length, shot=all.filter(o=>awSt(o.key)==='cekildi').length;
+  const next=all.find(o=>o.dt>=t0);
+  const months={}; list.forEach(o=>{const k=o.dt.getFullYear()*12+o.dt.getMonth();(months[k]=months[k]||[]).push(o)});
+  const mk=Object.keys(months).map(Number).sort((a,b)=>a-b);
+  return `<div class="page-head"><div><h1>İçerik takvimi</h1>
+    <p>Beslenmeyle ilgili sağlık ve farkındalık günleri, her biri için bir video fikriyle. Takvim her yıl kendiliğinden yenilenir.</p></div></div>
+  <div class="stats" style="margin-bottom:16px">
+    <div class="stat"><div class="lbl">Sıradaki gün</div><div class="val" style="font-size:19px">${next?esc(next.e.t):'—'}</div><div class="sub">${next?trDate(next.dt)+' · '+awDays(next.dt):''}</div></div>
+    <div class="stat"><div class="lbl">Önümüzdeki 12 ay</div><div class="val">${all.length}</div><div class="sub">farkındalık günü</div></div>
+    <div class="stat"><div class="lbl">Çekildi</div><div class="val">${shot}</div><div class="sub">paylaşılmayı bekliyor</div></div>
+    <div class="stat"><div class="lbl">Paylaşıldı</div><div class="val">${done}</div><div class="sub">video yayında</div></div>
+  </div>
+  <div class="aw-filters">${[['all','Tümü']].concat(Object.entries(AW_CATS).map(([k,v])=>[k,v.t])).map(([k,v])=>
+    `<button class="chip${f===k?' on':''}" data-aw-f="${k}" aria-pressed="${f===k}">${k!=='all'?`<i style="background:${AW_CATS[k].c}"></i>`:''}${v}</button>`).join('')}</div>
+  ${mk.map(k=>{const y=Math.floor(k/12), m=k%12; return `<section class="card" style="margin-bottom:16px">
+    <div class="card-h"><h3>${new Date(y,m,1).toLocaleDateString('tr-TR',{month:'long',year:'numeric'})}</h3><div class="spacer"></div><span class="tag">${months[k].length}</span></div>
+    <div class="aw-theme"><b>Ayın teması:</b> ${esc(AW_MONTH_THEMES[m])}</div>
+    <div>${months[k].map(o=>awRow(o,o.dt<t0)).join('')}</div></section>`}).join('')}
+  <p class="t-sub" style="margin-top:4px">Ramazan, Ramazan Bayramı ve Kurban Bayramı tarihleri tahminidir; Diyanet takvimiyle kesinleşir. Durum etiketine dokunarak çekilmedi → çekildi → paylaşıldı arasında geçiş yapabilirsin.</p>`;
+}
+/* Panel kartı: önümüzdeki 21 gün */
+function awPanelCard(){
+  const t0=awToday(), soon=awRange(t0,new Date(t0.getTime()+21*86400000)).slice(0,4);
+  if(!soon.length) return '';
+  return `<section class="card no-print" style="margin-top:16px">
+    <div class="card-h"><h3>🎬 Yaklaşan farkındalık günleri</h3><div class="spacer"></div><button class="btn btn-sm" data-go="aware">Takvimi aç</button></div>
+    <div>${soon.map(o=>{const cat=AW_CATS[o.e.c]; return `<div class="aw-row">
+      <div class="aw-date" style="background:${cat.bg};color:${cat.c}"><b>${o.dt.getDate()}</b><span>${esc(o.dt.toLocaleDateString('tr-TR',{month:'short'}))}</span></div>
+      <div class="aw-info"><div class="t-name">${esc(o.e.t)}</div><div class="t-sub">${awDays(o.dt)} · ${esc(o.e.i)}</div></div>
+      <div class="aw-act">${awStBtn(o.key)}<button class="btn btn-sm" data-aw-write="${o.e.id}">✨ İçerik yaz</button></div></div>`}).join('')}</div>
+  </section>`;
+}
+function awCycle(key){
+  DB.awareness=DB.awareness||{};
+  const cur=DB.awareness[key]||'', nx=cur===''?'cekildi':cur==='cekildi'?'paylasildi':'';
+  if(nx) DB.awareness[key]=nx; else delete DB.awareness[key];
+  save(); const sy=window.scrollY; render(); window.scrollTo(0,sy);
+}
+function awWrite(id){
+  const e=AW_EVENTS.find(x=>x.id===id); if(!e) return;
+  S.ctType='post'; S.ctTopic=e.t+' — '+e.i; S.page='content'; render();
+}
+
 function pageContent(){
   const list=(DB.contents||[]).slice().sort((a,b)=>(+b.at||0)-(+a.at||0));
   const t=S.ctType||'post';
@@ -8484,7 +8645,7 @@ function pageInvoices(){
   </section>`;
 }
 
-const PAGES={wa:pageWa,content:pageContent,trash:pageTrash,invoices:pageInvoices,cal:pageCal,search:pageSearch,panel:pagePanel,clients:pageClients,client:pageClient,appts:pageAppts,plans:pagePlans,planEdit:pagePlanEdit,foods:pageFoods,settings:pageSettings,myphotos:pageMyPhotos};
+const PAGES={aware:pageAware,wa:pageWa,content:pageContent,trash:pageTrash,invoices:pageInvoices,cal:pageCal,search:pageSearch,panel:pagePanel,clients:pageClients,client:pageClient,appts:pageAppts,plans:pagePlans,planEdit:pagePlanEdit,foods:pageFoods,settings:pageSettings,myphotos:pageMyPhotos};
 
 function render(){
   document.getElementById('nav').innerHTML=NAV.map(i=>i.s?`<div class="nav-sec">${i.s}</div>`:
@@ -8553,6 +8714,9 @@ document.addEventListener('click',async e=>{
   if(t.closest('button[data-close]')) return closeModal();
   const ok=t.closest('[data-ok]'); if(ok) return handleOk(ok.dataset.ok);
   const go=t.closest('[data-go]'); if(go){ S.page=go.dataset.go; S.q=''; return render(); }
+  const awS=t.closest('[data-aw-st]'); if(awS) return awCycle(awS.dataset.awSt);
+  const awF=t.closest('[data-aw-f]'); if(awF){ S.awF=awF.dataset.awF; const sy=window.scrollY; render(); window.scrollTo(0,sy); return; }
+  const awW=t.closest('[data-aw-write]'); if(awW) return awWrite(awW.dataset.awWrite);
   const md=t.closest('[data-modal]'); if(md) return openModal(md.dataset.modal);
   const sg=t.closest('[data-seg]'); if(sg){
     const [grp,v]=sg.dataset.seg.split(':');
