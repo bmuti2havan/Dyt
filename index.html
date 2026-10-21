@@ -72,6 +72,7 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .sv-promo-wa-btn{display:inline-block;padding:13px 28px;background:#25D366;color:#fff;border-radius:999px;font-weight:600;font-size:14.5px;text-decoration:none}
 .sv-promo-foot{text-align:center;color:var(--muted);font-size:12px;padding:18px 0}
 @media(max-width:480px){.sv-promo-hero h1{font-size:22px}}
+.sv-promo-top-wa{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px 16px;background:#25D366;color:#fff;font-weight:700;font-size:15px;text-decoration:none}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9637,6 +9638,7 @@ function svPromoHtml(profile,plan){
       <div class="days" style="margin-bottom:14px" id="svDaysRow"></div>
       <div id="svDayBody"></div>`;
   return `<div class="sv-promo-wrap" style="${waHref?'margin-bottom:76px':''}">
+    <a class="sv-promo-top-wa" href="https://wa.me/905475373522?text=${encodeURIComponent('Merhaba, danışmanlık hizmetiniz hakkında bilgi almak istiyorum.')}" target="_blank" rel="noopener">💬 Diyetisyen İletişim · WhatsApp</a>
     <div class="sv-promo-hero">
       ${profile.logo?`<img src="${profile.logo}" class="sv-promo-logo">`:''}
       <h1>Kişiye Özel Beslenme Danışmanlığı</h1>
