@@ -199,6 +199,11 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-how-d{background:linear-gradient(145deg,#F1ECFF,#E2D8FF);border:1px solid #C9B9F5}
 .pm-how-d h3{color:#5B3FB0}
 .pm-how-d b{color:#4A3092}
+.pm-sl-g{margin-bottom:14px}
+.pm-sl-g b{display:block;font-size:13px;color:var(--blue-900);margin-bottom:6px}
+.pm-sl label{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line-2);font-size:14px;cursor:pointer}
+.pm-sl input{width:18px;height:18px;accent-color:var(--blue-600);flex:0 0 auto}
+.pm-sl input:checked+span{opacity:.45;text-decoration:line-through}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9787,6 +9792,13 @@ function svPromoHtml(profile,plan){
       {date:'2026-08-15',weight:74.1},{date:'2026-09-01',weight:73},{date:'2026-09-15',weight:72}])}</div></div>
   </section>
 
+  <section class="pm-sec" id="pm-liste">
+    <h2>Alışveriş listesi örneği</h2>
+    <p class="pm-muted">Programınızla birlikte, o haftanın tarifleri için market listenizi de iletirim. Böyle görünür:</p>
+    <div class="pm-card pm-sl" id="pmShopBox"><div id="pmShopList"><div class="pm-sl-g"><b>🥬 Sebze & meyve</b><label><input type="checkbox"> <span>Domates — 1 kg</span></label><label><input type="checkbox"> <span>Salatalık — 6 adet</span></label><label><input type="checkbox"> <span>Yeşil yaprak (marul/roka) — 2 demet</span></label><label><input type="checkbox"> <span>Limon — 4 adet</span></label><label><input type="checkbox"> <span>Elma — 1 kg</span></label><label><input type="checkbox"> <span>Muz — 6 adet</span></label></div><div class="pm-sl-g"><b>🍗 Protein</b><label><input type="checkbox"> <span>Yumurta — 10 adet</span></label><label><input type="checkbox"> <span>Tavuk göğsü — 750 g</span></label><label><input type="checkbox"> <span>Kıyma (az yağlı) — 400 g</span></label><label><input type="checkbox"> <span>Ton balığı — 2 konserve</span></label></div><div class="pm-sl-g"><b>🥛 Süt ürünleri</b><label><input type="checkbox"> <span>Yoğurt — 1 kg</span></label><label><input type="checkbox"> <span>Beyaz peynir — 300 g</span></label><label><input type="checkbox"> <span>Süt — 1 litre</span></label></div><div class="pm-sl-g"><b>🌾 Tahıl & baklagil</b><label><input type="checkbox"> <span>Yulaf — 500 g</span></label><label><input type="checkbox"> <span>Tam tahıllı ekmek — 1 adet</span></label><label><input type="checkbox"> <span>Mercimek — 500 g</span></label><label><input type="checkbox"> <span>Bulgur — 500 g</span></label></div><div class="pm-sl-g"><b>🫒 Diğer</b><label><input type="checkbox"> <span>Zeytinyağı — 1 şişe</span></label><label><input type="checkbox"> <span>Ceviz — 200 g</span></label><label><input type="checkbox"> <span>Tarçın</span></label></div></div>
+      <p class="pm-muted" style="margin:12px 0 0;font-size:12px">Örnek gösterimdir; kendi listeniz kendi programınıza göre hazırlanır.</p></div>
+  </section>
+
   <section class="pm-sec">
     <div class="pm-how pm-how-a">
       <h3>🌸 Programım nasıl işliyor?</h3>
@@ -9924,6 +9936,12 @@ function svPromoApply(profile,plan){
   if(safePlan&&box){
     box.innerHTML=`<div class="days" style="margin-bottom:14px" id="svDaysRow"></div><div id="svDayBody"></div>`;
     window.__svCurPlan=safePlan; window.__svPlans=[safePlan]; svRenderPlanBody();
+    try{
+      const man=Array.isArray(safePlan.shopManual)&&safePlan.shopManual.length?safePlan.shopManual:null;
+      const items=(man||svBuildShopFallback(svBuildShopRawItems())).slice(0,40);
+      const sl=document.getElementById('pmShopList');
+      if(sl&&items.length) sl.innerHTML='<div class="pm-sl-g">'+items.map(i=>`<label><input type="checkbox"> <span>${esc(i)}</span></label>`).join('')+'</div>';
+    }catch(e){}
   } else svPromoNoPlan();
 }
 function svPromoNoPlan(){
