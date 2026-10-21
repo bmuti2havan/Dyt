@@ -219,8 +219,10 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-more{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;color:#fff;font-weight:800;font-size:14px;padding:11px 20px;border-radius:999px;background:linear-gradient(135deg,#E8A33D,#D9567B 60%,#9C3F60);box-shadow:0 6px 16px rgba(217,86,123,.35)}
 .pm-more-all{width:100%;margin-top:14px;background:linear-gradient(135deg,#5B3FB0,#9C3F60)}
 .pm-fabs{position:fixed;right:18px;bottom:18px;z-index:40;display:flex;flex-direction:column;gap:12px;align-items:center}
-.pm-fabs .sv-promo-fab{position:static}
+.pm-fabs .sv-promo-fab{position:static;color:#fff}
 .pm-ig{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.pm-form{display:grid;gap:10px;margin-top:12px}.pm-form input,.pm-form select{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid var(--line);border-radius:12px;font:inherit;font-size:15px;background:#fff;color:var(--ink)}
+.pm-form .pm-btn{justify-content:center;border:0;cursor:pointer}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -6170,11 +6172,29 @@ function pageClientControl(c){
   </div>`;
 }
 
+async function pmStatsLoad(){
+  const box=document.getElementById('pmStatsBox'); if(!box) return;
+  try{
+    const c=CL(); if(!c||!c.uid) return;
+    const t=await cloudToken();
+    const r=await fetch(`${c.dbUrl}/promo_stats.json?auth=${encodeURIComponent(t)}`); if(!r.ok) return;
+    const d=await r.json()||{}; const days=Object.keys(d).sort().slice(-7);
+    const tot={}, src={};
+    days.forEach(k=>Object.entries(d[k]).forEach(([sr,e])=>Object.entries(e).forEach(([ev,n])=>{ tot[ev]=(tot[ev]||0)+n; (src[sr]=src[sr]||{view:0,wa:0,form:0,ig:0}); src[sr][ev]=(src[sr][ev]||0)+n; })));
+    if(!tot.view){ box.innerHTML=''; return; }
+    const rows=Object.entries(src).sort((a,b)=>b[1].view-a[1].view).slice(0,6).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.view}</td><td>${v.wa+v.form}</td><td>${v.ig}</td></tr>`).join('');
+    box.innerHTML=`<section class="card no-print" style="margin-top:16px"><div class="card-b"><div class="t-name">Tanıtım sayfası · son 7 gün</div>
+      <div class="t-sub">${tot.view||0} ziyaret · ${(tot.wa||0)+(tot.form||0)} WhatsApp tıklaması · ${tot.ig||0} Instagram</div>
+      <table style="width:100%;font-size:13px;margin-top:8px;border-collapse:collapse"><tr style="text-align:left;color:var(--muted)"><th>Kaynak</th><th>Ziyaret</th><th>WhatsApp</th><th>Insta</th></tr>${rows}</table></div></section>`;
+  }catch(e){}
+}
 function pagePanel(){
   const upcoming=DB.appts.filter(a=>new Date(a.when)>=new Date(Date.now()-36e5)).sort((a,b)=>new Date(a.when)-new Date(b.when));
   const today=upcoming.filter(a=>new Date(a.when).toDateString()===new Date().toDateString());
   const activePlans=DB.plans.filter(p=>p.status==='Aktif').length;
+  setTimeout(pmStatsLoad,50);
   return `
+  <div id="pmStatsBox"></div>
   ${(()=>{const g=greetBlock(); return `
   <div class="hero no-print">
     <span class="greet-when">${esc(g.when)}</span>
@@ -9775,8 +9795,25 @@ function svPromoPregCalc(week){
   const tri=SV_PROMO_PREG_TRIMESTER_HINT.find(t=>w<=t.max)||SV_PROMO_PREG_TRIMESTER_HINT[2];
   return {w,daysLeft,eddISO:localISODate(edd),tri};
 }
+function pmSrc(){
+  try{
+    let v=sessionStorage.getItem('pm-src'); if(v) return v;
+    const q=new URLSearchParams(location.search);
+    v=q.get('kaynak')||q.get('utm_source')||'';
+    if(!v&&document.referrer){ try{ const h=new URL(document.referrer).hostname.replace(/^www\./,''); if(h&&h!==location.hostname) v=h.split('.')[0]; }catch(e){} }
+    v=(v||'dogrudan').toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,24)||'dogrudan';
+    sessionStorage.setItem('pm-src',v); return v;
+  }catch(e){ return 'dogrudan'; }
+}
+function pmTrack(ev){
+  try{
+    const b=JSON.stringify({ev,src:pmSrc()});
+    if(navigator.sendBeacon) navigator.sendBeacon('/.netlify/functions/track',new Blob([b],{type:'application/json'}));
+    else fetch('/.netlify/functions/track',{method:'POST',body:b,keepalive:true});
+  }catch(e){}
+}
 function svPromoHtml(profile,plan){
-  const WA='https://wa.me/905475373522?text='+encodeURIComponent('Merhaba, danışmanlık hizmetiniz hakkında bilgi almak istiyorum.');
+  const WA='https://wa.me/905475373522?text='+encodeURIComponent('Merhaba, ücretsiz tanışma görüşmesi hakkında bilgi almak istiyorum.');
   const WAI='<svg viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16.003 3C8.83 3 3 8.83 3 16c0 2.29.6 4.52 1.74 6.49L3 29l6.7-1.7A12.95 12.95 0 0 0 16 29c7.17 0 13-5.83 13-13S23.17 3 16.003 3zm0 23.7c-1.95 0-3.86-.53-5.53-1.52l-.4-.24-3.98 1.01 1.06-3.88-.26-.4A10.66 10.66 0 0 1 5.3 16c0-5.9 4.8-10.7 10.7-10.7S26.7 10.1 26.7 16s-4.8 10.7-10.7 10.7zm5.87-8c-.32-.16-1.9-.94-2.2-1.04-.3-.11-.51-.16-.73.16-.22.32-.84 1.04-1.03 1.26-.19.21-.38.24-.7.08-.32-.16-1.35-.5-2.57-1.58-.95-.85-1.59-1.9-1.78-2.22-.19-.32-.02-.49.14-.65.14-.14.32-.38.48-.57.16-.19.21-.32.32-.54.11-.21.05-.4-.03-.56-.08-.16-.73-1.76-1-2.4-.26-.63-.53-.55-.73-.56h-.62c-.21 0-.56.08-.85.4-.3.32-1.12 1.1-1.12 2.68s1.15 3.1 1.31 3.32c.16.21 2.26 3.45 5.47 4.84.76.33 1.36.53 1.82.68.77.24 1.46.21 2.01.13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.4.19-1.53-.08-.13-.3-.21-.62-.37z"/></svg>';
   const feat=[['🥗','Size özel program','Sevdiğiniz besinlere ve günlük temponuza göre hazırlanan haftalık tarif listesi.'],
     ['🛒','Alışveriş listesi','Programla birlikte market listeniz de hazır gelir.'],
@@ -9793,7 +9830,7 @@ function svPromoHtml(profile,plan){
     <p class="pm-tag pm-hand">Hayatınıza uyan, uygulanabilir bir beslenme planı</p>
     <div class="pm-chips"><span>📍 Muratpaşa, Antalya</span><span>💻 Yüz yüze &amp; online</span><span>🤟 İşaret dili</span><a href="https://www.instagram.com/dytaysenurkorkmaz" target="_blank" rel="noopener" style="color:#fff;text-decoration:none">📷 @dytaysenurkorkmaz</a></div>
     <div class="pm-hero-btns">
-      <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} WhatsApp'tan yazın</a>
+      <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} Ücretsiz tanışma</a>
       <a class="pm-btn pm-btn-ghost" href="#pm-ornek">Örnek programı gör ↓</a>
     </div>
   </section>
@@ -9959,10 +9996,21 @@ function svPromoHtml(profile,plan){
     </div>
   </section>
 
+  <section class="pm-sec" id="pm-form">
+    <h2 class="pm-h2">Ücretsiz tanışma görüşmesi</h2>
+    <p class="pm-muted">Kısa bilgilerinizi yazın, WhatsApp'ta hazır mesaj olarak açılsın. Size uygun günü birlikte belirleyelim.</p>
+    <div class="pm-form">
+      <input id="pmfName" placeholder="Adınız" autocomplete="given-name">
+      <select id="pmfGoal"><option>Kilo vermek istiyorum</option><option>Kilo almak istiyorum</option><option>Sağlıklı beslenmek istiyorum</option><option>Hamileyim / emziriyorum</option><option>Çocuğum için</option><option>Hastalığım için beslenme</option></select>
+      <input id="pmfNote" placeholder="Eklemek istediğiniz not (isteğe bağlı)">
+      <button type="button" class="pm-btn pm-btn-wa" id="pmfBtn">WhatsApp'ta gönder</button>
+    </div>
+  </section>
+
   <section class="pm-cta">
     <h2>Hazırsanız başlayalım</h2>
-    <p>Size uygun bir günde randevulaşabiliriz.</p>
-    <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} WhatsApp'tan yazın</a>
+    <p>İlk tanışma görüşmesi ücretsiz.</p>
+    <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} Ücretsiz tanışma görüşmesi</a>
   </section>
   <p class="pm-foot" id="pmFoot">Dyt. Ayşenur Korkmaz · Muratpaşa, Antalya</p>
   </div>
@@ -9990,6 +10038,15 @@ function svPromoNoPlan(){
   const k=document.querySelector('#pm-ornek .pm-muted'); if(k) k.style.display='none';
 }
 function svPromoWire(){
+  pmTrack('view');
+  document.querySelectorAll('.pm a[href*="wa.me"],.pm-fabs a[href*="wa.me"]').forEach(a=>a.addEventListener('click',()=>pmTrack('wa')));
+  document.querySelectorAll('.pm a[href*="instagram.com"],.pm-fabs a[href*="instagram.com"]').forEach(a=>a.addEventListener('click',()=>pmTrack('ig')));
+  const pfb=document.getElementById('pmfBtn');
+  if(pfb) pfb.addEventListener('click',()=>{
+    const n=(document.getElementById('pmfName').value||'').trim(), g=document.getElementById('pmfGoal').value, nt=(document.getElementById('pmfNote').value||'').trim();
+    const msg='Merhaba'+(n?', ben '+n:'')+'. Ücretsiz tanışma görüşmesi almak istiyorum. Hedefim: '+g+'.'+(nt?' Not: '+nt:'');
+    pmTrack('form'); window.open('https://wa.me/905475373522?text='+encodeURIComponent(msg),'_blank','noopener');
+  });
   document.querySelectorAll('[data-pm-dis]').forEach(b=>b.addEventListener('click',()=>{
     const gb=document.getElementById('pmGuideBtn'), gx=document.getElementById('pmGuideBox');
     if(gx&&gx.hidden&&gb) gb.click();
