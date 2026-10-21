@@ -148,6 +148,19 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-guide-go{flex:0 0 auto;background:#fff;color:#9C3F60;font-weight:800;font-size:13px;padding:9px 16px;border-radius:999px}
 @keyframes pmPulse{0%,100%{box-shadow:0 10px 28px rgba(217,86,123,.38),0 0 0 0 rgba(217,86,123,.45)}50%{box-shadow:0 10px 28px rgba(217,86,123,.38),0 0 0 10px rgba(217,86,123,0)}}
 @media(prefers-reduced-motion:reduce){.pm-guide{animation:none}}
+.pm-kicker{display:inline-block;background:#FFE9C7;color:#8a5a00;font-weight:800;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:999px;margin-bottom:10px}
+.pm-ex{padding-top:30px}
+.pm-ex-box{padding:14px}
+.pm-how{border-radius:20px;padding:22px 20px;line-height:1.7}
+.pm-how h3{font-family:var(--serif);font-size:19px;margin:0 0 12px}
+.pm-how p{font-size:14.5px;margin:0 0 12px}
+.pm-how p:last-child{margin-bottom:0}
+.pm-how-a{background:linear-gradient(145deg,#FFF1F5,#FFE0EA);border:1px solid #F8C3D3}
+.pm-how-a h3{color:#B2325F}
+.pm-how-a b{color:#9C2A52}
+.pm-how-b{background:linear-gradient(145deg,#E9F7F3,#D6F0E8);border:1px solid #A9DCCB}
+.pm-how-b h3{color:#1D7A62}
+.pm-how-b b{color:#176450}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9723,6 +9736,26 @@ function svPromoHtml(profile,plan){
     </div>
   </section>
 
+  <section class="pm-sec pm-ex" id="pm-ornek">
+    <span class="pm-kicker">En önemlisi</span>
+    <h2>Örnek program</h2>
+    <p class="pm-muted">Danışanlarımın takip linkinden gördüğü gerçek bir haftalık programdan örnek. Günlere dokunarak öğünleri inceleyebilirsiniz.</p>
+    <div class="pm-card pm-ex-box"><div id="pmPlanBox"><p class="pm-muted" style="margin:0;text-align:center">Örnek program yükleniyor…</p></div></div>
+    <p class="pm-muted" style="margin:18px 0 8px">Gelişim grafiğiniz de kişisel sayfanızda böyle görünür (örnek gösterimdir):</p>
+    <div class="sv-card" style="margin:0"><div style="padding:14px">${lineChart([
+      {date:'2026-07-01',weight:78},{date:'2026-07-15',weight:76.8},{date:'2026-08-01',weight:75.4},
+      {date:'2026-08-15',weight:74.1},{date:'2026-09-01',weight:73},{date:'2026-09-15',weight:72}])}</div></div>
+  </section>
+
+  <section class="pm-sec">
+    <div class="pm-how pm-how-a">
+      <h3>🌸 Programım nasıl işliyor?</h3>
+      <p>Sizler için hazırladığım programda her hafta farklı <b>yağ yakıcı tariflerle</b> ilerliyoruz. Böylece <i>“Bugün ne pişirsem?”</i> derdiniz ortadan kalkıyor ve her gün yaşam tarzınıza, damak tadınıza ve hedeflerinize uygun tariflerle yönlendirme alıyorsunuz.</p>
+      <p><b>Her hafta 7 günlük yeni bir liste</b> oluşturuyoruz. Liste <b>tamamen size özel hazırlanmış tarifler</b> içerir ❤️ ve bu nedenle bir de <b>alışveriş listesi</b> iletirim 🌸🙏🏻</p>
+      <p>Haftanın sonunda ofisimde analiz alıp değerlendirme yaparak bir sonraki haftayı tamamen ihtiyaçlarınıza göre şekillendiriyoruz. Süreç hem <b>kişisel</b> hem de <b>dinamik</b> ilerliyor.</p>
+    </div>
+  </section>
+
   <section class="pm-sec" style="padding-top:22px">
     <button class="pm-guide" id="pmGuideBtn" type="button" aria-expanded="false">
       <span class="pm-guide-ic">📚</span>
@@ -9746,6 +9779,11 @@ function svPromoHtml(profile,plan){
       <div><small>Ek eğitim</small><b>Aşçılık eğitimi</b></div>
       <div><small>İletişim</small><b>İşaret dili</b>İşitme engelli danışanlarla doğrudan görüşme</div>
       <div><small>Çalışma</small><b>Muratpaşa, Antalya</b>Yüz yüze ve online</div>
+    </div>
+    <div class="pm-how pm-how-b" style="margin-top:22px">
+      <h3>🧒 Çocuklar için program nasıl işliyor?</h3>
+      <p>Her hafta <b>7 günlük yeni bir liste</b> oluşturuyoruz. Liste <b>tamamen size özel hazırlanmış tarifler</b> içerir ❤️ ve bu nedenle bir de <b>alışveriş listesi</b> iletirim 🌸🙏🏻 Tarifleri <b>tüm ailenin keyifle yiyebileceği</b> şekilde hazırlıyorum, böylece çocuğunuz kendini farklı hissetmeden süreci kolayca benimsiyor.</p>
+      <p>Haftanın sonunda ofisimde <b>ölçümlerini yapıp büyüme eğrisine göre</b> değerlendirerek bir sonraki haftayı tamamen ihtiyaçlarına göre şekillendiriyoruz. Süreç hem <b>kişisel</b> hem de <b>dinamik</b> ilerliyor 💪🏻❤️</p>
     </div>
   </section>
 
@@ -9773,17 +9811,6 @@ function svPromoHtml(profile,plan){
     </div>
   </section>
 
-  <section class="pm-sec">
-    <h2>Örnek program ve takip sayfası</h2>
-    <details class="pm-det"><summary>Gerçek bir haftalık programdan örnek ve gelişim grafiği</summary>
-      <div class="pm-det-body">
-        <div id="pmPlanBox"></div>
-        <p class="pm-muted" style="margin:14px 0 8px">Gelişim grafiğiniz böyle görünecek (örnek gösterimdir):</p>
-        <div class="sv-card" style="margin:0"><div style="padding:14px">${lineChart([
-          {date:'2026-07-01',weight:78},{date:'2026-07-15',weight:76.8},{date:'2026-08-01',weight:75.4},
-          {date:'2026-08-15',weight:74.1},{date:'2026-09-01',weight:73},{date:'2026-09-15',weight:72}])}</div></div>
-      </div></details>
-  </section>
 
   <section class="pm-sec">
     <button class="sv-promo-preg-btn" id="svPromoPregBtn" type="button" style="margin:0">🤰 Hamile misiniz? Gebeliğe özel programımızı görün</button>
@@ -9837,10 +9864,13 @@ function svPromoApply(profile,plan){
   const safePlan=svSafePlan(plan);
   const box=document.getElementById('pmPlanBox');
   if(safePlan&&box){
-    box.innerHTML=`<p class="pm-muted" style="margin:0 0 10px">Danışanlarımın takip linkinden gördüğü haftalık programdan bir örnek — günlere dokunarak öğünleri inceleyebilirsiniz.</p>
-      <div class="days" style="margin-bottom:14px" id="svDaysRow"></div><div id="svDayBody"></div>`;
+    box.innerHTML=`<div class="days" style="margin-bottom:14px" id="svDaysRow"></div><div id="svDayBody"></div>`;
     window.__svCurPlan=safePlan; window.__svPlans=[safePlan]; svRenderPlanBody();
-  }
+  } else svPromoNoPlan();
+}
+function svPromoNoPlan(){
+  const b=document.querySelector('.pm-ex-box'); if(b) b.style.display='none';
+  const k=document.querySelector('#pm-ornek .pm-muted'); if(k) k.style.display='none';
 }
 function svPromoWire(){
   const gb=document.getElementById('pmGuideBtn'), gx=document.getElementById('pmGuideBox');
@@ -9889,8 +9919,9 @@ async function bootPromoView(){
     const ac=new AbortController(); const to=setTimeout(()=>ac.abort(),6000);
     const r=await fetch(CLOUD_DB+'/shares/promo-landing.json',{signal:ac.signal}); clearTimeout(to);
     if(r.ok){ const raw=await r.json(); const snap=typeof raw==='string'?JSON.parse(raw):raw;
-      if(snap) svPromoApply(snap.profile||{},snap.plan||null); }
-  }catch(e){ /* gelmezse sayfa zaten tam */ }
+      if(snap) svPromoApply(snap.profile||{},snap.plan||null); else svPromoNoPlan(); }
+    else svPromoNoPlan();
+  }catch(e){ svPromoNoPlan(); }
 }
 /* Program verisi Firebase'den dönerken bozulabiliyor: Firebase Realtime
    Database boş dizileri ("lines":[]  gibi) hiç saklamıyor, geri okurken o
