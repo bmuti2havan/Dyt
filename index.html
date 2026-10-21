@@ -7027,6 +7027,25 @@ function dailyBackupCheck(){
       'İndir','daily-backup-yes','440px');
   }catch(e){}
 }
+/* Farkındalık günü hatırlatması: gün gelmeden 3 gün önce, o 3 gün boyunca her günün ilk girişinde bir kez gösterilir */
+function awRemindCheck(){
+  try{
+    const today=todayISO();
+    if(localStorage.getItem('aw-remind-day')===today) return;
+    const lockEl=document.getElementById('lock'); if(!lockEl||!lockEl.hidden) return;
+    if(document.querySelector('.modal-bg')) return;
+    const t0=awToday();
+    const soon=awRange(new Date(t0.getTime()+86400000),new Date(t0.getFullYear(),t0.getMonth(),t0.getDate()+3));
+    if(!soon.length) return;
+    localStorage.setItem('aw-remind-day',today);
+    modal('🎬 Yaklaşan farkındalık günü',
+      soon.map(o=>`<div style="padding:10px 0;border-bottom:1px solid var(--line-2)"><b>${esc(o.e.t)}</b>
+        <div class="hint" style="margin:2px 0 0">${trDate(o.dt)} · ${awDays(o.dt)}</div>
+        <div style="font-size:13.5px;margin-top:4px">🎬 ${esc(o.e.i)}</div></div>`).join('')+
+      `<p class="hint" style="margin:12px 0 0">Videoyu hazırlamak için zamanın var. Detay için İçerik takvimi sayfasına bakabilirsin.</p>`,
+      'Takvimi aç','aw-open','480px');
+  }catch(e){}
+}
 const val=id=>{const e=document.getElementById(id);return e?e.value.trim():'';};
 function toast(t,ms){ const r=document.getElementById('toastRoot'); r.innerHTML=`<div class="toast">${esc(t)}</div>`; clearTimeout(window.__toastT); window.__toastT=setTimeout(()=>r.innerHTML='',ms||2200); }
 
@@ -7370,6 +7389,7 @@ function openModal(kind){
 /* ══════════════ Kaydetme işlemleri ══════════════ */
 async function handleOk(act){
   if(act==='close') return closeModal();
+  if(act==='aw-open'){ closeModal(); S.page='aware'; render(); return; }
   if(act==='daily-backup-yes'){ downloadBackupNow(); await save(); closeModal(); toast('Yedek indirildi'); if(S.page==='panel') render(); return; }
   if(act.startsWith('recipe-toggle-')){ const id=act.slice(14); const nowSaved=toggleSaveRecipe(id); await save(); openRecipeModal(id); if(S.page==='panel') render(); toast(nowSaved?'Tarif kaydedildi':'Kayıttan kaldırıldı'); return; }
   if(act==='support-send'){
@@ -8365,18 +8385,18 @@ function awRow(o,past){
   </div>`;
 }
 function pageAware(){
-  const t0=awToday(), from=new Date(t0.getFullYear(),t0.getMonth(),1), to=new Date(t0.getFullYear(),t0.getMonth()+12,0);
+  const t0=awToday(), from=new Date(t0.getFullYear(),t0.getMonth(),t0.getDate()+1), to=new Date(t0.getFullYear()+1,t0.getMonth(),t0.getDate());
   const f=S.awF||'all';
   const all=awRange(from,to), list=all.filter(o=>f==='all'||o.e.c===f);
   const done=all.filter(o=>awSt(o.key)==='paylasildi').length, shot=all.filter(o=>awSt(o.key)==='cekildi').length;
-  const next=all.find(o=>o.dt>=t0);
+  const next=all[0];
   const months={}; list.forEach(o=>{const k=o.dt.getFullYear()*12+o.dt.getMonth();(months[k]=months[k]||[]).push(o)});
   const mk=Object.keys(months).map(Number).sort((a,b)=>a-b);
   return `<div class="page-head"><div><h1>İçerik takvimi</h1>
     <p>Beslenmeyle ilgili sağlık ve farkındalık günleri, her biri için bir video fikriyle. Takvim her yıl kendiliğinden yenilenir.</p></div></div>
   <div class="stats" style="margin-bottom:16px">
     <div class="stat"><div class="lbl">Sıradaki gün</div><div class="val" style="font-size:19px">${next?esc(next.e.t):'—'}</div><div class="sub">${next?trDate(next.dt)+' · '+awDays(next.dt):''}</div></div>
-    <div class="stat"><div class="lbl">Önümüzdeki 12 ay</div><div class="val">${all.length}</div><div class="sub">farkındalık günü</div></div>
+    <div class="stat"><div class="lbl">Yarından 1 yıl</div><div class="val">${all.length}</div><div class="sub">farkındalık günü</div></div>
     <div class="stat"><div class="lbl">Çekildi</div><div class="val">${shot}</div><div class="sub">paylaşılmayı bekliyor</div></div>
     <div class="stat"><div class="lbl">Paylaşıldı</div><div class="val">${done}</div><div class="sub">video yayında</div></div>
   </div>
@@ -9435,7 +9455,7 @@ function unlock(){
        if(cloudReady()){ if(CL()) CL().enabled=true; cloudSync(false);
          setInterval(()=>{ if(cloudReady() && document.getElementById('lock').hidden) cloudSync(false); },60000); }
        if(trashPurge()>0) save({noCloud:true});
-       setTimeout(dailyBackupCheck,1500); }
+       setTimeout(dailyBackupCheck,1500); setTimeout(awRemindCheck,900); }
   catch(err){
     console.error(err);
     document.getElementById('view').innerHTML='<div class="page"><section class="card"><div class="card-b">'
