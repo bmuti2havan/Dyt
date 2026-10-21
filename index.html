@@ -204,6 +204,19 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-sl label{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line-2);font-size:14px;cursor:pointer}
 .pm-sl input{width:18px;height:18px;accent-color:var(--blue-600);flex:0 0 auto}
 .pm-sl input:checked+span{opacity:.45;text-decoration:line-through}
+.pm-tips{margin-top:14px;padding:18px;border-radius:18px;background:linear-gradient(145deg,#FFF6E0,#FFE9B8);border:1px solid #F2D28A}
+.pm-tips h3{font-family:var(--serif);font-size:18px;color:#A86A00;margin:0 0 10px}
+.pm-tips ul{margin:0;padding-left:18px;font-size:14px;line-height:1.65;color:var(--ink-2)}
+.pm-tips li{margin-bottom:6px}
+.pm-tips b{color:#8A5600}
+.pm-prev{display:grid;gap:14px}
+.pm-prev-c{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 6px 18px rgba(92,34,56,.08)}
+.pm-prev-c img{display:block;width:100%;height:170px;object-fit:cover}
+.pm-prev-b{padding:14px 16px 16px}
+.pm-prev-b b{display:block;font-size:16px;margin-bottom:5px;color:var(--blue-900)}
+.pm-prev-b p{margin:0 0 12px;font-size:13.5px;color:var(--ink-2);line-height:1.55}
+.pm-more{display:inline-flex;align-items:center;justify-content:center;border:0;cursor:pointer;color:#fff;font-weight:800;font-size:14px;padding:11px 20px;border-radius:999px;background:linear-gradient(135deg,#E8A33D,#D9567B 60%,#9C3F60);box-shadow:0 6px 16px rgba(217,86,123,.35)}
+.pm-more-all{width:100%;margin-top:14px;background:linear-gradient(135deg,#5B3FB0,#9C3F60)}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9797,6 +9810,30 @@ function svPromoHtml(profile,plan){
     <p class="pm-muted">Programınızla birlikte, o haftanın tarifleri için market listenizi de iletirim. Böyle görünür:</p>
     <div class="pm-card pm-sl" id="pmShopBox"><div id="pmShopList"><div class="pm-sl-g"><b>🥬 Sebze & meyve</b><label><input type="checkbox"> <span>Domates — 1 kg</span></label><label><input type="checkbox"> <span>Salatalık — 6 adet</span></label><label><input type="checkbox"> <span>Yeşil yaprak (marul/roka) — 2 demet</span></label><label><input type="checkbox"> <span>Limon — 4 adet</span></label><label><input type="checkbox"> <span>Elma — 1 kg</span></label><label><input type="checkbox"> <span>Muz — 6 adet</span></label></div><div class="pm-sl-g"><b>🍗 Protein</b><label><input type="checkbox"> <span>Yumurta — 10 adet</span></label><label><input type="checkbox"> <span>Tavuk göğsü — 750 g</span></label><label><input type="checkbox"> <span>Kıyma (az yağlı) — 400 g</span></label><label><input type="checkbox"> <span>Ton balığı — 2 konserve</span></label></div><div class="pm-sl-g"><b>🥛 Süt ürünleri</b><label><input type="checkbox"> <span>Yoğurt — 1 kg</span></label><label><input type="checkbox"> <span>Beyaz peynir — 300 g</span></label><label><input type="checkbox"> <span>Süt — 1 litre</span></label></div><div class="pm-sl-g"><b>🌾 Tahıl & baklagil</b><label><input type="checkbox"> <span>Yulaf — 500 g</span></label><label><input type="checkbox"> <span>Tam tahıllı ekmek — 1 adet</span></label><label><input type="checkbox"> <span>Mercimek — 500 g</span></label><label><input type="checkbox"> <span>Bulgur — 500 g</span></label></div><div class="pm-sl-g"><b>🫒 Diğer</b><label><input type="checkbox"> <span>Zeytinyağı — 1 şişe</span></label><label><input type="checkbox"> <span>Ceviz — 200 g</span></label><label><input type="checkbox"> <span>Tarçın</span></label></div></div>
       <p class="pm-muted" style="margin:12px 0 0;font-size:12px">Örnek gösterimdir; kendi listeniz kendi programınıza göre hazırlanır.</p></div>
+    <div class="pm-tips">
+      <h3>💡 Alışveriş tüyoları</h3>
+      <ul>
+        <li><b>Listeyle gidin, listeye sadık kalın.</b> Plansız alışveriş sepete fazladan atıştırmalık ekler.</li>
+        <li><b>Tok karnına alışverişe çıkın.</b> Aç gidince seçimler çoğu zaman sağlıksızlaşır.</li>
+        <li><b>Önce taze reyonları dolaşın:</b> sebze, meyve, et, süt. Paketli ürünleri en sona bırakın.</li>
+        <li><b>Etiketi çevirin.</b> İçindekiler listesi kısa ve tanıdık maddelerden oluşan ürünleri seçin.</li>
+        <li><b>Mevsiminde alın.</b> Hem daha lezzetli hem daha uygun fiyatlı olur.</li>
+        <li><b>Eve gelince hazırlayın.</b> Sebzeleri yıkayıp kutulayın, baklagili toplu pişirip dondurun; hafta boyu işiniz kolaylaşır.</li>
+        <li><b>Evde olmayan atıştırmalığı yemezsiniz.</b> Paketli tatlı ve cipsi sepete hiç koymayın.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="pm-sec" id="pm-onizleme">
+    <h2>Beslenme rehberinden</h2>
+    <p class="pm-muted">Kısa, sade ve bilimsel temelli yazılardan birkaçı:</p>
+    <div class="pm-prev">${['kilo-temelleri','protein-tokluk','uyku-kilo'].map(id=>SV_ARTICLES.find(a=>a.id===id)).filter(Boolean).map(a=>`
+      <article class="pm-prev-c">
+        ${a.img?`<img src="${a.img}" alt="" loading="lazy" decoding="async">`:''}
+        <div class="pm-prev-b"><b>${a.emoji} ${esc(a.title)}</b><p>${esc(a.ozet)}</p>
+          <button type="button" class="pm-more" data-pm-dis="${a.id}">Devamını gör ›</button></div>
+      </article>`).join('')}</div>
+    <button type="button" class="pm-more pm-more-all" data-pm-dis="">Tüm rehberi aç (${SV_ARTICLES.length} konu) ›</button>
   </section>
 
   <section class="pm-sec">
@@ -9953,6 +9990,7 @@ function svPromoWire(){
     const gb=document.getElementById('pmGuideBtn'), gx=document.getElementById('pmGuideBox');
     if(gx&&gx.hidden&&gb) gb.click();
     const q=document.getElementById('svArtQ'); if(q&&q.value){ q.value=''; q.dispatchEvent(new Event('input',{bubbles:true})); }
+    if(!b.dataset.pmDis){ setTimeout(()=>{ const g=document.getElementById('pmGuideBox'); if(g) g.scrollIntoView({behavior:'smooth',block:'start'}); },120); return; }
     const art=document.querySelector('.sv-art[data-art-id="'+b.dataset.pmDis+'"]'); if(!art) return;
     const cat=art.closest('.sv-artcat'); if(cat) cat.open=true; art.open=true;
     setTimeout(()=>art.scrollIntoView({behavior:'smooth',block:'start'}),120);
