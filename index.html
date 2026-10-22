@@ -252,6 +252,12 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-chal-list label.on{background:#E9F8EF;border-color:#9ED9B5;text-decoration:line-through;color:#5b7a66}
 .pm-chal-list input{width:20px;height:20px;accent-color:#25A85C;flex:0 0 auto}.pm-chal-list b{color:#9C3F60;font-size:12px;display:block;text-decoration:none}
 .pm-chal-done{margin-top:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,#FFF4D6,#FFE0EA);text-align:center;font-weight:600;color:#5C2238}
+.pm-cheer{position:relative;overflow:hidden;margin:22px 0;padding:24px 20px;border-radius:22px;text-align:center;color:#fff;box-shadow:0 14px 30px -16px rgba(92,34,56,.6)}
+.pm-cheer.c1{background:linear-gradient(135deg,#F59E7A,#D2607C)}.pm-cheer.c2{background:linear-gradient(135deg,#7A5CC7,#D2607C)}
+.pm-cheer:before,.pm-cheer:after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.14)}
+.pm-cheer:before{width:120px;height:120px;right:-30px;top:-40px}.pm-cheer:after{width:80px;height:80px;left:-24px;bottom:-30px}
+.pm-cheer p{position:relative;margin:0 0 14px;font-family:'Caveat','Segoe Script',cursive;font-size:32px;line-height:1.12;text-shadow:0 2px 10px rgba(60,20,40,.3)}
+.pm-cheer a{position:relative;display:inline-block;background:#fff;color:#9C3F60;font-weight:700;font-size:14px;text-decoration:none;padding:10px 20px;border-radius:999px}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9891,6 +9897,7 @@ function svPromoHtml(profile,plan){
   </section>
 
 
+  <div class="pm-cheer c1"><p>İlk adımı atmak en zor kısım,<br>sen attın bile 🌟</p><a href="#pm-form">Hadi tanışalım →</a></div>
   <section class="pm-sec" id="pm-liste">
     <h2>Alışveriş listesi örneği</h2>
     <p class="pm-muted">Programınızla birlikte, o haftanın tarifleri için market listenizi de iletirim. Böyle görünür:</p>
@@ -9957,6 +9964,7 @@ function svPromoHtml(profile,plan){
     <p class="pm-muted" style="margin:12px 0 0;font-size:12px">Bu bilgiler genel bilgilendirme amaçlıdır; tanı ve tedavi yerine geçmez. Kişiye özel plan için görüşme yapmak gerekir.</p>
   </section>
 
+  <div class="pm-cheer c2"><p>Kendin için buradasın,<br>bu çok değerli 💪</p><a href="#pm-form">Hadi tanışalım →</a></div>
   <section class="pm-sec pm-about" id="pm-kimdir">
     <img src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="306" height="543" decoding="async">
     <h2>Diyetisyen Ayşenur Korkmaz kimdir?</h2>
