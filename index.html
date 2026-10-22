@@ -4830,7 +4830,8 @@ async function exportDocx(share){
 
   /* ── Alışveriş listesi eki ── */
   if(p.docShopping){
-    const sh=buildShopping(p);
+    const man=Array.isArray(p.shopManual)&&p.shopManual.length?p.shopManual:null;
+    const sh=man?{groups:{'Liste':man.map(x=>({f:{n:x},g:0,manual:true}))},miss:[]}:buildShopping(p);
     const cats=Object.keys(sh.groups).sort((a,b)=>a.localeCompare(b,'tr'));
     if(cats.length||sh.miss.length){
       body+=wBreak();
@@ -4840,8 +4841,8 @@ async function exportDocx(share){
       body+=wP('',{size:10,after:110});
       const half=Math.ceil(cats.length/2), colw=Math.floor(W/2)-60;
       const colHtml=(list)=>list.map(cat=>{
-        let x=wP(cat.toLocaleUpperCase('tr'),{b:true,size:17,color:TB,font:TF,before:60,after:50});
-        sh.groups[cat].forEach(it=>{ x+=wP('☐  '+it.f.n+' — '+SHOP_HOUSE(it.f,it.g),{size:15,color:TC,after:35}); });
+        let x=(man?'':wP(cat.toLocaleUpperCase('tr'),{b:true,size:17,color:TB,font:TF,before:60,after:50}));
+        sh.groups[cat].forEach(it=>{ x+=wP('☐  '+(it.manual?it.f.n:it.f.n+' — '+SHOP_HOUSE(it.f,it.g)),{size:15,color:TC,after:35}); });
         return x;
       }).join('');
       body+=wTable([colw,colw],
@@ -5143,8 +5144,9 @@ function isIgnored(q){
   if((DB.foodMap||{})[s]==='__yok__') return true;
   return Object.prototype.hasOwnProperty.call(ALIAS,s)&&ALIAS[s]===null;
 }
-function findFood(q){
+function findFood(q,info){
   const s=FOLD(q); if(!s) return null;
+  if(info) info.score=100;
   const man=(DB.foodMap||{})[s];
   if(man==='__yok__') return null;
   if(man){ const hit=DB.foods.find(f=>f.id===man); if(hit) return hit; }
@@ -5168,11 +5170,14 @@ function findFood(q){
     else if(wordBoundRe.test(it.fold)) sc=60+Math.min(15,s.length);
     else{
       const qt=s.split(' ').filter(x=>x.length>2);
-      const hit=qt.filter(t=>it.toks.some(w=>w.startsWith(t)||t.startsWith(w)));
+      /* Kısa sözcükler yalnızca TAM eşleşirse sayılır ("kek" ≠ "kekik"); uzunlarda ek/çekim farkı (en çok 3 harf) tolere edilir */
+      const near=(a,b)=>a===b||(Math.min(a.length,b.length)>=5&&(a.startsWith(b)||b.startsWith(a))&&Math.abs(a.length-b.length)<=3);
+      const hit=qt.filter(t=>it.toks.some(w=>near(w,t)));
       if(hit.length) sc=25*hit.length/Math.max(qt.length,1)+10*hit.length;
     }
     if(sc>score){score=sc;best=it.f;}
   });
+  if(info) info.score=score;
   return score>=25? best : null;
 }
 
@@ -5202,9 +5207,9 @@ function parseLine(raw){
   }
   out.name=FOLD(s.replace(/\b(ve|ile|az|biraz|kadar|tane)\b/g,' '));
   out.ignored=isIgnored(out.name);
-  const f=findFood(out.name);
+  const _fi={}; const f=findFood(out.name,_fi);
   if(!f) return out;
-  out.food=f;
+  out.food=f; out.fuzzy=_fi.score<60;
   let per;
   const fu=f.u||{};
   if(out.unit==='g'||out.unit==='gr'||out.unit==='gram'||out.unit==='ml'||out.unit==='mililitre') per=1;
@@ -5629,6 +5634,7 @@ function buildShopping(p){
     if(!String(line).trim()) return;
     const pr=parseLine(line);
     if(!pr.food){ if(!pr.ignored) miss.push(String(line).trim()); return; }
+    if(pr.fuzzy){ miss.push(String(line).trim()); return; }   /* belirsiz eşleşme: yanlış ürün yazmak yerine satırı olduğu gibi listele */
     const key=pr.food.id;
     if(!acc[key]) acc[key]={f:pr.food,g:0,days:new Set()};
     acc[key].g+=pr.g; acc[key].days.add(di);
