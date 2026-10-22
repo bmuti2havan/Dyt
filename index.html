@@ -223,6 +223,34 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-ig{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 30% 107%,#fdf497 0%,#fdf497 5%,#fd5949 45%,#d6249f 60%,#285AEB 90%);box-shadow:0 6px 18px rgba(0,0,0,.28)}
 .pm-form{display:grid;gap:10px;margin-top:12px}.pm-form input,.pm-form select{width:100%;box-sizing:border-box;padding:13px 14px;border:1px solid var(--line);border-radius:12px;font:inherit;font-size:15px;background:#fff;color:var(--ink)}
 .pm-form .pm-btn{justify-content:center;border:0;cursor:pointer}
+.pm-hero{background:radial-gradient(90% 60% at 50% 18%,rgba(255,236,200,.35),transparent 65%),linear-gradient(165deg,#9C3F60 0%,#D2607C 52%,#EE9A72 100%)!important;padding:24px 20px 30px!important}
+.pm-glow{position:relative;margin:0 auto 6px}.pm-glow:before{content:"";position:absolute;inset:-14px;border-radius:50%;background:radial-gradient(circle,rgba(255,244,214,.55),transparent 68%);z-index:0}
+.pm-glow .pm-photo{position:relative;z-index:1;margin:0 auto}
+.pm-name{font-size:32px!important;margin:6px 0 10px!important}
+.pm-big{font-family:'Caveat','Segoe Script',cursive!important;font-size:38px!important;line-height:1.08!important;margin:0 0 10px!important;color:#fff;text-shadow:0 2px 10px rgba(92,34,56,.35)}
+.pm-big em{font-style:normal;color:#FFF0C2}
+.pm-sub{margin:0 auto 12px;max-width:310px;font-size:14px;line-height:1.5;color:#fff;opacity:.95}
+.pm-trust{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:12px;font-weight:600;margin:0 0 16px}.pm-trust span{white-space:nowrap}.pm-hero .pm-photo{width:min(50%,205px)!important}
+.pm-btn-main{width:100%;box-sizing:border-box;background:#25D366;color:#fff;font-size:16.5px!important;padding:16px 14px!important;box-shadow:0 10px 24px rgba(20,120,60,.4);animation:pmPulse 2.6s infinite}
+@keyframes pmPulse{0%,100%{box-shadow:0 10px 24px rgba(20,120,60,.4)}50%{box-shadow:0 10px 30px rgba(37,211,102,.75)}}
+.pm-morelink{display:inline-block;margin-top:14px;background:none;border:0;color:#fff;font-size:13.5px;font-weight:600;text-decoration:none;opacity:.95}
+.pm-morelink span{display:inline-block;animation:pmBob 1.6s infinite}@keyframes pmBob{50%{transform:translateY(4px)}}
+.pm-daily{display:grid;gap:12px;margin:14px 0 6px}
+.pm-quote{background:linear-gradient(135deg,#FFF4D6,#FFE0EA);border-radius:18px;padding:16px 18px;text-align:center}
+.pm-qh{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:#9C3F60;font-weight:700}
+.pm-quote p{margin:6px 0 0;font-family:'Caveat','Segoe Script',cursive;font-size:25px;line-height:1.2;color:#5C2238}
+.pm-water{background:linear-gradient(135deg,#E3F4FB,#EEE9FF);border-radius:18px;padding:16px 16px 14px}
+.pm-wh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;color:#1D4E6B}.pm-wh span{font-size:12.5px;font-weight:600}
+.pm-cups{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin:10px 0}
+.pm-cups button{border:0;background:#fff;border-radius:10px;font-size:19px;padding:8px 0;cursor:pointer;opacity:.45;filter:grayscale(1);transition:.15s}
+.pm-cups button.on{opacity:1;filter:none;background:#CFEBFA;transform:translateY(-2px)}
+.pm-wnote{margin:0;font-size:11.5px;line-height:1.55;color:#4C6E83}
+.pm-bar{height:10px;background:#F4E4E9;border-radius:99px;overflow:hidden;margin:12px 0}.pm-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#F59E7A,#D2607C);transition:width .3s}
+.pm-chal-list{display:grid;gap:8px}
+.pm-chal-list label{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;cursor:pointer;font-size:14px}
+.pm-chal-list label.on{background:#E9F8EF;border-color:#9ED9B5;text-decoration:line-through;color:#5b7a66}
+.pm-chal-list input{width:20px;height:20px;accent-color:#25A85C;flex:0 0 auto}.pm-chal-list b{color:#9C3F60;font-size:12px;display:block;text-decoration:none}
+.pm-chal-done{margin-top:14px;padding:16px;border-radius:16px;background:linear-gradient(135deg,#FFF4D6,#FFE0EA);text-align:center;font-weight:600;color:#5C2238}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9824,14 +9852,21 @@ function svPromoHtml(profile,plan){
   return `<div class="pm">
   <section class="pm-hero">
     <div id="pmLogo"></div>
-    <div class="pm-photo"><img src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="300" height="375" fetchpriority="high" decoding="async"></div>
+    <div class="pm-glow"><div class="pm-photo"><img src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="300" height="375" fetchpriority="high" decoding="async"></div></div>
     <span class="pm-eyebrow">Diyetisyen</span>
-    <h1 class="pm-script">Ayşenur Korkmaz</h1>
-    <p class="pm-tag pm-hand">Hayatınıza uyan, uygulanabilir bir beslenme planı</p>
-    <div class="pm-chips"><span>📍 Muratpaşa, Antalya</span><span>💻 Yüz yüze &amp; online</span><span>🤟 İşaret dili</span><a href="https://www.instagram.com/dytaysenurkorkmaz" target="_blank" rel="noopener" style="color:#fff;text-decoration:none">📷 @dytaysenurkorkmaz</a></div>
-    <div class="pm-hero-btns">
-      <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} Ücretsiz tanışma</a>
-      <a class="pm-btn pm-btn-ghost" href="#pm-ornek">Örnek programı gör ↓</a>
+    <h2 class="pm-script pm-name">Ayşenur Korkmaz</h2>
+    <h1 class="pm-big">Diyet değil,<br>size uyan bir <em>yaşam düzeni</em></h1>
+    <p class="pm-sub">Haftalık özel liste · alışveriş listesi · her gün yakın takip</p>
+    <div class="pm-trust"><span>📍 Muratpaşa, Antalya</span><span>💻 Yüz yüze &amp; online</span><span>🤟 İşaret dili</span></div>
+    <a class="pm-btn pm-btn-main" href="${WA}" target="_blank" rel="noopener">${WAI} Ücretsiz tanışma görüşmesi</a>
+    <a class="pm-morelink" href="#pm-ornek">Örnek programı gör <span>↓</span></a>
+  </section>
+  <section class="pm-daily" aria-label="Günün motivasyonu ve su takibi">
+    <div class="pm-quote"><span class="pm-qh">✨ Günün sözü</span><p id="pmQuote"></p></div>
+    <div class="pm-water">
+      <div class="pm-wh"><b>💧 Bugün su içtin mi?</b><span id="pmWaterTxt"></span></div>
+      <div class="pm-cups" id="pmCups"></div>
+      <p class="pm-wnote">Su; vücudumuzun yarısından fazlasını oluşturur. Yeterli su içmek sindirimi, enerjiyi ve konsantrasyonu destekler; bazen susuzluğu açlıkla karıştırırız. Genel bilgidir, kişiye göre ihtiyaç değişir.</p>
     </div>
   </section>
 
@@ -9845,6 +9880,14 @@ function svPromoHtml(profile,plan){
       {date:'2026-07-01',weight:78},{date:'2026-07-15',weight:76.8},{date:'2026-08-01',weight:75.4},
       {date:'2026-08-15',weight:74.1},{date:'2026-09-01',weight:73},{date:'2026-09-15',weight:72}])}</div></div>
   </section>
+  <section class="pm-sec pm-chal" id="pm-meydan">
+    <h2 class="pm-h2">7 günlük küçük meydan okuma</h2>
+    <p class="pm-muted">Her gün tek bir küçük görev. Yaptıkça işaretle, ilerlemeni gör.</p>
+    <div class="pm-bar"><i id="pmChalBar"></i></div>
+    <div class="pm-chal-list" id="pmChalList"></div>
+    <div class="pm-chal-done" id="pmChalDone" hidden>🎉 Tebrikler, 7 günü tamamladın! Şimdi sıra sana özel programda.<br><a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener" style="margin-top:12px">${WAI} Ücretsiz tanışma görüşmesi</a></div>
+  </section>
+
 
   <section class="pm-sec" id="pm-liste">
     <h2>Alışveriş listesi örneği</h2>
@@ -10037,7 +10080,35 @@ function svPromoNoPlan(){
   const b=document.querySelector('.pm-ex-box'); if(b) b.style.display='none';
   const k=document.querySelector('#pm-ornek .pm-muted'); if(k) k.style.display='none';
 }
+const PM_QUOTES=["Küçük adımlar, büyük değişimlerin başlangıcıdır.","Bugün kendine iyi bakmak için harika bir gün.","Mükemmel olmak değil, devam etmek önemli.","Bedenin, ona verdiğin değeri hisseder.","Her sağlıklı öğün, kendine verdiğin bir sözdür.","Dün değil, bugün başla. Bugün değil, şimdi başla.","Kendine nazik ol; değişim sabırla gelir.","Yemek düşman değil, dost olduğunda hafifler.","Bir bardak su ile başlayan gün daha enerjik geçer.","Sen başlayınca yol görünür.","Sağlık, yarına bırakılmayacak kadar değerli.","Hedefin yavaşsa bile ilerliyorsan kazanıyorsun.","Sevdiğin yiyecekler de dengeli bir planın parçası olabilir.","Bugünkü seçimin, yarınki enerjin.","Kendini başkalarıyla değil, dünkü haline göre kıyasla.","Her gün yeni bir başlangıçtır.","Aç kalmak değil, doğru beslenmek.","Vücuduna iyi bak, ömür boyu seninle yaşayacak.","Disiplin, motivasyon bittiğinde de devam edebilmektir.","Bir kez kaçırdıysan sorun yok, bir sonraki öğünde yeniden başla.","Güçlü olmak, kendine inanmakla başlar.","Mutfağın dolabı, sağlığının ilk eczanesidir.","Şimdi iyi hissetmek için yarın değil, bugün adım at.","Sabır, en iyi besin takviyesidir.","Kendine sakin ve sevgili davran.","Tabağındaki renkler, enerjinin rengidir.","Hareket et, nefes al, gülümse.","Sen yeterlisin; plan sana uysun.","İyi uyku, iyi beslenme, iyi hissetme.","Küçük bir ilerleme, hiç ilerlememekten iyidir.","Bugünü güzel yap; bedenin teşekkür edecek."];
+const PM_CHAL=["💧 Gün boyu 2 litre su iç","🥗 Her ana öğünde bir porsiyon sebze ye","🚶 20 dakika tempolu yürüyüş yap","🍬 Şekerli içecek yerine su ya da ayran seç","😴 Bu gece 7-8 saat uyumaya çalış","🍽️ Yavaş ye: bir öğünü en az 20 dakikada bitir","📝 Bugün yediklerini bir deftere yaz"];
+function pmLS(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(e){ return null; } }
+function pmDailyInit(){
+  const q=document.getElementById('pmQuote');
+  if(q){ const d=new Date(); const n=Math.floor((Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())-Date.UTC(d.getFullYear(),0,0))/864e5); q.textContent='“'+PM_QUOTES[n%PM_QUOTES.length]+'”'; }
+  const cups=document.getElementById('pmCups');
+  if(cups){
+    const key='pm-su-'+localISODate(new Date());
+    let n=Math.min(8,Math.max(0,parseInt(pmLS(key)||'0',10)||0));
+    const msg=['Güne bir bardakla başla 💧','Güzel başlangıç!','Devam, harika gidiyorsun','Yarısına yaklaştın','Yarıyı geçtin!','Çok iyi gidiyorsun','Neredeyse tamam','Bir bardak kaldı!','Hedef tamam! Süpersin 🎉'];
+    const draw=()=>{ cups.innerHTML=''; for(let i=1;i<=8;i++){ const b=document.createElement('button'); b.type='button'; b.textContent='💧'; b.setAttribute('aria-label',i+'. bardak'); if(i<=n) b.className='on'; b.onclick=()=>{ n=(n===i)?i-1:i; pmLS(key,String(n)); draw(); }; cups.appendChild(b); }
+      document.getElementById('pmWaterTxt').textContent=n+'/8 bardak · '+msg[n]; };
+    draw();
+  }
+  const list=document.getElementById('pmChalList');
+  if(list){
+    let done=[]; try{ done=JSON.parse(pmLS('pm-chal')||'[]'); }catch(e){}
+    const draw=()=>{
+      list.innerHTML=PM_CHAL.map((t,i)=>`<label class="${done.includes(i)?'on':''}"><input type="checkbox" data-i="${i}" ${done.includes(i)?'checked':''}><span><b>${i+1}. GÜN</b>${t}</span></label>`).join('');
+      list.querySelectorAll('input').forEach(c=>c.onchange=()=>{ const i=+c.dataset.i; done=c.checked?[...new Set([...done,i])]:done.filter(x=>x!==i); pmLS('pm-chal',JSON.stringify(done)); draw(); });
+      document.getElementById('pmChalBar').style.width=Math.round(done.length/7*100)+'%';
+      document.getElementById('pmChalDone').hidden=done.length<7;
+    };
+    draw();
+  }
+}
 function svPromoWire(){
+  pmDailyInit();
   pmTrack('view');
   document.querySelectorAll('.pm a[href*="wa.me"],.pm-fabs a[href*="wa.me"]').forEach(a=>a.addEventListener('click',()=>pmTrack('wa')));
   document.querySelectorAll('.pm a[href*="instagram.com"],.pm-fabs a[href*="instagram.com"]').forEach(a=>a.addEventListener('click',()=>pmTrack('ig')));
