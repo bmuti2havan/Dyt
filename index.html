@@ -233,6 +233,7 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-trust{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 12px;font-size:12px;font-weight:600;margin:0 0 16px}.pm-trust span{white-space:nowrap}.pm-hero .pm-photo{width:min(50%,205px)!important}
 .pm-btn-main{width:100%;box-sizing:border-box;background:#25D366;color:#fff;font-size:16.5px!important;padding:16px 14px!important;box-shadow:0 10px 24px rgba(20,120,60,.4);animation:pmPulse 2.6s infinite}
 @keyframes pmPulse{0%,100%{box-shadow:0 10px 24px rgba(20,120,60,.4)}50%{box-shadow:0 10px 30px rgba(37,211,102,.75)}}
+.pm-proud{margin:12px 0 0;font-family:'Caveat','Segoe Script',cursive;font-size:22px;line-height:1.2;color:#FFF0C2;text-shadow:0 1px 8px rgba(92,34,56,.4)}
 .pm-morelink{display:inline-block;margin-top:14px;background:none;border:0;color:#fff;font-size:13.5px;font-weight:600;text-decoration:none;opacity:.95}
 .pm-morelink span{display:inline-block;animation:pmBob 1.6s infinite}@keyframes pmBob{50%{transform:translateY(4px)}}
 .pm-daily{display:grid;gap:12px;margin:14px 0 6px}
@@ -9841,7 +9842,7 @@ function pmTrack(ev){
   }catch(e){}
 }
 function svPromoHtml(profile,plan){
-  const WA='https://wa.me/905475373522?text='+encodeURIComponent('Merhaba, ücretsiz tanışma görüşmesi hakkında bilgi almak istiyorum.');
+  const WA='https://wa.me/905475373522?text='+encodeURIComponent('Merhaba, tanışıp birlikte başlamak istiyorum 💛');
   const WAI='<svg viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16.003 3C8.83 3 3 8.83 3 16c0 2.29.6 4.52 1.74 6.49L3 29l6.7-1.7A12.95 12.95 0 0 0 16 29c7.17 0 13-5.83 13-13S23.17 3 16.003 3zm0 23.7c-1.95 0-3.86-.53-5.53-1.52l-.4-.24-3.98 1.01 1.06-3.88-.26-.4A10.66 10.66 0 0 1 5.3 16c0-5.9 4.8-10.7 10.7-10.7S26.7 10.1 26.7 16s-4.8 10.7-10.7 10.7zm5.87-8c-.32-.16-1.9-.94-2.2-1.04-.3-.11-.51-.16-.73.16-.22.32-.84 1.04-1.03 1.26-.19.21-.38.24-.7.08-.32-.16-1.35-.5-2.57-1.58-.95-.85-1.59-1.9-1.78-2.22-.19-.32-.02-.49.14-.65.14-.14.32-.38.48-.57.16-.19.21-.32.32-.54.11-.21.05-.4-.03-.56-.08-.16-.73-1.76-1-2.4-.26-.63-.53-.55-.73-.56h-.62c-.21 0-.56.08-.85.4-.3.32-1.12 1.1-1.12 2.68s1.15 3.1 1.31 3.32c.16.21 2.26 3.45 5.47 4.84.76.33 1.36.53 1.82.68.77.24 1.46.21 2.01.13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.4.19-1.53-.08-.13-.3-.21-.62-.37z"/></svg>';
   const feat=[['🥗','Size özel program','Sevdiğiniz besinlere ve günlük temponuza göre hazırlanan haftalık tarif listesi.'],
     ['🛒','Alışveriş listesi','Programla birlikte market listeniz de hazır gelir.'],
@@ -9858,7 +9859,8 @@ function svPromoHtml(profile,plan){
     <h1 class="pm-big">Diyet değil,<br>size uyan bir <em>yaşam düzeni</em></h1>
     <p class="pm-sub">Haftalık özel liste · alışveriş listesi · her gün yakın takip</p>
     <div class="pm-trust"><span>📍 Muratpaşa, Antalya</span><span>💻 Yüz yüze &amp; online</span><span>🤟 İşaret dili</span></div>
-    <a class="pm-btn pm-btn-main" href="${WA}" target="_blank" rel="noopener">${WAI} Ücretsiz tanışma görüşmesi</a>
+    <a class="pm-btn pm-btn-main" href="${WA}" target="_blank" rel="noopener">${WAI} Tanışalım, birlikte başlayalım 💛</a>
+    <p class="pm-proud">Buraya kadar gelmen bile kendin için bir başarı ✨</p>
     <a class="pm-morelink" href="#pm-ornek">Örnek programı gör <span>↓</span></a>
   </section>
   <section class="pm-daily" aria-label="Günün motivasyonu ve su takibi">
@@ -9885,7 +9887,7 @@ function svPromoHtml(profile,plan){
     <p class="pm-muted">Her gün tek bir küçük görev. Yaptıkça işaretle, ilerlemeni gör.</p>
     <div class="pm-bar"><i id="pmChalBar"></i></div>
     <div class="pm-chal-list" id="pmChalList"></div>
-    <div class="pm-chal-done" id="pmChalDone" hidden>🎉 Tebrikler, 7 günü tamamladın! Şimdi sıra sana özel programda.<br><a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener" style="margin-top:12px">${WAI} Ücretsiz tanışma görüşmesi</a></div>
+    <div class="pm-chal-done" id="pmChalDone" hidden>🎉 Tebrikler, 7 günü tamamladın! Şimdi sıra sana özel programda.<br><a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener" style="margin-top:12px">${WAI} Tanışalım, birlikte başlayalım 💛</a></div>
   </section>
 
 
@@ -10040,7 +10042,7 @@ function svPromoHtml(profile,plan){
   </section>
 
   <section class="pm-sec" id="pm-form">
-    <h2 class="pm-h2">Ücretsiz tanışma görüşmesi</h2>
+    <h2 class="pm-h2">Tanışalım, birlikte başlayalım 💛</h2>
     <p class="pm-muted">Kısa bilgilerinizi yazın, WhatsApp'ta hazır mesaj olarak açılsın. Size uygun günü birlikte belirleyelim.</p>
     <div class="pm-form">
       <input id="pmfName" placeholder="Adınız" autocomplete="given-name">
@@ -10052,8 +10054,8 @@ function svPromoHtml(profile,plan){
 
   <section class="pm-cta">
     <h2>Hazırsanız başlayalım</h2>
-    <p>İlk tanışma görüşmesi ücretsiz.</p>
-    <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} Ücretsiz tanışma görüşmesi</a>
+    <p>Buraya kadar gelmen bile bir başarı. Şimdi küçük bir adım daha ✨</p>
+    <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} Tanışalım, birlikte başlayalım 💛</a>
   </section>
   <p class="pm-foot" id="pmFoot">Dyt. Ayşenur Korkmaz · Muratpaşa, Antalya</p>
   </div>
@@ -10115,7 +10117,7 @@ function svPromoWire(){
   const pfb=document.getElementById('pmfBtn');
   if(pfb) pfb.addEventListener('click',()=>{
     const n=(document.getElementById('pmfName').value||'').trim(), g=document.getElementById('pmfGoal').value, nt=(document.getElementById('pmfNote').value||'').trim();
-    const msg='Merhaba'+(n?', ben '+n:'')+'. Ücretsiz tanışma görüşmesi almak istiyorum. Hedefim: '+g+'.'+(nt?' Not: '+nt:'');
+    const msg='Merhaba'+(n?', ben '+n:'')+'. Tanışıp birlikte başlamak istiyorum. Hedefim: '+g+'.'+(nt?' Not: '+nt:'');
     pmTrack('form'); window.open('https://wa.me/905475373522?text='+encodeURIComponent(msg),'_blank','noopener');
   });
   document.querySelectorAll('[data-pm-dis]').forEach(b=>b.addEventListener('click',()=>{
