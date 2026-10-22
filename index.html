@@ -1824,6 +1824,121 @@ function applyTplToPlan(p,T,subIsDefault){
   if(t.docShopping!==undefined) p.docShopping=t.docShopping;
 }
 
+
+/* ───────── Word (.docx) → şablon ─────────
+   Dosyadaki "1. GÜN" başlıklarını, "KAHVALTI / ARA ÖĞÜN / ÖĞLE / AKŞAM" öğün başlıklarını, maddeleri
+   ve resimleri okuyup 7-8 günlük bir şablon çıkarır. Resimler bulundukları öğüne eklenir. */
+async function zipOpen(buf){
+  const dv=new DataView(buf), u8=new Uint8Array(buf);
+  let e=u8.length-22; while(e>=0&&dv.getUint32(e,true)!==0x06054b50) e--;
+  if(e<0) throw new Error('Geçerli bir Word (.docx) dosyası değil');
+  const n=dv.getUint16(e+10,true); let q=dv.getUint32(e+16,true); const files={};
+  for(let i=0;i<n;i++){
+    const method=dv.getUint16(q+10,true), csz=dv.getUint32(q+20,true), nl=dv.getUint16(q+28,true), el=dv.getUint16(q+30,true), cl=dv.getUint16(q+32,true), off=dv.getUint32(q+42,true);
+    files[new TextDecoder().decode(u8.subarray(q+46,q+46+nl))]={method,csz,off}; q+=46+nl+el+cl;
+  }
+  const get=async name=>{
+    const f=files[name]; if(!f) return null;
+    const st=f.off+30+dv.getUint16(f.off+26,true)+dv.getUint16(f.off+28,true);
+    const data=u8.subarray(st,st+f.csz);
+    if(f.method===0) return data;
+    const ds=new DecompressionStream('deflate-raw'), w=ds.writable.getWriter(); w.write(data); w.close();
+    return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+  };
+  return {get,has:n=>!!files[n]};
+}
+const DOCX_MEALS=[['kahvalti','Kahvaltı'],['ara ogun','Ara Öğün'],['ogle','Öğle'],['aksam','Akşam'],['gece','Ara Öğün'],['ikindi','Ara Öğün'],['kusluk','Ara Öğün'],['sabah','Kahvaltı']];
+function docxMealName(t){
+  const f=FOLD(t.replace(/[^\p{L}\p{N}\s]/gu,' ')).replace(/\s+/g,' ').trim();
+  if(!f||f.length>26) return null;
+  const f2=f.replace(/\s*\d+$/,'').replace(/ yemegi$/,'').replace(/ ogunu$/,'');
+  const hit=DOCX_MEALS.find(m=>f2===m[0]); return hit?hit[1]:null;
+}
+async function docxToTemplate(file){
+  const z=await zipOpen(await file.arrayBuffer());
+  const xml=await z.get('word/document.xml'); if(!xml) throw new Error('Word içeriği okunamadı');
+  const relx=await z.get('word/_rels/document.xml.rels');
+  const dec=b=>new TextDecoder().decode(b);
+  const rels={}; if(relx){ const rd=new DOMParser().parseFromString(dec(relx),'application/xml');
+    [...rd.getElementsByTagName('Relationship')].forEach(r=>rels[r.getAttribute('Id')]=r.getAttribute('Target')); }
+  const doc=new DOMParser().parseFromString(dec(xml),'application/xml');
+  const paras=[...doc.getElementsByTagName('w:p')].map(pe=>{
+    let text='',bold=false,ital=false;
+    [...pe.getElementsByTagName('w:r')].forEach(r=>{
+      const t=[...r.getElementsByTagName('w:t')].map(x=>x.textContent).join('');
+      if(t){ text+=t; if(r.getElementsByTagName('w:b').length) bold=true; if(r.getElementsByTagName('w:i').length) ital=true; }
+    });
+    const imgs=[...pe.getElementsByTagName('a:blip')].map(b=>rels[b.getAttribute('r:embed')]).filter(Boolean);
+    return {text:text.replace(/\s+/g,' ').trim(),bold,ital,imgs,bullet:pe.getElementsByTagName('w:numPr').length>0};
+  });
+  const clean=t=>t.replace(/^[\s·•▪●◦\-–—*☐☑✓✔]+/,'').replace(/^[^\p{L}\p{N}]+/u,'').trim();
+  const days=[]; let day=null, meal=null, slot=-1;
+  const dayRe=/(?:^|\s)(\d{1,2})\s*[.)]?\s*g[uü]n\b/i, wdRe=/^(pazartesi|sal[ıi]|[çc]ar[şs]amba|per[şs]embe|cuma|cumartesi|pazar)\b/i;
+  const newDay=()=>({sub:'',photo:'',meals:MEAL_PRESET.map(m=>({name:m[0],emoji:m[1],title:'',lines:[],photo:''}))});
+  const pendingImgs=[];  // {path, dayIdx, mealIdx|-1}
+  let stop=false;
+  for(const pr of paras){
+    if(stop) break;
+    const t=pr.text, tl=FOLD(t);
+    if(/alisveris listesi/.test(tl)&&t.length<60&&days.length){ stop=true; break; }
+    const isDay=t&&t.length<70&&(dayRe.test(t.replace(/^[^\p{L}\p{N}]+/u,''))||wdRe.test(FOLD(clean(t))));
+    if(isDay){
+      const sig=FOLD(clean(t)).replace(/\s+/g,' ');
+      const same=days.find(d=>d._sig===sig&&!d.meals.some(m=>m.lines.length||m.title||m.photo)&&!d.photo);   /* haftalık özet tablosundaki boş başlık: aynı günü yeniden kullan */
+      if(same){ day=same; days.splice(days.indexOf(same),1); days.push(same); }
+      else{ day=newDay(); day._sig=sig; days.push(day); }
+      meal=null; slot=-1;
+      const rest=clean(t).replace(/^\d{1,2}\s*[.)]?\s*g[uü]n\s*[·\-–—:]*\s*/i,'');
+      continue;
+    }
+    if(!day){ continue; }
+    const mn=docxMealName(clean(t));
+    if(mn&&(pr.bold||t===t.toLocaleUpperCase('tr')||pr.text.length<20)){
+      let k=slot+1; while(k<day.meals.length&&day.meals[k].name!==mn) k++;
+      if(k>=day.meals.length){ day.meals.push({name:mn,emoji:'🍽',title:'',lines:[],photo:''}); k=day.meals.length-1; }
+      slot=k; meal=day.meals[k]; continue;
+    }
+    pr.imgs.forEach(path=>pendingImgs.push({path,day,meal}));
+    if(!t) continue;
+    if(/tarafindan kisiye ozel|^💧/.test(tl)||/^💧/.test(t)) continue;
+    if(!meal){ if(pr.ital&&!day.sub) day.sub=clean(t); continue; }
+    const c=clean(t); if(!c) continue;
+    if(!pr.bullet&&pr.ital&&!meal.tip&&meal.lines.length) meal.tip=c;
+    else if(!pr.bullet&&pr.bold&&!meal.title&&!meal.lines.length) meal.title=c;
+    else meal.lines.push(c);
+  }
+  for(let i=days.length-1;i>=0;i--){ if(i<days.length-1 && !days[i].meals.some(m=>m.lines.length||m.title||m.photo) && !days[i].photo) days.splice(i,1); }
+  days.forEach(d=>delete d._sig);
+  if(!days.length) throw new Error('Dosyada "1. GÜN", "2. GÜN" gibi gün başlıkları bulunamadı');
+  let used=0;
+  for(const im of pendingImgs){
+    const d=im.day; if(!d||!days.includes(d)) continue;
+    const path=im.path.replace(/^\/?(word\/)?/,'word/'); const bytes=await z.get(path); if(!bytes) continue;
+    const ext=(path.split('.').pop()||'').toLowerCase();
+    if(!['png','jpg','jpeg','gif','webp','bmp'].includes(ext)) continue;
+    const blob=new Blob([bytes],{type:ext==='png'?'image/png':ext==='gif'?'image/gif':'image/jpeg'});
+    try{
+      if(im.meal&&!im.meal.photo){ im.meal.photo=await shrink(blob,620,0.72,true); used++; }
+      else if(!im.meal&&!d.photo){ d.photo=await shrink(blob,1100,0.72,false); used++; }
+    }catch(e){}
+  }
+  while(days.length<7) days.push(newDay());
+  return {days:days.slice(0,8),photos:used,filled:days.filter(d=>d.meals.some(m=>m.lines.length)).length};
+}
+async function docxImportTemplate(file){
+  toast('Word okunuyor…',8000);
+  try{
+    const r=await docxToTemplate(file);
+    const name=(file.name||'Program').replace(/\.docx$/i,'').slice(0,60);
+    DB.planTpls=DB.planTpls||[];
+    DB.planTpls.unshift({id:uid('t'),name,created:todayISO(),sub:'',purpose:[],closing:'',footer:'',days:r.days,season:'',privNote:'',
+      theme:(DB.profile&&DB.profile.docTheme)||'deniz',fontH:'',fontB:'',docSummary:true,docShopping:false});
+    await save();
+    S.planView='tpl'; render();
+    toast('Şablon eklendi: '+r.filled+' gün, '+r.photos+' resim — kontrol edip Düzenle\'den adını/mevsimini ayarlayabilirsin',7000);
+  }catch(err){ toast('Yüklenemedi: '+(err.message||err),7000); }
+}
+
 /* Word sayfasının ekrandaki küçük karşılığı — indirmeden görmek için */
 function docPreview(pl,themeKey,fh,fb){
   const T=DOC_THEMES[themeKey]||DOC_THEMES.deniz;
@@ -6620,7 +6735,7 @@ function pagePlans(){
   const isHiddenView = view==='hidden';
   const sw=t=>{ const th=DOC_THEMES[t.theme]; return th? th.strip.slice(0,7).map(c=>`<i style="background:#${c}"></i>`).join('') : '<i style="background:#E4EAF0"></i>'; };
   return `<div class="page-head"><div><h1>Beslenme programları</h1><p>Danışana özel hazırlanan 7 günlük programlar. Yazdırıp PDF olarak paylaşabilirsiniz.</p></div>
-  <div class="spacer"></div>${DB.clients.length?`<button class="btn btn-primary" data-newplan="">${ic('plus',15)} Yeni program</button>`:''}</div>
+  <div class="spacer"></div><label class="btn" style="cursor:pointer">📥 Word'den şablon yükle<input type="file" id="tplDocx" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label>${DB.clients.length?`<button class="btn btn-primary" data-newplan="">${ic('plus',15)} Yeni program</button>`:''}</div>
   ${(ps.length||allT.length||hiddenPs.length)?`<div class="chip-row" style="margin-bottom:8px">
     <button class="chip" data-plan-view="all" aria-pressed="${view==='all'}">Tümü (${ps.length})</button>
     <button class="chip" data-plan-view="tpl" aria-pressed="${view==='tpl'}">📑 Şablon liste (${allT.length})</button>
@@ -9596,6 +9711,7 @@ document.addEventListener('change',async e=>{
     }catch(err){ toast('Fotoğraf okunamadı'); }
     return;
   }
+  if(e.target.id==='tplDocx' && e.target.files && e.target.files[0]){ const f=e.target.files[0]; e.target.value=''; docxImportTemplate(f); return; }
   if(e.target.id==='logoFile' && e.target.files && e.target.files[0]){
     try{ DB.profile.logo=await shrink(e.target.files[0],760,0.82,false); await save(); const backupMsg=await forceCloudBackup(); toast('Logo kaydedildi'+backupMsg); render(); }
     catch(err){ toast('Görsel okunamadı'); }
