@@ -258,6 +258,8 @@ body{background:radial-gradient(1200px 600px at 78% -10%, #F9DCE4 0%, transparen
 .pm-cheer:before{width:120px;height:120px;right:-30px;top:-40px}.pm-cheer:after{width:80px;height:80px;left:-24px;bottom:-30px}
 .pm-cheer p{position:relative;margin:0 0 14px;font-family:'Caveat','Segoe Script',cursive;font-size:32px;line-height:1.12;text-shadow:0 2px 10px rgba(60,20,40,.3)}
 .pm-cheer a{position:relative;display:inline-block;background:#fff;color:#9C3F60;font-weight:700;font-size:14px;text-decoration:none;padding:10px 20px;border-radius:999px}
+.pm-addr{margin:8px 0 14px;line-height:1.6;font-size:15px;color:var(--ink)}
+.pm-btn-map{width:100%;box-sizing:border-box;background:linear-gradient(135deg,#4285F4,#2B6AD9);color:#fff;box-shadow:0 8px 20px -8px rgba(40,100,220,.6)}
 .sv-promo-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px}
 .sv-promo-badge{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;font-size:12px;font-weight:600;padding:6px 12px;border-radius:999px}
 .sv-promo-steps{display:grid;gap:14px;margin:0 0 24px}
@@ -9864,7 +9866,7 @@ function svPromoHtml(profile,plan){
     <h2 class="pm-script pm-name">Ayşenur Korkmaz</h2>
     <h1 class="pm-big">Diyet değil,<br>size uyan bir <em>yaşam düzeni</em></h1>
     <p class="pm-sub">Haftalık özel liste · alışveriş listesi · her gün yakın takip</p>
-    <div class="pm-trust"><span>📍 Muratpaşa, Antalya</span><span>💻 Yüz yüze &amp; online</span><span>🤟 İşaret dili</span></div>
+    <div class="pm-trust"><span><a href="https://www.google.com/maps/search/?api=1&query=Diyetisyen%20Ay%C5%9Fenur%20Korkmaz%2C%20Evliya%20%C3%87elebi%20Caddesi%20Mirador%20%C4%B0%C5%9F%20Merkezi%2C%20Antalya%2C%20Turkey%2C%2007050" target="_blank" rel="noopener" style="color:#fff;text-decoration:underline;text-underline-offset:3px">📍 Muratpaşa, Antalya</a></span><span>💻 Yüz yüze &amp; online</span><span>🤟 İşaret dili</span></div>
     <a class="pm-btn pm-btn-main" href="${WA}" target="_blank" rel="noopener">${WAI} Tanışalım, birlikte başlayalım 💛</a>
     <p class="pm-proud">Buraya kadar gelmen bile kendin için bir başarı ✨</p>
     <a class="pm-morelink" href="#pm-ornek">Örnek programı gör <span>↓</span></a>
@@ -10049,6 +10051,12 @@ function svPromoHtml(profile,plan){
     </div>
   </section>
 
+  <section class="pm-sec pm-loc" id="pm-konum">
+    <h2 class="pm-h2">📍 Konum</h2>
+    <p class="pm-addr"><b>Diyetisyen Ayşenur Korkmaz</b><br>Evliya Çelebi Caddesi, Mirador İş Merkezi<br>Muratpaşa, Antalya 07050</p>
+    <a class="pm-btn pm-btn-map" href="https://www.google.com/maps/search/?api=1&query=Diyetisyen%20Ay%C5%9Fenur%20Korkmaz%2C%20Evliya%20%C3%87elebi%20Caddesi%20Mirador%20%C4%B0%C5%9F%20Merkezi%2C%20Antalya%2C%20Turkey%2C%2007050" target="_blank" rel="noopener">🗺️ Google Haritalar'da aç · Yol tarifi al</a>
+  </section>
+
   <section class="pm-sec" id="pm-form">
     <h2 class="pm-h2">Tanışalım, birlikte başlayalım 💛</h2>
     <p class="pm-muted">Kısa bilgilerinizi yazın, WhatsApp'ta hazır mesaj olarak açılsın. Size uygun günü birlikte belirleyelim.</p>
@@ -10065,6 +10073,7 @@ function svPromoHtml(profile,plan){
     <p>Buraya kadar gelmen bile bir başarı. Şimdi küçük bir adım daha ✨</p>
     <a class="pm-btn pm-btn-wa" href="${WA}" target="_blank" rel="noopener">${WAI} Tanışalım, birlikte başlayalım 💛</a>
   </section>
+  <p class="pm-foot" style="margin-bottom:4px"><a href="https://www.google.com/maps/search/?api=1&query=Diyetisyen%20Ay%C5%9Fenur%20Korkmaz%2C%20Evliya%20%C3%87elebi%20Caddesi%20Mirador%20%C4%B0%C5%9F%20Merkezi%2C%20Antalya%2C%20Turkey%2C%2007050" target="_blank" rel="noopener" style="color:inherit">Evliya Çelebi Cad. Mirador İş Merkezi, Muratpaşa/Antalya</a></p>
   <p class="pm-foot" id="pmFoot">Dyt. Ayşenur Korkmaz · Muratpaşa, Antalya</p>
   </div>
   <div class="pm-fabs"><a class="pm-ig" href="https://www.instagram.com/dytaysenurkorkmaz" target="_blank" rel="noopener" aria-label="Instagram'da takip edin" title="Instagram"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.2"/><circle cx="12" cy="12" r="4.1"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff" stroke="none"/></svg></a>  <a class="sv-promo-fab" href="${WA}" target="_blank" rel="noopener" aria-label="WhatsApp ile yazın" title="WhatsApp ile yazın">${WAI.replace('width="22" height="22"','width="34" height="34"')}</a></div>`;
