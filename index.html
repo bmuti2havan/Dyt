@@ -10500,7 +10500,7 @@ function pmDailyInit(){
     let n=Math.min(8,Math.max(0,parseInt(pmLS(key)||'0',10)||0));
     const msg=['Güne bir bardakla başla 💧','Güzel başlangıç!','Devam, harika gidiyorsun','Yarısına yaklaştın','Yarıyı geçtin!','Çok iyi gidiyorsun','Neredeyse tamam','Bir bardak kaldı!','Hedef tamam! Süpersin 🎉'];
     const draw=()=>{ cups.innerHTML=''; for(let i=1;i<=8;i++){ const b=document.createElement('button'); b.type='button'; b.textContent='💧'; b.setAttribute('aria-label',i+'. bardak'); if(i<=n) b.className='on'; b.onclick=()=>{ n=(n===i)?i-1:i; pmLS(key,String(n)); draw(); }; cups.appendChild(b); }
-      document.getElementById('pmWaterTxt').textContent=n+'/8 bardak · '+msg[n]; };
+      document.getElementById('pmWaterTxt').textContent=n+'/8 bardak · '+msg[n]; pmPlantDraw(n); };
     draw();
   }
   const list=document.getElementById('pmChalList');
@@ -10612,6 +10612,8 @@ function renderShareView(snap){
   window.__shareSnap=snap;
   if(!document.getElementById('svFonts')){ const l=document.createElement('link'); l.id='svFonts'; l.rel='stylesheet'; l.href='https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap'; document.head.appendChild(l); }
   setTimeout(()=>{ try{ pmDailyInit(); }catch(e){} },0);
+  try{ svThemeApply(); }catch(e){}
+  setTimeout(()=>{ try{ svPopups(snap); }catch(e){} },0);
   const pts=(snap.measures||[]).filter(m=>m.date&&m.weight!=null);
   const first=pts[0], last=pts[pts.length-1];
   const diff=(first&&last&&pts.length>1)?(+last.weight-+first.weight):null;
@@ -10674,10 +10676,12 @@ function renderShareView(snap){
       </div>`:''}
       <button class="btn btn-sm" id="svInstallBtn" type="button" style="margin-top:8px;width:100%;justify-content:center">📲 Ana ekrana ekle</button>
     </div>
+    <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Bugün rengimiz ne olsun?</button>
     <section class="pm-daily" aria-label="Günün motivasyonu ve su takibi">
       <div class="pm-quote"><span class="pm-qh">✨ Günün sözü</span><p id="pmQuote"></p></div>
       <div class="pm-water">
         <div class="pm-wh"><b>💧 Bugün su içtin mi?</b><span id="pmWaterTxt"></span></div>
+        <div id="pmPlant" style="text-align:center;margin:4px 0 8px"></div>
         <div class="pm-cups" id="pmCups"></div>
         <p class="pm-wnote">Su; vücudumuzun yarısından fazlasını oluşturur. Yeterli su içmek sindirimi, enerjiyi ve konsantrasyonu destekler; bazen susuzluğu açlıkla karıştırırız.</p>
       </div>
@@ -11395,6 +11399,143 @@ function svAchievementHtml(snap){
     </div>
   </section>`;
 }
+/* ══════════════ Danışan linki: renk temaları, sabah mesajı, kutlamalar ══════════════ */
+const SV_THEMES={
+  pembe:{n:'Gül',em:'🌸',sw:'#D2607C'},
+  lavanta:{n:'Lavanta',em:'💜',sw:'#8B6FC4',v:['#3F2A66','#6B4FA3','#8B6FC4','#B7A1E0','#E6DDF7','#F3EEFB','#F7F4FC'],h:['#6B4FA3','#8B6FC4','#E39AC8']},
+  okyanus:{n:'Okyanus',em:'🌊',sw:'#2A8CB8',v:['#0F3B57','#1B6C93','#2A8CB8','#77BEDC','#D3ECF6','#EAF6FB','#F1F8FB'],h:['#1B6C93','#3FA7C8','#7ED6C0']},
+  nane:{n:'Nane',em:'🌿',sw:'#43A074',v:['#1E4D3A','#2F7D5B','#43A074','#8CCBA9','#D8F0E2','#EDF8F1','#F3FAF6'],h:['#2F7D5B','#5FBF8F','#E8D56E']},
+  gunbatimi:{n:'Gün batımı',em:'🌅',sw:'#E4772F',v:['#7A2E12','#C0561E','#E4772F','#F2AE7B','#FBE0CC','#FEF0E5','#FEF6EF'],h:['#C0561E','#F08A3C','#F7C86B']},
+  gece:{n:'Gece mavisi',em:'🌙',sw:'#5560B0',v:['#1E2140','#3A4080','#5560B0','#98A0DC','#DDE0F5','#EEF0FA','#F3F4FB'],h:['#2B3068','#5560B0','#C27BC0']}
+};
+function svThemeKey(){ return 'sv_theme_'+(window.__shareTok||''); }
+function svThemeApply(name){
+  if(name===undefined){ try{ name=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){ name='pembe'; } }
+  const T=SV_THEMES[name]||SV_THEMES.pembe, r=document.documentElement.style;
+  ['--blue-900','--blue-700','--blue-600','--blue-500','--blue-100','--blue-50','--canvas'].forEach((k,i)=>{ if(T.v) r.setProperty(k,T.v[i]); else r.removeProperty(k); });
+  let st=document.getElementById('svThemeStyle');
+  if(!T.h){ if(st) st.remove(); }
+  else{ if(!st){ st=document.createElement('style'); st.id='svThemeStyle'; document.head.appendChild(st); }
+    st.textContent=`.sv-hero{background:radial-gradient(90% 70% at 85% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(165deg,${T.h[0]} 0%,${T.h[1]} 55%,${T.h[2]} 100%)!important}.pm-cheer{background:linear-gradient(135deg,${T.v[5]},#fff)!important;border-color:${T.v[4]}!important}`; }
+}
+function svSheet(html){
+  let o=document.getElementById('svSheet'); if(o) o.remove();
+  if(!document.getElementById('svFunCss')){ const st=document.createElement('style'); st.id='svFunCss'; st.textContent='@keyframes ttBob{50%{transform:translateY(-6px) rotate(-4deg)}}@keyframes ttIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}'; document.head.appendChild(st); }
+  o=document.createElement('div'); o.id='svSheet';
+  o.style.cssText='position:fixed;inset:0;z-index:90;background:rgba(40,20,30,.45);display:flex;align-items:flex-end;justify-content:center;animation:ttIn .25s both';
+  o.innerHTML=`<div style="background:#fff;width:min(520px,100%);border-radius:26px 26px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));max-height:86vh;overflow:auto;box-shadow:0 -16px 40px -12px rgba(0,0,0,.35)">${html}</div>`;
+  o.addEventListener('click',e=>{ if(e.target===o) o.remove(); });
+  document.body.appendChild(o); return o;
+}
+function svThemeOpen(){
+  let cur='pembe'; try{ cur=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){}
+  svSheet(`<div style="text-align:center"><div style="font-size:34px">🎨</div><h3 style="margin:4px 0 2px;font-family:'Caveat',cursive,var(--sans);font-size:28px;color:var(--blue-900)">Bugün rengimiz ne olsun?</h3>
+    <p style="margin:0 0 14px;font-size:13px;color:var(--muted)">Sayfan sana göre renklensin, ruh haline uyanı seç 💛</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${Object.keys(SV_THEMES).map(k=>{const T=SV_THEMES[k];return `<button type="button" onclick="svThemePick('${k}')" style="border:2px solid ${cur===k?T.sw:'#eee'};background:${cur===k?'#fff8fb':'#fff'};border-radius:18px;padding:12px 6px;cursor:pointer;font:inherit">
+      <div style="width:46px;height:46px;border-radius:50%;margin:0 auto 6px;background:${T.sw};display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 16px -8px ${T.sw}">${T.em}</div><div style="font-size:12px;font-weight:700;color:#4a2c3a">${T.n}</div></button>`;}).join('')}</div></div>`);
+}
+function svThemePick(k){
+  try{ localStorage.setItem(svThemeKey(),k); }catch(e){}
+  svThemeApply(k); const o=document.getElementById('svSheet'); if(o) o.remove();
+  toast('Renk değişti '+(SV_THEMES[k]||{}).em,2500);
+}
+/* Her gün farklı, değer hissettiren sabah mesajı */
+const SV_MORNING=[
+ 'Sen bu yolda kendine yatırım yapan biri olarak buradasın. Bu bile başlı başına değerli. 💛',
+ 'Bugün mükemmel olmak zorunda değilsin; sadece dünden bir adım ileride olman yeterli. 🌱',
+ 'Kendine gösterdiğin özen, hayatındaki herkese yansır. Önce sen, çünkü değerlisin. ✨',
+ 'Küçük seçimler büyük değişimlerin tohumudur. Bugün bir tohum daha ek. 🌻',
+ 'Vücudun seni her gün taşıyor. Ona bugün de nazik davran. 🤍',
+ 'Vazgeçmek kolaydı ama sen devam ediyorsun. İşte bu gücün seni özel yapıyor. 💪',
+ 'Bugün kendine “iyi ki varım” demek için güzel bir gün. 🌸',
+ 'İlerleme her zaman çizgi şeklinde gitmez; inişler de yolun parçası. Sen yolda kalmaya devam et. 🛤️',
+ 'Sen sadece bir rakam değilsin; emeğin, azmin ve hikâyenle çok daha fazlasısın. 🌈',
+ 'Bugün su iç, güzel yemek ye, kendine gülümse. Gerisi zamanla gelir. 💧',
+ 'Kendini başkalarıyla değil, dünkü kendinle kıyasla. Bugün bir adım öndesin. 🏅',
+ 'Sağlıklı beslenmek bir ceza değil, kendine verdiğin bir hediyedir. 🎁',
+ 'Sen bu özeni hak ediyorsun. Her öğün, kendine söylenmiş güzel bir sözdür. 🥗',
+ 'Zor günler de geçer. Sabrın ve istikrarın seni hedefine götürüyor. 🌅',
+ 'Bugün neye ihtiyacın varsa, kendine onu verecek güçtesin. 💛',
+ 'Her sabah yeni bir başlangıç. Dünü geride bırak, bugünün tadını çıkar. ☀️',
+ 'Sen bu yolculukta yalnız değilsin; ben yanındayım, gurur duyuyorum seninle. 🤗',
+ 'Kendine sabırlı ol. Çiçekler de bir günde açmaz. 🌷',
+ 'Bugün bir şeyi bile doğru yapsan, kazanan sensin. 🏆',
+ 'Aynaya bakıp “bugün kendime iyi bakıyorum” demenin tam zamanı. 🪞',
+ 'Mutlu bir bedenin sırrı: sevgiyle beslemek. Kendini severek yoluna devam et. 💞',
+ 'Bugünkü emeğin, yarınki enerjin olacak. Teşekkür et kendine. 🙌',
+ 'Hedefin uzakta görünebilir ama attığın her adım seni yaklaştırıyor. 🚶',
+ 'Sen güçlüsün, kararlısın ve yeterlisin. Bunu bugün unutma. 🔥',
+ 'Küçük bir yürüyüş, bir bardak su, bir güzel düşünce… Bugün bunlar yeter. 🍃',
+ 'Kendine yaptığın en güzel iyilik, sağlığına sahip çıkmaktır. 🍎',
+ 'Mükemmel diyet yoktur, sürdürülebilir alışkanlıklar vardır. Sen doğru yoldasın. 🌿',
+ 'Bugün gülümsemen için bir sebep arıyorsan: sen buradasın ve devam ediyorsun! 😊',
+ 'Senin gibi kararlı biriyle çalışmak benim için bir mutluluk. Gün aydın olsun. 🌞',
+ 'Güzel bir gün seni bekliyor; sen de ona güzel bir sen olarak çık. 💫'
+];
+function svGreeting(){ const h=new Date().getHours(); return h<11?'Günaydın ☀️':h<18?'Merhaba 🌤️':'İyi akşamlar 🌙'; }
+function svTokHash(){ let h=0; const t=window.__shareTok||''; for(let i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return h; }
+function svConfetti(emos){
+  const e=emos||['🎉','✨','🌸','💛','🎊','⭐'];
+  const w=document.createElement('div'); w.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:99;overflow:hidden';
+  for(let i=0;i<36;i++){ const s=document.createElement('span'); s.textContent=e[i%e.length];
+    s.style.cssText=`position:absolute;top:-30px;left:${Math.random()*100}%;font-size:${16+Math.random()*18}px;animation:svFall ${2.6+Math.random()*2.4}s ${Math.random()*1.2}s linear forwards`; w.appendChild(s); }
+  if(!document.getElementById('svFallCss')){ const st=document.createElement('style'); st.id='svFallCss'; st.textContent='@keyframes svFall{to{transform:translateY(110vh) rotate(540deg);opacity:.85}}'; document.head.appendChild(st); }
+  document.body.appendChild(w); setTimeout(()=>w.remove(),6500);
+}
+function svCelebrations(snap){
+  const out=[]; const nm=((snap.name||'').split(' ')[0])||'';
+  const td=new Date(); const tdKey=localISODate(td);
+  if(snap.birthday){ const b=new Date(snap.birthday); if(!isNaN(b)&&b.getMonth()===td.getMonth()&&b.getDate()===td.getDate())
+    out.push({key:'bd'+td.getFullYear(),em:'🎂',t:(nm?nm+', ':'')+'doğum günün kutlu olsun!',s:'Yeni yaşında sağlık, mutluluk ve kendine bol sevgi diliyorum. Bugün kendini şımart, sen buna değersin! 🎈🎁',cf:['🎂','🎈','🎉','🎁','💛','✨']}); }
+  const ms=(snap.measures||[]).filter(m=>m.date&&m.weight!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const startD=ms[0]?new Date(ms[0].date):(snap.createdAt?new Date(snap.createdAt):null);
+  if(startD&&!isNaN(startD)){
+    const days=Math.floor((td-startD)/864e5);
+    [[7,'İlk hafta tamam! 🌱','Bir haftadır buradasın ve bu, alışkanlığın en zor kısmı. Gurur duyuyorum!'],[30,'Birlikte 1 aydır yürüyoruz! 🎉','30 gün boyunca kendine sahip çıktın. Bu inanılmaz bir istikrar!'],[60,'2. ay kutlu olsun! 🌟','60 gündür vazgeçmiyorsun. Artık bu senin yaşam tarzın olmaya başladı.'],[90,'3 ay! Kocaman bir başarı 🏆','90 gün… Çoğu insanın bırakacağı yerde sen devam ettin. Harikasın!'],[180,'6 aydır buradasın 💎','Yarım yıl! Başardığın şeyin değerini bil, çok güçlüsün.'],[365,'1 yıl! Efsane 👑','Bir koca yıl kendine yatırım yaptın. Seninle gurur duyuyorum!']]
+    .forEach(([d,t,s])=>{ if(days>=d&&days<=d+3) out.push({key:'day'+d,em:'🎉',t,s}); });
+  }
+  if(ms.length>1){ const lost=(+ms[0].weight)-(+ms[ms.length-1].weight);
+    let hit=0; [1,3,5,8,10,15,20,25,30].forEach(k=>{ if(lost>=k) hit=k; });
+    if(hit) out.push({key:'kg'+hit,em:'🏅',t:'Tam '+hit+' kg verdin!',s:'Bu, '+(hit>=5?'koca bir karpuzun yarısı':'bir paket pirinçten fazla')+' kadar hafifledin demek. Emeğinin karşılığı bu! 💪',cf:['🏅','🎉','✨','💪','🌟']}); }
+  return out;
+}
+function svPopups(snap){
+  const tok=window.__shareTok||''; if(!tok) return;
+  let lsG=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, lsS=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
+  const q=[];
+  svCelebrations(snap).forEach(c=>{ if(!lsG('sv_cel_'+tok+c.key)) q.push(Object.assign({kind:'cel'},c)); });
+  const day=localISODate(new Date());
+  if(lsG('sv_morning_'+tok)!==day){
+    const n=Math.floor((Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate())-Date.UTC(2024,0,1))/864e5);
+    q.unshift({kind:'morning',msg:SV_MORNING[(n+svTokHash())%SV_MORNING.length]});
+  }
+  if(!q.length) return;
+  const nm=((snap.name||'').split(' ')[0])||'';
+  const show=()=>{
+    const it=q.shift(); if(!it) return;
+    let html;
+    if(it.kind==='morning') html=`<div style="text-align:center"><div style="font-size:54px;animation:ttBob 2.4s ease-in-out infinite;display:inline-block">${new Date().getHours()<11?'☀️':new Date().getHours()<18?'🌤️':'🌙'}</div>
+      <h3 style="margin:6px 0 8px;font-family:'Caveat',cursive,var(--sans);font-size:32px;color:var(--blue-900)">${svGreeting()}${nm?' '+esc(nm):''}!</h3>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a2c3a">${esc(it.msg)}</p>
+      <button type="button" id="svSheetOk" class="btn btn-primary" style="width:100%;justify-content:center">Teşekkür ederim 💛</button></div>`;
+    else html=`<div style="text-align:center"><div style="font-size:60px;animation:ttBob 1.6s ease-in-out infinite;display:inline-block">${it.em}</div>
+      <h3 style="margin:6px 0 8px;font-family:'Caveat',cursive,var(--sans);font-size:32px;color:var(--blue-900)">${esc(it.t)}</h3>
+      <p style="margin:0 0 16px;font-size:14.5px;line-height:1.7;color:#4a2c3a">${esc(it.s)}</p>
+      <button type="button" id="svSheetOk" class="btn btn-primary" style="width:100%;justify-content:center">Teşekkürler 🥳</button></div>`;
+    const o=svSheet(html);
+    if(it.kind==='cel') svConfetti(it.cf);
+    const done=()=>{ if(it.kind==='morning') lsS('sv_morning_'+tok,day); else lsS('sv_cel_'+tok+it.key,'1'); o.remove(); setTimeout(show,250); };
+    o.querySelector('#svSheetOk').onclick=done;
+    o.addEventListener('click',e=>{ if(e.target===o) done(); });
+  };
+  setTimeout(show,700);
+}
+/* Su içince büyüyen bitki 🌱→🌻 */
+function pmPlantDraw(n){
+  const el=document.getElementById('pmPlant'); if(!el) return;
+  const st=[['🫘','Toprağa bir tohum bıraktım, sulamayı bekliyor'],['🌱','İlk filiz çıktı! 💧'],['🌱','Filizin güçleniyor'],['🌿','Yaprakları açılıyor'],['🌿','Boy atıyor, çok iyi gidiyorsun'],['🪴','Neredeyse saksıyı dolduracak'],['🪴','Tomurcuk geliyor, az kaldı'],['🌷','Çiçek açmak üzere, bir bardak daha!'],['🌻','Bitkin tam çiçek açtı! Bugün çok iyi su içtin 🎉']][Math.min(8,n)];
+  el.innerHTML=`<span style="font-size:${34+n*5}px;display:inline-block;transition:font-size .5s;animation:ttBob 3s ease-in-out infinite">${st[0]}</span><div style="font-size:12px;color:var(--muted);margin-top:2px">${st[1]}</div>`;
+}
 /* ══════════════ Diyetisyenin öğün/tabak yorumları (❤️ + emoji + yazı) ══════════════ */
 const COACH_EMO=['👏','🔥','😍','💪','🥗','🌟','😋'];
 function coachBarHtml(c,n){
@@ -11610,6 +11751,24 @@ function tartiItems(s){
   }
   return it;
 }
+function tartiBodySvg(s){
+  const sg=s.seg, rg=(s.fat&&s.fat.pctR)||[14,23], hi=rg[1];
+  const col=v=>v<=hi?'#8fd6a6':v<=hi+4?'#ffd27a':'#ff9f6b';
+  const f=x=>String(x).replace('.',',');
+  const face=(s.fit!=null?s.fit:80)>=80?'M84 40q16 14 32 0':(s.fit>=60?'M86 44h28':'M84 47q16 -12 32 0');
+  const t=(x,y,i)=>`<text x="${x}" y="${y}" text-anchor="middle" font-size="11" font-weight="800" fill="#4a2c3a">%${f(sg.fatPct[i])}</text>`;
+  return `<svg viewBox="0 0 200 290" style="width:100%;max-width:230px;display:block;margin:6px auto" role="img" aria-label="Bölgesel yağ haritası">
+    <circle cx="100" cy="38" r="26" fill="#ffe3cf" stroke="#e7b89a" stroke-width="2"/><circle cx="90" cy="32" r="3" fill="#4a2c3a"/><circle cx="110" cy="32" r="3" fill="#4a2c3a"/>
+    <path d="${face}" fill="none" stroke="#4a2c3a" stroke-width="3" stroke-linecap="round"/><circle cx="80" cy="42" r="4.5" fill="#ffb3c1" opacity=".8"/><circle cx="120" cy="42" r="4.5" fill="#ffb3c1" opacity=".8"/>
+    <rect x="68" y="68" width="64" height="100" rx="26" fill="${col(sg.fatPct[4])}" stroke="#fff" stroke-width="3"/>${t(100,124,4)}
+    <rect x="24" y="72" width="36" height="92" rx="17" fill="${col(sg.fatPct[2])}" stroke="#fff" stroke-width="3"/>${t(42,122,2)}
+    <rect x="140" y="72" width="36" height="92" rx="17" fill="${col(sg.fatPct[3])}" stroke="#fff" stroke-width="3"/>${t(158,122,3)}
+    <rect x="66" y="172" width="32" height="104" rx="16" fill="${col(sg.fatPct[0])}" stroke="#fff" stroke-width="3"/>${t(82,228,0)}
+    <rect x="102" y="172" width="32" height="104" rx="16" fill="${col(sg.fatPct[1])}" stroke="#fff" stroke-width="3"/>${t(118,228,1)}
+    <text x="42" y="62" text-anchor="middle" font-size="9" fill="#8a6a7a">sağ kol</text><text x="158" y="62" text-anchor="middle" font-size="9" fill="#8a6a7a">sol kol</text>
+  </svg>
+  <div style="display:flex;justify-content:center;gap:10px;font-size:11px;color:var(--muted);flex-wrap:wrap"><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#8fd6a6"></i> harika</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#ffd27a"></i> biraz üstünde</span><span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#ff9f6b"></i> çalışacağımız</span></div>`;
+}
 function tartiSegHtml(s){
   if(!s.seg||!s.seg.fatPct||s.seg.fatPct.length<5) return '';
   const names=['Sağ bacak','Sol bacak','Sağ kol','Sol kol','Gövde'], em=['🦵','🦵','💪','💪','🧍'];
@@ -11624,6 +11783,7 @@ function tartiSegHtml(s){
   note+= tr>Math.max(arm,leg)+2 ? 'Yağ biraz karın/gövdede toplanmış; bu bölge genelde düzenli beslenme ve yürüyüşe en iyi yanıt veren yerdir. 🚶' : 'Yağ vücuda oldukça dengeli dağılmış, güzel. 👍';
   if(Math.abs(s.seg.muscleKg[0]-s.seg.muscleKg[1])<=0.6&&Math.abs(s.seg.muscleKg[2]-s.seg.muscleKg[3])<=0.6) note+=' Sağ ve sol tarafın kas dengesi de çok iyi: simetrik bir vücut! ⚖️';
   return `<div class="tt-card"><div class="tt-ic" style="background:#e8f3ff">🧍</div><div class="tt-body"><h4>Bölgesel analiz: nerede ne var?</h4>
+    ${tartiBodySvg(s)}
     <p class="tt-sp">Cihaz vücudunu 5 bölgeye ayırıp her birinde kas ve yağı ayrı ölçtü. <span style="color:#3b82a8">■ kas</span> · <span style="color:#e58a4a">■ yağ oranı</span></p>
     ${rows}<div class="tt-say"><span>🧑‍⚕️</span><p>${note}</p></div></div></div>`;
 }
