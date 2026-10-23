@@ -2935,6 +2935,7 @@ function buildShareSnapshot(c){
     birthday: c.birthday||null, targetWeight: c.targetWeight||null, sex: c.sex||'',
     pkg: mn.total? {done:mn.done,total:mn.total,left:mn.left} : null,
     mealReplies: repliesOf(c),
+    clientMsgs: clientMsgsOf(c),
     bodyScans: (c.bodyScans||[]).slice(-4).map(x=>{ const y=Object.assign({},x); delete y.hist; return y; }),
     weeklyTask: c.weeklyTask||null,
     foodPrefs: c.foodPrefs||null,
@@ -3256,6 +3257,7 @@ async function pullShareIntake(){
   if(!withToken.length) return;
   let changed=false;
   const fresh=[]; // yeni gelen kayıtlar — tarayıcı bildirimi için
+  const touched=new Set();
   for(const c of withToken){
     try{
       const t=await cloudToken();
@@ -3265,6 +3267,7 @@ async function pullShareIntake(){
       if(!data) continue;
       const keys=Object.keys(data);
       if(!keys.length) continue;
+      touched.add(c);
       keys.forEach(k=>{
         const e=data[k]; if(!e||!e.type) return;
         const rid='si-'+k;
@@ -3334,6 +3337,7 @@ async function pullShareIntake(){
   if(changed){
     await save({noCloud:true});
     await cloudPushMerged();
+    touched.forEach(c=>{ try{ replyPush(c,true); }catch(e){} });
     toast('Danışanlardan yeni bilgi geldi 📬',4000);
     notifyFresh(fresh);
     paintNotifBadge();
@@ -9333,24 +9337,27 @@ function paintNotifBadge(){
       f.innerHTML='<span class="nf-em">💌</span><span class="nf-tx">Danışandan<br>mesaj var!</span>'; document.body.appendChild(f); }
   } else if(f) f.remove();
 }
+function chatSeenOf(c){ return c.chatSeenAt!=null?c.chatSeenAt:((DB.profile&&DB.profile.notifSeenAt)||0); }
+function chatUnreadOf(c){ const seen=chatSeenOf(c); return chatItems(c).filter(x=>(+x.at||0)>seen).length; }
 function openNotifPanel(){
   if(typeof Notification!=='undefined' && Notification.permission==='default'){ try{ Notification.requestPermission(); }catch(e){} }
-  const list=allClientNotices();
-  const seenBefore=(DB.profile&&DB.profile.notifSeenAt)||0;
-  const unread=list.filter(n=>(+n.at||0)>seenBefore).length;
   const todayVisits=(DB.clients||[]).reduce((s,c)=>s+(c.visits||[]).filter(v=>v.date===todayISO()).length,0);
+  const groups=(DB.clients||[]).map(c=>{ const it=chatItems(c).sort((a,b)=>(+b.at||0)-(+a.at||0)); return it.length?{c,last:it[0],unread:chatUnreadOf(c),total:it.length}:null; }).filter(Boolean)
+    .sort((a,b)=>(b.unread>0)-(a.unread>0)||(+b.last.at||0)-(+a.last.at||0));
+  const totalUnread=groups.reduce((n,g)=>n+g.unread,0);
+  const strip=h=>String(h).replace(/<br\s*\/?>/gi,' ').replace(/<img[^>]*>/gi,' 📷 ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim();
   const body=`${todayVisits?`<p style="font-size:12.5px;color:var(--muted);margin:0 0 10px">🔗 Danışanlar bugün takip linklerine toplam <b>${todayVisits}</b> kez girdi.</p>`:''}
-    <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:${unread?'#d6336c':'var(--ok)'}">${unread?'🆕 '+unread+' yeni — okundu olarak işaretlendi ✓':'✓ Tüm bildirimler okundu'}</p>
-    <div class="notif-panel">${list.length?list.map(n=>`<div class="notif-row" data-notif-go="${n.clientId}" style="${(+n.at||0)>seenBefore?'background:#fff6fa':'opacity:.75'}">
-      <span style="font-size:16px">${n.kind==='mf'?(n.text.includes('beğendi')?'👍':'👎'):n.kind==='cn'?'💬':n.kind==='mp'?'📷':n.kind==='ref'?'👋':n.kind==='dm'?'🍽':'📝'}</span>
-      <div style="flex:1;min-width:0"><div style="font-size:13px;white-space:pre-wrap"><b>${esc(n.client)}</b> — ${n.text}</div>
-      <div style="font-size:11px;color:var(--muted)">${trDT(n.at)}</div>${n.id?coachBarHtml(clientOf(n.clientId)||{id:n.clientId},n):''}</div></div>`).join('')
-      :`<p style="margin:0;color:var(--muted);font-size:13.5px">Şu an bekleyen danışan bildirimi yok.</p>`}</div>`;
-  modal('🔔 Danışan bildirimleri',body,'Kapat','close','460px');
-  if(unread){ DB.profile.notifSeenAt=Date.now(); save(); }
+    <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:${totalUnread?'#d6336c':'var(--ok)'}">${totalUnread?'🆕 '+groups.filter(g=>g.unread).length+' kişiden '+totalUnread+' yeni mesaj — kişiye tıklayınca sohbeti açılır':'✓ Tüm mesajlar okundu'}</p>
+    <div class="notif-panel">${groups.length?groups.map(g=>`<div class="notif-row" data-notif-go="${esc(g.c.id)}" style="align-items:center;${g.unread?'background:#fff6fa':''}">
+      <div style="flex:0 0 42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--blue-600),var(--blue-500));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px">${esc((g.c.name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toLocaleUpperCase('tr'))}</div>
+      <div style="flex:1;min-width:0"><div style="display:flex;gap:8px;align-items:baseline"><b style="font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.c.name||'Danışan')}</b><span style="font-size:11px;color:${g.unread?'#d6336c':'var(--muted)'};white-space:nowrap">${trDT(g.last.at)}</span></div>
+      <div style="font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(strip(g.last.html)).slice(0,90)}</div></div>
+      ${g.unread?`<span style="flex:0 0 auto;min-width:22px;height:22px;border-radius:11px;background:#25d366;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px">${g.unread}</span>`:''}
+    </div>`).join(''):`<p style="margin:0;color:var(--muted);font-size:13.5px">Şu an danışandan gelen mesaj yok.</p>`}</div>`;
+  modal('🔔 Danışan mesajları',body,'Kapat','close','460px');
+  if(unreadNotices().length){ (DB.clients||[]).forEach(c=>{ if(c.chatSeenAt==null) c.chatSeenAt=(DB.profile&&DB.profile.notifSeenAt)||0; }); DB.profile.notifSeenAt=Date.now(); save(); }
   paintNotifBadge();
-  document.querySelectorAll('[data-notif-go]').forEach(r=>r.addEventListener('click',ev=>{
-    if(ev.target.closest('.coach-bar,[data-coach-open]')) return;
+  document.querySelectorAll('[data-notif-go]').forEach(r=>r.addEventListener('click',()=>{
     S.page='client'; S.client=r.dataset.notifGo; S.tab='sohbet'; closeModal(); render();
   }));
 }
@@ -11591,13 +11598,21 @@ function pmPlantDraw(n){
 }
 /* ══════════════ 💬 Sohbet: danışandan gelen her şey WhatsApp gibi, hepsine cevap ══════════════ */
 function repliesOf(c){ return [...(c.mealReplies||[]),...(c.msgs||[])].sort((a,b)=>(+a.at||0)-(+b.at||0)).slice(-40); }
-async function replyPush(c){
-  if(!c.shareToken) return toast('Kaydedildi. Danışan linki oluşturulunca görünür',6000);
+function clientMsgsOf(c){
+  const o=[];
+  (c.clientNotes||[]).forEach(x=>{ if(x.text) o.push({id:x.id,at:x.at||0,text:String(x.text).slice(0,500)}); });
+  (c.dailyMeals||[]).forEach(x=>{ o.push({id:x.id,at:x.at||0,text:'🍽 '+(x.mealType||'Öğün')+(x.text?' — '+String(x.text).slice(0,200):'')+((x.photo||x.hidden)?' 📷':'')}); });
+  (c.mealPhotos||[]).forEach(x=>{ o.push({id:x.id,at:x.at||0,text:'📷 '+((x.dayLabel?x.dayLabel+' · ':'')+(x.mealName||'Öğün'))+' fotoğrafı gönderdin'}); });
+  return o.sort((a,b)=>a.at-b.at).slice(-30);
+}
+async function replyPush(c,quiet){
+  if(!c.shareToken) return quiet||toast('Kaydedildi. Danışan linki oluşturulunca görünür',6000);
   try{
     const t1=await cloudToken();
-    const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}/mealReplies.json?auth=${encodeURIComponent(t1)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(repliesOf(c))});
+    const put=(node,val)=>fetch(`${CL().dbUrl}/shares/${c.shareToken}/${node}.json?auth=${encodeURIComponent(t1)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});
+    const [r,r2]=await Promise.all([put('mealReplies',repliesOf(c)),put('clientMsgs',clientMsgsOf(c))]);
     if(!r.ok) throw new Error(cloudErr(r.status));
-    toast('Danışanın linkine gönderildi ✓',2500);
+    if(!quiet) toast('Danışanın linkine gönderildi ✓',2500);
   }catch(e){ toast('Gönderilemedi: '+(e.message||''),7000); }
 }
 function chatItems(c){
@@ -11618,11 +11633,15 @@ function pageClientChat(c){
   // repliesOf son 40'ı keser; sohbet için tümünü göster
   const all=[...(c.mealReplies||[]),...(c.msgs||[])].map(r=>({dir:'out',id:r.id,at:r.at,r,label:r.label}));
   const L=[...inc,...all].sort((a,b)=>(+a.at||0)-(+b.at||0));
+  const seenAt=chatSeenOf(c); let divDone=false;
+  const hasNew=inc.some(x=>(+x.at||0)>seenAt);
+  if(hasNew) setTimeout(async()=>{ c.chatSeenAt=Date.now(); await save(); paintNotifBadge(); },400);
   let lastDay='';
   const bubbles=L.map(m=>{
     const d=new Date(+m.at||Date.now()), dk=localISODate(d); let head='';
     if(dk!==lastDay){ lastDay=dk; head=`<div style="text-align:center;margin:10px 0 4px"><span style="background:#e9edf0;border-radius:8px;padding:3px 10px;font-size:11px;color:#667">${trDate(dk)}</span></div>`; }
     const tm=d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+    if(m.dir==='in'&&!divDone&&(+m.at||0)>seenAt&&hasNew){ divDone=true; head+=`<div style="text-align:center;margin:10px 0"><span style="background:#fff3c4;border-radius:8px;padding:3px 12px;font-size:11px;font-weight:700;color:#7a6200">▼ ${inc.filter(x=>(+x.at||0)>seenAt).length} yeni mesaj</span></div>`; }
     if(m.dir==='in') return head+`<div style="display:flex;justify-content:flex-start;margin:4px 0"><div style="max-width:78%;background:#fff;border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:8px 11px;font-size:13.5px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.05)">${m.html}
       <div style="display:flex;gap:10px;align-items:center;margin-top:4px"><span style="font-size:10.5px;color:var(--muted)">${tm}</span><button type="button" data-chat-reply="${esc(m.k+':'+m.id)}" data-lbl="${esc(m.label||'')}" style="border:0;background:none;color:var(--blue-700);font-size:11.5px;font-weight:700;cursor:pointer;padding:0">↩ Cevapla</button></div></div></div>`;
     const r=m.r;
@@ -11700,7 +11719,12 @@ function svMsgOpen(at){
 function svChatKey(){ return 'sv_chat_'+(window.__shareTok||''); }
 function svChatMine(){ try{ return JSON.parse(localStorage.getItem(svChatKey())||'[]'); }catch(e){ return []; } }
 function svReplyHtml(snap){
-  const mine=snap.demo?[]:svChatMine();
+  let mine=[];
+  if(!snap.demo){
+    const srv=(snap.clientMsgs||[]).map(m=>({text:m.text,at:+m.at||0,srv:true}));
+    const loc=svChatMine().filter(m=>!srv.some(x=>x.text===m.text&&Math.abs(x.at-(+m.at||0))<10*60*1000));
+    mine=[...srv,...loc];
+  }
   const L=[...(snap.mealReplies||[]).map(r=>({d:'in',at:+r.at||0,r})),...mine.map(m=>({d:'out',at:+m.at||0,m}))].sort((a,b)=>a.at-b.at).slice(-30);
   if(!L.length) return '';
   let last='';
@@ -11740,8 +11764,10 @@ function svChatPollStart(){
       const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(window.__shareTok)}/mealReplies.json`); if(!r.ok) return;
       const arr=await r.json(); const list=Array.isArray(arr)?arr.filter(Boolean):(arr?Object.values(arr):[]);
       const snap=window.__shareSnap; if(!snap) return;
-      if(JSON.stringify(list)===JSON.stringify(snap.mealReplies||[])) return;
-      snap.mealReplies=list;
+      let cm=snap.clientMsgs||[];
+      try{ const r2=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(window.__shareTok)}/clientMsgs.json`); if(r2.ok){ const a2=await r2.json(); cm=Array.isArray(a2)?a2.filter(Boolean):(a2?Object.values(a2):[]); } }catch(e){}
+      if(JSON.stringify(list)===JSON.stringify(snap.mealReplies||[])&&JSON.stringify(cm)===JSON.stringify(snap.clientMsgs||[])) return;
+      snap.mealReplies=list; snap.clientMsgs=cm;
       const el=document.getElementById('sv-yorum'); const h=svReplyHtml(snap);
       if(el) el.outerHTML=h; else { const nav=document.querySelector('.sv-qn'); if(nav) nav.insertAdjacentHTML('afterend',h); }
       if(!document.getElementById('svMsgFab')) document.body.insertAdjacentHTML('beforeend',svMsgFabHtml(snap));
