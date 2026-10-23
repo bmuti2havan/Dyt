@@ -2888,6 +2888,7 @@ function buildShareSnapshot(c){
     plan, pastPlans, notes, booklets,
     birthday: c.birthday||null, targetWeight: c.targetWeight||null, sex: c.sex||'',
     pkg: mn.total? {done:mn.done,total:mn.total,left:mn.left} : null,
+    mealReplies: (c.mealReplies||[]).slice(-20),
     bodyScans: (c.bodyScans||[]).slice(-4).map(x=>{ const y=Object.assign({},x); delete y.hist; return y; }),
     weeklyTask: c.weeklyTask||null,
     foodPrefs: c.foodPrefs||null,
@@ -6433,7 +6434,7 @@ function pageClientControl(c){
     prog=Math.max(0,Math.min(100,Math.round((startW-nowW)/(startW-tgt)*100)));
   }
   const dayDiff=nx? Math.ceil((new Date(nx.when)-new Date())/86400000) : null;
-  const notices=[...(c.mealFeedback||[]).map(x=>({...x,kind:'mf'})),...(c.journal||[]).map(x=>({...x,kind:'j'})),...(c.clientNotes||[]).map(x=>({...x,kind:'cn'})),...(c.mealPhotos||[]).map(x=>({...x,kind:'mp'})),...(c.referrals||[]).map(x=>({...x,kind:'ref'})),...(c.dailyMeals||[]).map(x=>({...x,kind:'dm'}))]
+  const notices=[...(c.mealFeedback||[]).map(x=>({...x,kind:'mf'})),...(c.journal||[]).map(x=>({...x,kind:'j'})),...(c.clientNotes||[]).map(x=>({...x,kind:'cn'})),...(c.mealPhotos||[]).map(x=>({...x,kind:'mp'})),...(c.dailyMeals||[]).map(x=>({...x,kind:'dm'})),...(c.referrals||[]).map(x=>({...x,kind:'ref'})),...(c.dailyMeals||[]).map(x=>({...x,kind:'dm'}))]
     .sort((a,b)=>(+b.at||0)-(+a.at||0)).slice(0,8);
   const todayVisits=(c.visits||[]).filter(v=>v.date===todayISO()).length;
   return `
@@ -6531,6 +6532,7 @@ function pageClientControl(c){
                 :n.kind==='dm'?`${n.mealType?`<b>${esc(n.mealType)}</b>`:'Bugün ne yedi'}${n.text?(n.mealType?' — ':'')+esc(n.text):''}${isPhoto(n.photo)?`<br><img src="${esc(n.photo)}" style="margin-top:6px;max-width:180px;max-height:180px;border-radius:8px;display:block">`:''}`
                 :`${n.water!=null&&n.water!==''?'💧 '+esc(n.water)+' bardak':''}${n.steps!=null&&n.steps!==''?' · 🚶 '+esc(n.steps)+' adım':''}${n.sleep!=null&&n.sleep!==''?' · 😴 '+esc(n.sleep)+' saat uyku':''}${n.cheated===true?' · <b style="color:var(--danger)">🍬 kaçamak yaptı</b>':n.cheated===false?' · <b style="color:var(--ok)">✅ kaçamak yapmadı</b>':''}${n.mood?' · '+esc(n.mood):''}`}</div>
               <div style="font-size:11.5px;color:var(--muted)">${trDT(n.at)}</div>
+              ${(n.kind==='mp'||n.kind==='dm')?coachBarHtml(c,n):''}
             </div>
             <button class="x" data-dismiss-notice="${n.kind}:${n.id}" title="Kapat">✕</button>
           </div>`).join('')}</div>`
@@ -9352,6 +9354,9 @@ document.addEventListener('click',async e=>{
     const it=c.measures.find(x=>x.id===dm.dataset.delMeasure);
     if(it) trashPush('measure',(c.name||'')+' · '+trDate(it.date)+(it.weight?' · '+it.weight+' kg':''),it,{clientId:c.id});
     c.measures=c.measures.filter(x=>x.id!==dm.dataset.delMeasure); await save(); toast('Çöp kutusuna taşındı'); return render(); }
+  const ch=t.closest('[data-coach-heart]'); if(ch){ const on=ch.getAttribute('aria-pressed')!=='true'; ch.setAttribute('aria-pressed',on); ch.textContent=on?'❤️ Beğendin':'🤍 Beğen'; ch.style.background=on?'#ffe0ea':''; return; }
+  const ce=t.closest('[data-coach-emoji]'); if(ce){ const bar=ce.closest('.coach-bar'); const on=ce.getAttribute('aria-pressed')!=='true'; bar.querySelectorAll('[data-coach-emoji]').forEach(b=>{ b.setAttribute('aria-pressed','false'); b.style.background=''; }); if(on){ ce.setAttribute('aria-pressed','true'); ce.style.background='#fff3c4'; } return; }
+  const cs=t.closest('[data-coach-send]'); if(cs){ return coachSend(cs.closest('.coach-bar')); }
   const dno=t.closest('[data-dismiss-notice]'); if(dno){ const c=clientOf(S.client); const [kind,nid]=dno.dataset.dismissNotice.split(':');
     if(kind==='mf') c.mealFeedback=(c.mealFeedback||[]).filter(x=>x.id!==nid);
     else if(kind==='cn') c.clientNotes=(c.clientNotes||[]).filter(x=>x.id!==nid);
@@ -10664,6 +10669,7 @@ function renderShareView(snap){
     </section>
     <nav class="sv-qn">
       ${(snap.bodyScans||[]).length?'<a href="#sv-tarti">📊 Tartı sonucum</a>':''}
+      ${(snap.mealReplies||[]).length?'<a href="#sv-yorum">💌 Yorumlar</a>':''}
       <a href="#sv-grafik">📈 Grafik</a>
       ${p?'<a href="#sv-program">📋 Program</a>':''}
       <a href="#sv-gunluk">🍽 Bugün</a>
@@ -10671,6 +10677,7 @@ function renderShareView(snap){
       <a href="#sv-rehber">📚 Rehberler</a>
     </nav>
     ${svBodyHtml(snap)}
+    ${svReplyHtml(snap)}
     ${kpiHtml}
     ${svWeeklyReportHtml(snap)}
     ${svAchievementHtml(snap)}
@@ -11371,6 +11378,48 @@ function svAchievementHtml(snap){
       <p style="margin:0;font-size:14px;line-height:1.65;color:var(--ink)">${msg}</p>
     </div>
   </section>`;
+}
+/* ══════════════ Diyetisyenin öğün/tabak yorumları (❤️ + emoji + yazı) ══════════════ */
+const COACH_EMO=['👏','🔥','😍','💪','🥗','🌟','😋'];
+function coachBarHtml(c,n){
+  const r=(c.mealReplies||[]).find(x=>x.id===n.id)||{};
+  const key=esc(n.kind+':'+n.id);
+  return `<div class="coach-bar" data-coach="${key}" style="margin-top:8px;padding:8px;border-radius:12px;background:#fbf4f7">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="btn btn-sm" data-coach-heart aria-pressed="${r.heart?'true':'false'}" style="${r.heart?'background:#ffe0ea;border-color:#f5a3bd':''}">${r.heart?'❤️ Beğendin':'🤍 Beğen'}</button>
+      ${COACH_EMO.map(e=>`<button type="button" class="btn btn-sm" data-coach-emoji="${e}" aria-pressed="${r.emoji===e?'true':'false'}" style="padding:4px 8px;${r.emoji===e?'background:#fff3c4;border-color:#f0c64a':''}">${e}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px"><input type="text" data-coach-text placeholder="Yorum yaz… örn. Harika tabak, böyle devam! 👏" value="${esc(r.text||'')}" style="flex:1;min-width:0">
+      <button type="button" class="btn btn-sm btn-primary" data-coach-send>💌 Gönder</button></div>
+    ${r.at?`<div style="font-size:11px;color:var(--ok);margin-top:4px">✓ Danışanın linkine gönderildi · ${trDT(r.at)}</div>`:''}
+  </div>`;
+}
+async function coachSend(bar){
+  const c=clientOf(S.client); if(!c||!bar) return;
+  const [kind,...rest]=bar.dataset.coach.split(':'); const id=rest.join(':');
+  const heart=bar.querySelector('[data-coach-heart]').getAttribute('aria-pressed')==='true';
+  const eb=bar.querySelector('[data-coach-emoji][aria-pressed="true"]'); const emoji=eb?eb.dataset.coachEmoji:'';
+  const text=(bar.querySelector('[data-coach-text]').value||'').trim().slice(0,300);
+  if(!heart&&!emoji&&!text) return toast('Önce beğen, emoji seç ya da bir yorum yaz');
+  const src=(kind==='mp'?c.mealPhotos:c.dailyMeals||[]).find(x=>x.id===id)||{};
+  const label=kind==='mp'?((src.dayLabel?src.dayLabel+' · ':'')+(src.mealName||'Öğün')):((src.mealType||'Öğün')+(src.text?' — '+String(src.text).slice(0,40):''));
+  c.mealReplies=c.mealReplies||[];
+  const rep={id,kind,label,date:src.date||todayISO(),heart,emoji,text,at:Date.now()};
+  const i=c.mealReplies.findIndex(x=>x.id===id); if(i>=0) c.mealReplies[i]=rep; else c.mealReplies.push(rep);
+  await save(); render();
+  if(c.shareToken) tartiPublish(c); else toast('Kaydedildi. Danışan linki oluşturulunca görünür',6000);
+}
+function svReplyHtml(snap){
+  const L=(snap.mealReplies||[]).slice().sort((a,b)=>(+b.at||0)-(+a.at||0)).slice(0,10);
+  if(!L.length) return '';
+  return `<section class="sv-card" id="sv-yorum" style="margin-top:16px;background:linear-gradient(135deg,#fff1f6,#fff);border:1px solid #f6cfdd">
+    <div class="sv-card-h"><h3>💌 Diyetisyeninden sana</h3></div><div style="padding:6px 16px 16px;display:grid;gap:10px">
+    ${L.map(r=>`<div style="display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid #f3dbe4;border-radius:16px;padding:12px">
+      <div style="font-size:30px;line-height:1">${r.emoji||(r.heart?'❤️':'💬')}</div>
+      <div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--muted)">${esc(r.label||'Öğünün')} · ${trDate(r.date)}</div>
+      ${r.heart?'<div style="font-size:13px;font-weight:700;color:#d6336c;margin-top:2px">❤️ Tabağını beğendi!</div>':''}
+      ${r.text?`<div style="font-size:13.5px;line-height:1.55;margin-top:3px;color:var(--ink)">“${esc(r.text)}”</div>`:''}</div></div>`).join('')}
+    </div></section>`;
 }
 /* ══════════════ Tartı / vücut analizi (PDF) ══════════════
    Diyetisyen cihaz raporunun PDF'ini yükler → metin okunur → değerler ve normal aralıklar ayrıştırılır.
