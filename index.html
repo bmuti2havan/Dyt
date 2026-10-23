@@ -10209,6 +10209,21 @@ function svInjectManifest(snap,token){
     link.href=blobUrl;
   }catch(e){ /* manifest olmadan da sayfa normal çalışır, sessiz geç */ }
 }
+function svInstallBar(){
+  try{
+    if(document.getElementById('svInstallBar')) return;
+    const standalone=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
+    if(standalone) return;
+    let k='sv_instbar_'+(window.__shareTok||''); let d=0; try{ d=+localStorage.getItem(k)||0; }catch(e){}
+    if(d&&Date.now()-d<3*86400000) return;
+    const b=document.createElement('div'); b.id='svInstallBar';
+    b.style.cssText='position:fixed;left:12px;bottom:14px;right:84px;z-index:9000;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:16px;background:#fff;border:1.5px solid var(--blue-100);box-shadow:0 10px 26px -10px rgba(60,20,40,.45);font-size:12.5px';
+    b.innerHTML='<span style="font-size:22px">📲</span><span style="flex:1;line-height:1.35"><b>Linki ana ekrana ekle</b><br><span style="color:var(--muted)">Tek dokunuşla ulaş</span></span><button type="button" class="btn btn-sm btn-primary" id="svInstBarGo">Ekle</button><button type="button" id="svInstBarX" aria-label="Kapat" style="border:0;background:none;font-size:18px;color:var(--muted);padding:4px">✕</button>';
+    document.body.appendChild(b);
+    document.getElementById('svInstBarGo').onclick=()=>{ svInstallClick(); };
+    document.getElementById('svInstBarX').onclick=()=>{ b.remove(); try{ localStorage.setItem(k,String(Date.now())); }catch(e){} };
+  }catch(e){}
+}
 async function svInstallClick(){
   if(window.__svInstallPrompt){
     try{
@@ -10225,7 +10240,7 @@ function svInstallInstructions(){
   const isIOS=/iphone|ipad|ipod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   const body=isIOS
     ? `<ol style="margin:0;padding-left:20px;font-size:14px;line-height:2.1">
-        <li>Altta ortadaki <b>Paylaş</b> ikonuna dokun (kare içinde yukarı ok ↑)</li>
+        <li>Safari’de altta ortadaki <b>Paylaş</b> ikonuna dokun <span style="display:inline-block;border:1.5px solid #007aff;color:#007aff;border-radius:6px;padding:0 6px;font-weight:700">⬆︎</span> (iPhone’da Chrome kullanıyorsan sağ üstteki paylaş simgesi)</li>
         <li>Açılan listede <b>"Ana Ekrana Ekle"</b>yi seç</li>
         <li>Sağ üstteki <b>Ekle</b>ye dokun</li>
       </ol>
@@ -10877,6 +10892,7 @@ function renderShareView(snap){
   }));
   { const shb=document.getElementById('svShopBtn'); if(shb) shb.addEventListener('click',svOpenShopModal); }
   { const ib=document.getElementById('svInstallBtn'); if(ib) ib.addEventListener('click',svInstallClick); }
+  svInstallBar();
   { const rb=document.getElementById('svRemindBtn'); if(rb){ rb.addEventListener('click',svRemindToggle); svRemindPaint(); svCheckReminder(); } }
   { const mb=document.getElementById('svMeasureBtn'); if(mb) mb.addEventListener('click',svSubmitMeasure); }
   document.getElementById('svJournalBtn').addEventListener('click',svSubmitJournal);
