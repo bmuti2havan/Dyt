@@ -6578,7 +6578,7 @@ function pageClientControl(c){
                 :n.kind==='dm'?`${n.mealType?`<b>${esc(n.mealType)}</b>`:'Bugün ne yedi'}${n.text?(n.mealType?' — ':'')+esc(n.text):''}${isPhoto(n.photo)?`<br><img src="${esc(n.photo)}" style="margin-top:6px;max-width:180px;max-height:180px;border-radius:8px;display:block">`:''}`
                 :`${n.water!=null&&n.water!==''?'💧 '+esc(n.water)+' bardak':''}${n.steps!=null&&n.steps!==''?' · 🚶 '+esc(n.steps)+' adım':''}${n.sleep!=null&&n.sleep!==''?' · 😴 '+esc(n.sleep)+' saat uyku':''}${n.cheated===true?' · <b style="color:var(--danger)">🍬 kaçamak yaptı</b>':n.cheated===false?' · <b style="color:var(--ok)">✅ kaçamak yapmadı</b>':''}${n.mood?' · '+esc(n.mood):''}`}</div>
               <div style="font-size:11.5px;color:var(--muted)">${trDT(n.at)}</div>
-              ${(n.kind==='mp'||n.kind==='dm')?coachBarHtml(c,n):''}
+              ${coachBarHtml(c,n)}
             </div>
             <button class="x" data-dismiss-notice="${n.kind}:${n.id}" title="Kapat">✕</button>
           </div>`).join('')}</div>`
@@ -9307,17 +9307,17 @@ function render(){
 function allClientNotices(){
   const out=[];
   (DB.clients||[]).forEach(c=>{
-    (c.mealFeedback||[]).forEach(x=>out.push({client:c.name,clientId:c.id,kind:'mf',at:x.at,text:`<b>${esc(x.dayLabel||'')}</b> ${esc(x.mealName||'')} öğününü ${x.liked?'<span style="color:var(--ok)">beğendi 👍</span>':'sevmedi 👎'}`}));
+    (c.mealFeedback||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'mf',at:x.at,text:`<b>${esc(x.dayLabel||'')}</b> ${esc(x.mealName||'')} öğününü ${x.liked?'<span style="color:var(--ok)">beğendi 👍</span>':'sevmedi 👎'}`}));
     (c.journal||[]).forEach(x=>{
       const parts=[]; if(x.water!=null&&x.water!=='') parts.push('💧 '+esc(x.water)+' bardak'); if(x.steps!=null&&x.steps!=='') parts.push('🚶 '+esc(x.steps)+' adım'); if(x.sleep!=null&&x.sleep!=='') parts.push('😴 '+esc(x.sleep)+' saat uyku');
       if(x.cheated===true) parts.push('🍬 kaçamak yaptı'); else if(x.cheated===false) parts.push('✅ kaçamak yapmadı');
       if(x.mood) parts.push(x.mood);
-      out.push({client:c.name,clientId:c.id,kind:'j',at:x.at,text:parts.join(' · ')||'Günü işaretledi'});
+      out.push({client:c.name,clientId:c.id,id:x.id,kind:'j',at:x.at,text:parts.join(' · ')||'Günü işaretledi'});
     });
-    (c.clientNotes||[]).forEach(x=>out.push({client:c.name,clientId:c.id,kind:'cn',at:x.at,text:'💬 "'+esc(String(x.text||'').slice(0,140))+'"'}));
-    (c.mealPhotos||[]).forEach(x=>out.push({client:c.name,clientId:c.id,kind:'mp',at:x.at,text:'📷 '+esc(x.mealName||'bir öğün')+' fotoğrafı gönderdi'}));
-    (c.referrals||[]).forEach(x=>out.push({client:c.name,clientId:c.id,kind:'ref',at:x.at,text:'👋 arkadaşını önerdi: '+esc(x.friendName||'')}));
-    (c.dailyMeals||[]).forEach(x=>out.push({client:c.name,clientId:c.id,kind:'dm',at:x.at,text:'🍽 '+(x.mealType?esc(x.mealType)+' — ':'')+'ne yediğini paylaştı'+(x.photo?' 📷':'')}));
+    (c.clientNotes||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'cn',at:x.at,text:'💬 "'+esc(String(x.text||'').slice(0,140))+'"'}));
+    (c.mealPhotos||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'mp',at:x.at,text:'📷 '+esc(x.mealName||'bir öğün')+' fotoğrafı gönderdi'}));
+    (c.referrals||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'ref',at:x.at,text:'👋 arkadaşını önerdi: '+esc(x.friendName||'')}));
+    (c.dailyMeals||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'dm',at:x.at,text:'🍽 '+(x.mealType?esc(x.mealType)+' — ':'')+'ne yediğini paylaştı'+(x.photo?' 📷':'')}));
   });
   return out.sort((a,b)=>(+b.at||0)-(+a.at||0));
 }
@@ -9343,12 +9343,13 @@ function openNotifPanel(){
     <div class="notif-panel">${list.length?list.map(n=>`<div class="notif-row" data-notif-go="${n.clientId}" style="${(+n.at||0)>seenBefore?'background:#fff6fa':'opacity:.75'}">
       <span style="font-size:16px">${n.kind==='mf'?(n.text.includes('beğendi')?'👍':'👎'):n.kind==='cn'?'💬':n.kind==='mp'?'📷':n.kind==='ref'?'👋':n.kind==='dm'?'🍽':'📝'}</span>
       <div style="flex:1;min-width:0"><div style="font-size:13px;white-space:pre-wrap"><b>${esc(n.client)}</b> — ${n.text}</div>
-      <div style="font-size:11px;color:var(--muted)">${trDT(n.at)}</div></div></div>`).join('')
+      <div style="font-size:11px;color:var(--muted)">${trDT(n.at)}</div>${n.id?coachBarHtml(clientOf(n.clientId)||{id:n.clientId},n):''}</div></div>`).join('')
       :`<p style="margin:0;color:var(--muted);font-size:13.5px">Şu an bekleyen danışan bildirimi yok.</p>`}</div>`;
   modal('🔔 Danışan bildirimleri',body,'Kapat','close','460px');
   if(unread){ DB.profile.notifSeenAt=Date.now(); save(); }
   paintNotifBadge();
-  document.querySelectorAll('[data-notif-go]').forEach(r=>r.addEventListener('click',()=>{
+  document.querySelectorAll('[data-notif-go]').forEach(r=>r.addEventListener('click',ev=>{
+    if(ev.target.closest('.coach-bar,[data-coach-open]')) return;
     S.page='client'; S.client=r.dataset.notifGo; S.tab='kontrol'; closeModal(); render();
   }));
 }
@@ -9411,6 +9412,7 @@ document.addEventListener('click',async e=>{
     const it=c.measures.find(x=>x.id===dm.dataset.delMeasure);
     if(it) trashPush('measure',(c.name||'')+' · '+trDate(it.date)+(it.weight?' · '+it.weight+' kg':''),it,{clientId:c.id});
     c.measures=c.measures.filter(x=>x.id!==dm.dataset.delMeasure); await save(); toast('Çöp kutusuna taşındı'); return render(); }
+  const co=t.closest('[data-coach-open]'); if(co){ co.style.display='none'; const bar=co.parentNode.querySelector('.coach-bar'); bar.style.display=''; const inp=bar.querySelector('[data-coach-text]'); if(inp) inp.focus(); return; }
   const ch=t.closest('[data-coach-heart]'); if(ch){ const on=ch.getAttribute('aria-pressed')!=='true'; ch.setAttribute('aria-pressed',on); ch.textContent=on?'❤️ Beğendin':'🤍 Beğen'; ch.style.background=on?'#ffe0ea':''; return; }
   const ce=t.closest('[data-coach-emoji]'); if(ce){ const bar=ce.closest('.coach-bar'); const on=ce.getAttribute('aria-pressed')!=='true'; bar.querySelectorAll('[data-coach-emoji]').forEach(b=>{ b.setAttribute('aria-pressed','false'); b.style.background=''; }); if(on){ ce.setAttribute('aria-pressed','true'); ce.style.background='#fff3c4'; } return; }
   const cs=t.closest('[data-coach-send]'); if(cs){ return coachSend(cs.closest('.coach-bar')); }
@@ -10090,7 +10092,12 @@ function unlock(){
   try{ render(); paintSave('Hazır','var(--ok)');
        setTimeout(()=>toast(rnd(UNLOCK_WELCOME)),500);
        if(cloudReady()){ if(CL()) CL().enabled=true; cloudSync(false);
-         setInterval(()=>{ if(cloudReady() && document.getElementById('lock').hidden) cloudSync(false); },60000); }
+         setInterval(()=>{ if(cloudReady() && document.getElementById('lock').hidden) cloudSync(false); },60000);
+         /* Danışandan yeni bir şey gelince sayfa yenilemeye gerek kalmadan görünsün: 20 sn'de bir sadece gelen kutusunu yokla */
+         const livePoll=async()=>{ if(window.__intakeBusy||document.hidden||!cloudReady()||document.getElementById('lock').hidden===false) return; window.__intakeBusy=true; try{ await pullShareIntake(); }catch(e){} window.__intakeBusy=false; };
+         setInterval(livePoll,20000);
+         document.addEventListener('visibilitychange',()=>{ if(!document.hidden) livePoll(); });
+       }
        if(trashPurge()>0) save({noCloud:true});
        setTimeout(dailyBackupCheck,1500); setTimeout(awRemindCheck,900); }
   catch(err){
@@ -11583,25 +11590,28 @@ const COACH_EMO=['👏','🔥','😍','💪','🥗','🌟','😋'];
 function coachBarHtml(c,n){
   const r=(c.mealReplies||[]).find(x=>x.id===n.id)||{};
   const key=esc(n.kind+':'+n.id);
-  return `<div class="coach-bar" data-coach="${key}" style="margin-top:8px;padding:8px;border-radius:12px;background:#fbf4f7">
+  const open=!!r.at;
+  return `<div style="margin-top:6px"><button type="button" class="btn btn-sm" data-coach-open style="${open?'display:none':''}">💬 Cevapla / yorum yap</button>
+  <div class="coach-bar" data-coach="${key}" data-cid="${esc(c.id)}" style="${open?'':'display:none;'}margin-top:6px;padding:8px;border-radius:12px;background:#fbf4f7">
     <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
       <button type="button" class="btn btn-sm" data-coach-heart aria-pressed="${r.heart?'true':'false'}" style="${r.heart?'background:#ffe0ea;border-color:#f5a3bd':''}">${r.heart?'❤️ Beğendin':'🤍 Beğen'}</button>
       ${COACH_EMO.map(e=>`<button type="button" class="btn btn-sm" data-coach-emoji="${e}" aria-pressed="${r.emoji===e?'true':'false'}" style="padding:4px 8px;${r.emoji===e?'background:#fff3c4;border-color:#f0c64a':''}">${e}</button>`).join('')}
     </div>
-    <div style="display:flex;gap:6px;margin-top:6px"><input type="text" data-coach-text placeholder="Yorum yaz… örn. Harika tabak, böyle devam! 👏" value="${esc(r.text||'')}" style="flex:1;min-width:0">
+    <div style="display:flex;gap:6px;margin-top:6px"><input type="text" data-coach-text placeholder="Cevabını yaz… örn. Harika, böyle devam! 👏" value="${esc(r.text||'')}" style="flex:1;min-width:0">
       <button type="button" class="btn btn-sm btn-primary" data-coach-send>💌 Gönder</button></div>
     ${r.at?`<div style="font-size:11px;color:var(--ok);margin-top:4px">✓ Danışanın linkine gönderildi · ${trDT(r.at)}</div>`:''}
-  </div>`;
+  </div></div>`;
 }
 async function coachSend(bar){
-  const c=clientOf(S.client); if(!c||!bar) return;
+  const c=clientOf((bar&&bar.dataset.cid)||S.client); if(!c||!bar) return;
   const [kind,...rest]=bar.dataset.coach.split(':'); const id=rest.join(':');
   const heart=bar.querySelector('[data-coach-heart]').getAttribute('aria-pressed')==='true';
   const eb=bar.querySelector('[data-coach-emoji][aria-pressed="true"]'); const emoji=eb?eb.dataset.coachEmoji:'';
   const text=(bar.querySelector('[data-coach-text]').value||'').trim().slice(0,300);
   if(!heart&&!emoji&&!text) return toast('Önce beğen, emoji seç ya da bir yorum yaz');
-  const src=(kind==='mp'?c.mealPhotos:c.dailyMeals||[]).find(x=>x.id===id)||{};
-  const label=kind==='mp'?((src.dayLabel?src.dayLabel+' · ':'')+(src.mealName||'Öğün')):((src.mealType||'Öğün')+(src.text?' — '+String(src.text).slice(0,40):''));
+  const pool={mp:c.mealPhotos,dm:c.dailyMeals,cn:c.clientNotes,mf:c.mealFeedback,j:c.journal,ref:c.referrals}[kind]||[];
+  const src=pool.find(x=>x.id===id)||{};
+  const label=kind==='mp'?((src.dayLabel?src.dayLabel+' · ':'')+(src.mealName||'Öğün')):kind==='dm'?((src.mealType||'Öğün')+(src.text?' — '+String(src.text).slice(0,40):'')):kind==='cn'?('Notuna cevap: “'+String(src.text||'').slice(0,60)+'”'):kind==='mf'?((src.dayLabel||'')+' '+(src.mealName||'öğün')).trim():kind==='ref'?'Önerin için teşekkürler':'Günlük işaretlemene';
   c.mealReplies=c.mealReplies||[];
   const rep={id,kind,label,date:src.date||todayISO(),heart,emoji,text,at:Date.now()};
   const i=c.mealReplies.findIndex(x=>x.id===id); if(i>=0) c.mealReplies[i]=rep; else c.mealReplies.push(rep);
