@@ -10341,7 +10341,7 @@ function svPromoHtml(profile,plan){
     <details class="sv-card" style="margin:18px 0 0;overflow:hidden"><summary style="padding:14px 16px;cursor:pointer;font-weight:700;color:var(--blue-700);list-style:none">📊 Tartı analizi böyle anlatılır — örneği gör ↓</summary>
       <div style="padding:0 12px 14px"><p class="pm-muted" style="margin:6px 4px 0;font-size:12px">Kurgusal örnek değerlerdir; gerçek bir danışana ait değildir.</p>${svBodyHtml({bodyScans:[PM_DEMO_SCAN],name:'Ayşe'})}</div></details>
     <details class="sv-card" style="margin:12px 0 0;overflow:hidden"><summary style="padding:14px 16px;cursor:pointer;font-weight:700;color:var(--blue-700);list-style:none">🌸 Öğün fotoğrafına diyetisyen yorumu — örneği gör ↓</summary>
-      <div style="padding:0 12px 14px">${svReplyHtml({mealReplies:[{id:'x1',label:'Öğle — Izgara tavuk salata',date:localISODate(new Date()),heart:true,emoji:'🔥',text:'Harika tabak, böyle devam! 👏',at:2},{id:'x2',label:'Kahvaltı — Lorlu omlet',date:localISODate(new Date()),heart:false,emoji:'💪',text:'Proteinin çok güzel, bir bardak su da ekle 💧',at:1}]})}</div></details>
+      <div style="padding:0 12px 14px">${svReplyHtml({demo:true,mealReplies:[{id:'x1',label:'Öğle — Izgara tavuk salata',date:localISODate(new Date()),heart:true,emoji:'🔥',text:'Harika tabak, böyle devam! 👏',at:2},{id:'x2',label:'Kahvaltı — Lorlu omlet',date:localISODate(new Date()),heart:false,emoji:'💪',text:'Proteinin çok güzel, bir bardak su da ekle 💧',at:1}]})}</div></details>
   </section>
   <section class="pm-sec pm-chal" id="pm-meydan">
     <h2 class="pm-h2">7 günlük küçük meydan okuma</h2>
@@ -10679,6 +10679,7 @@ function renderShareView(snap){
   setTimeout(()=>{ try{ pmDailyInit(); }catch(e){} },0);
   try{ svThemeApply(); }catch(e){}
   setTimeout(()=>{ try{ svPopups(snap); }catch(e){} },0);
+  try{ svChatPollStart(); }catch(e){}
   const pts=(snap.measures||[]).filter(m=>m.date&&m.weight!=null);
   const first=pts[0], last=pts[pts.length-1];
   const diff=(first&&last&&pts.length>1)?(+last.weight-+first.weight):null;
@@ -11696,17 +11697,59 @@ function svMsgOpen(at){
   const f=document.getElementById('svMsgFab'); if(f) f.remove();
   const t=document.getElementById('sv-yorum'); if(t) t.scrollIntoView({behavior:'smooth',block:'center'});
 }
+function svChatKey(){ return 'sv_chat_'+(window.__shareTok||''); }
+function svChatMine(){ try{ return JSON.parse(localStorage.getItem(svChatKey())||'[]'); }catch(e){ return []; } }
 function svReplyHtml(snap){
-  const L=(snap.mealReplies||[]).slice().sort((a,b)=>(+b.at||0)-(+a.at||0)).slice(0,10);
+  const mine=snap.demo?[]:svChatMine();
+  const L=[...(snap.mealReplies||[]).map(r=>({d:'in',at:+r.at||0,r})),...mine.map(m=>({d:'out',at:+m.at||0,m}))].sort((a,b)=>a.at-b.at).slice(-30);
   if(!L.length) return '';
-  return `<section class="sv-card" id="sv-yorum" style="margin-top:16px;background:linear-gradient(135deg,#fff1f6,#fff);border:1px solid #f6cfdd">
-    <div class="sv-card-h"><h3>🌸 Diyetisyeninden sana</h3></div><div style="padding:6px 16px 16px;display:grid;gap:10px">
-    ${L.map(r=>`<div style="display:flex;gap:12px;align-items:flex-start;background:#fff;border:1px solid #f3dbe4;border-radius:16px;padding:12px">
-      <div style="font-size:30px;line-height:1">${r.emoji||(r.heart?'❤️':'💬')}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:12px;color:var(--muted)">${esc(r.label||'Öğünün')} · ${trDate(r.date)}</div>
-      ${r.heart?'<div style="font-size:13px;font-weight:700;color:#d6336c;margin-top:2px">❤️ Tabağını beğendi!</div>':''}
-      ${r.text?`<div style="font-size:13.5px;line-height:1.55;margin-top:3px;color:var(--ink)">“${esc(r.text)}”</div>`:''}</div></div>`).join('')}
-    </div></section>`;
+  let last='';
+  const bub=L.map(x=>{
+    const dt=new Date(x.at||Date.now()), dk=localISODate(dt), tm=dt.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+    let head=''; if(dk!==last){ last=dk; head=`<div style="text-align:center;margin:8px 0 2px"><span style="background:#f1e6ec;border-radius:8px;padding:2px 10px;font-size:10.5px;color:#7a5a68">${snap.demo?'Bugün':trDate(dk)}</span></div>`; }
+    if(x.d==='in'){ const r=x.r; return head+`<div style="display:flex;gap:8px;align-items:flex-end;margin:5px 0"><div style="font-size:24px">🌸</div><div style="max-width:80%;background:#fff;border:1px solid #f3dbe4;border-radius:14px 14px 14px 4px;padding:9px 12px;font-size:13.5px;line-height:1.55;box-shadow:0 2px 6px -4px rgba(92,34,56,.4)">
+      ${r.label?`<div style="border-left:3px solid #f0a6c0;padding-left:7px;margin-bottom:5px;font-size:11.5px;color:#9a6b7c">${esc(r.label)}</div>`:''}
+      ${(r.heart||r.emoji)?`<div style="font-size:26px;line-height:1.2">${r.heart?'❤️':''}${esc(r.emoji||'')}</div>`:''}${r.heart&&!r.text?'<div style="font-weight:700;color:#d6336c;font-size:13px">Tabağını beğendi!</div>':''}${r.text?esc(r.text).replace(/\n/g,'<br>'):''}
+      <div style="font-size:10.5px;color:#b09aa4;margin-top:3px">${tm}</div></div></div>`; }
+    return head+`<div style="display:flex;justify-content:flex-end;margin:5px 0"><div style="max-width:80%;background:#e3f7d0;border-radius:14px 14px 4px 14px;padding:9px 12px;font-size:13.5px;line-height:1.55">${esc(x.m.text).replace(/\n/g,'<br>')}<div style="font-size:10.5px;color:#6a8a64;text-align:right;margin-top:3px">${tm} ✓✓</div></div></div>`;
+  }).join('');
+  return `<section class="sv-card" id="sv-yorum" style="margin-top:16px;border:1px solid #f6cfdd">
+    <div class="sv-card-h"><h3>🌸 Diyetisyeninle sohbet</h3></div>
+    <div id="svChatBox" style="background:linear-gradient(180deg,#fff7fa,#fff);padding:6px 14px 10px;max-height:380px;overflow:auto">${bub}</div>
+    ${snap.demo?'':`<div style="display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid #f3dbe4"><textarea id="svChatInput" rows="1" placeholder="Cevap yaz…" style="flex:1;min-width:0;border-radius:14px"></textarea><button type="button" class="btn btn-primary" id="svChatSendBtn" onclick="svChatSend()">Gönder</button></div>`}</section>`;
+}
+function svChatScroll(){ const e=document.getElementById('svChatBox'); if(e) e.scrollTop=e.scrollHeight; }
+async function svChatSend(){
+  const inp=document.getElementById('svChatInput'); if(!inp) return;
+  const text=(inp.value||'').trim().slice(0,600); if(!text){ toast('Önce bir şeyler yaz'); return; }
+  const btn=document.getElementById('svChatSendBtn'); btn.disabled=true;
+  try{
+    await svIntakePost({type:'clientNote',date:todayISO(),text,at:Date.now()});
+    const l=svChatMine(); l.push({text,at:Date.now()}); try{ localStorage.setItem(svChatKey(),JSON.stringify(l.slice(-40))); }catch(e){}
+    const el=document.getElementById('sv-yorum'); if(el) el.outerHTML=svReplyHtml(window.__shareSnap);
+    svChatScroll(); toast('Diyetisyenine iletildi 💌',2500);
+  }catch(e){ btn.disabled=false; toast('Gönderilemedi, tekrar dene'); }
+}
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='svChatInput'&&e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); svChatSend(); } });
+/* Danışan sayfası açıkken yeni cevap gelirse yenilemeden görünsün */
+function svChatPollStart(){
+  if(window.__svPoll||!window.__shareTok) return; window.__svPoll=true;
+  const tick=async()=>{
+    if(document.hidden) return;
+    try{
+      const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(window.__shareTok)}/mealReplies.json`); if(!r.ok) return;
+      const arr=await r.json(); const list=Array.isArray(arr)?arr.filter(Boolean):(arr?Object.values(arr):[]);
+      const snap=window.__shareSnap; if(!snap) return;
+      if(JSON.stringify(list)===JSON.stringify(snap.mealReplies||[])) return;
+      snap.mealReplies=list;
+      const el=document.getElementById('sv-yorum'); const h=svReplyHtml(snap);
+      if(el) el.outerHTML=h; else { const nav=document.querySelector('.sv-qn'); if(nav) nav.insertAdjacentHTML('afterend',h); }
+      if(!document.getElementById('svMsgFab')) document.body.insertAdjacentHTML('beforeend',svMsgFabHtml(snap));
+      svChatScroll();
+    }catch(e){}
+  };
+  setInterval(tick,20000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
 }
 /* ══════════════ Tartı / vücut analizi (PDF) ══════════════
    Diyetisyen cihaz raporunun PDF'ini yükler → metin okunur → değerler ve normal aralıklar ayrıştırılır.
