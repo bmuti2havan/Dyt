@@ -2934,7 +2934,7 @@ function buildShareSnapshot(c){
     plan, pastPlans, notes, booklets,
     birthday: c.birthday||null, targetWeight: c.targetWeight||null, sex: c.sex||'',
     pkg: mn.total? {done:mn.done,total:mn.total,left:mn.left} : null,
-    mealReplies: (c.mealReplies||[]).slice(-20),
+    mealReplies: repliesOf(c),
     bodyScans: (c.bodyScans||[]).slice(-4).map(x=>{ const y=Object.assign({},x); delete y.hist; return y; }),
     weeklyTask: c.weeklyTask||null,
     foodPrefs: c.foodPrefs||null,
@@ -6481,7 +6481,7 @@ function pageClientControl(c){
   }
   const dayDiff=nx? Math.ceil((new Date(nx.when)-new Date())/86400000) : null;
   const notices=[...(c.mealFeedback||[]).map(x=>({...x,kind:'mf'})),...(c.journal||[]).map(x=>({...x,kind:'j'})),...(c.clientNotes||[]).map(x=>({...x,kind:'cn'})),...(c.mealPhotos||[]).map(x=>({...x,kind:'mp'})),...(c.dailyMeals||[]).map(x=>({...x,kind:'dm'})),...(c.referrals||[]).map(x=>({...x,kind:'ref'})),...(c.dailyMeals||[]).map(x=>({...x,kind:'dm'}))]
-    .sort((a,b)=>(+b.at||0)-(+a.at||0)).slice(0,8);
+    .filter(x=>!x.hidden).sort((a,b)=>(+b.at||0)-(+a.at||0)).slice(0,8);
   const todayVisits=(c.visits||[]).filter(v=>v.date===todayISO()).length;
   return `
   <div class="kpi">
@@ -6847,9 +6847,10 @@ function pageClient(){
   const b=bmi(c.weight,c.height), lbl=bmiLabel(b), t=tdee(c), iw=idealWeight(c);
   const ms=[...(c.measures||[])].sort((a,b)=>new Date(a.date)-new Date(b.date));
   const first=ms[0], last=ms[ms.length-1];
-  const tabs=[['kontrol','Kontrol ekranı'],['form','Bilgi formu'],['ozet','Özet'],['olcum','Ölçümler'],['lab','Laboratuvar'],['program','Programlar'],['randevu','Randevular'],['odeme','Seans & ödeme'],['not','Görüşme notları']];
+  const tabs=[['kontrol','Kontrol ekranı'],['sohbet','💬 Sohbet'],['form','Bilgi formu'],['ozet','Özet'],['olcum','Ölçümler'],['lab','Laboratuvar'],['program','Programlar'],['randevu','Randevular'],['odeme','Seans & ödeme'],['not','Görüşme notları']];
   let body='';
   if(S.tab==='kontrol'){ body=pageClientControl(c); }
+  if(S.tab==='sohbet'){ body=pageClientChat(c); }
   if(S.tab==='form'){ body=intakeForm(c); }
   if(S.tab==='ozet'){
     body=`<div class="grid g-2">
@@ -9307,17 +9308,17 @@ function render(){
 function allClientNotices(){
   const out=[];
   (DB.clients||[]).forEach(c=>{
-    (c.mealFeedback||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'mf',at:x.at,text:`<b>${esc(x.dayLabel||'')}</b> ${esc(x.mealName||'')} öğününü ${x.liked?'<span style="color:var(--ok)">beğendi 👍</span>':'sevmedi 👎'}`}));
-    (c.journal||[]).forEach(x=>{
+    (c.mealFeedback||[]).filter(x=>!x.hidden).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'mf',at:x.at,text:`<b>${esc(x.dayLabel||'')}</b> ${esc(x.mealName||'')} öğününü ${x.liked?'<span style="color:var(--ok)">beğendi 👍</span>':'sevmedi 👎'}`}));
+    (c.journal||[]).filter(x=>!x.hidden).forEach(x=>{
       const parts=[]; if(x.water!=null&&x.water!=='') parts.push('💧 '+esc(x.water)+' bardak'); if(x.steps!=null&&x.steps!=='') parts.push('🚶 '+esc(x.steps)+' adım'); if(x.sleep!=null&&x.sleep!=='') parts.push('😴 '+esc(x.sleep)+' saat uyku');
       if(x.cheated===true) parts.push('🍬 kaçamak yaptı'); else if(x.cheated===false) parts.push('✅ kaçamak yapmadı');
       if(x.mood) parts.push(x.mood);
       out.push({client:c.name,clientId:c.id,id:x.id,kind:'j',at:x.at,text:parts.join(' · ')||'Günü işaretledi'});
     });
-    (c.clientNotes||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'cn',at:x.at,text:'💬 "'+esc(String(x.text||'').slice(0,140))+'"'}));
-    (c.mealPhotos||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'mp',at:x.at,text:'📷 '+esc(x.mealName||'bir öğün')+' fotoğrafı gönderdi'}));
-    (c.referrals||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'ref',at:x.at,text:'👋 arkadaşını önerdi: '+esc(x.friendName||'')}));
-    (c.dailyMeals||[]).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'dm',at:x.at,text:'🍽 '+(x.mealType?esc(x.mealType)+' — ':'')+'ne yediğini paylaştı'+(x.photo?' 📷':'')}));
+    (c.clientNotes||[]).filter(x=>!x.hidden).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'cn',at:x.at,text:'💬 "'+esc(String(x.text||'').slice(0,140))+'"'}));
+    (c.mealPhotos||[]).filter(x=>!x.hidden).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'mp',at:x.at,text:'📷 '+esc(x.mealName||'bir öğün')+' fotoğrafı gönderdi'}));
+    (c.referrals||[]).filter(x=>!x.hidden).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'ref',at:x.at,text:'👋 arkadaşını önerdi: '+esc(x.friendName||'')}));
+    (c.dailyMeals||[]).filter(x=>!x.hidden).forEach(x=>out.push({client:c.name,clientId:c.id,id:x.id,kind:'dm',at:x.at,text:'🍽 '+(x.mealType?esc(x.mealType)+' — ':'')+'ne yediğini paylaştı'+(x.photo?' 📷':'')}));
   });
   return out.sort((a,b)=>(+b.at||0)-(+a.at||0));
 }
@@ -9350,13 +9351,14 @@ function openNotifPanel(){
   paintNotifBadge();
   document.querySelectorAll('[data-notif-go]').forEach(r=>r.addEventListener('click',ev=>{
     if(ev.target.closest('.coach-bar,[data-coach-open]')) return;
-    S.page='client'; S.client=r.dataset.notifGo; S.tab='kontrol'; closeModal(); render();
+    S.page='client'; S.client=r.dataset.notifGo; S.tab='sohbet'; closeModal(); render();
   }));
 }
 
 let _mdOnBg=false;
 document.addEventListener('mousedown',e=>{ _mdOnBg=e.target.classList&&e.target.classList.contains('modal-bg'); });
 document.addEventListener('touchstart',e=>{ _mdOnBg=e.target.classList&&e.target.classList.contains('modal-bg'); },{passive:true});
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='chatInput'&&e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); chatSend(); } });
 document.addEventListener('click',async e=>{
   const t=e.target;
   if(t.classList.contains('modal-bg')){ const was=_mdOnBg; _mdOnBg=false; if(was) return closeModal(); return; }
@@ -9412,17 +9414,18 @@ document.addEventListener('click',async e=>{
     const it=c.measures.find(x=>x.id===dm.dataset.delMeasure);
     if(it) trashPush('measure',(c.name||'')+' · '+trDate(it.date)+(it.weight?' · '+it.weight+' kg':''),it,{clientId:c.id});
     c.measures=c.measures.filter(x=>x.id!==dm.dataset.delMeasure); await save(); toast('Çöp kutusuna taşındı'); return render(); }
+  const cr=t.closest('[data-chat-reply]'); if(cr){ const [k,...r]=cr.dataset.chatReply.split(':'); S.chatRef={kind:k,id:r.join(':'),label:cr.dataset.lbl}; render(); setTimeout(()=>{ const i=document.getElementById('chatInput'); if(i) i.focus(); },80); return; }
+  if(t.closest('[data-chat-clear]')){ S.chatRef=null; return render(); }
+  const ce2=t.closest('[data-chat-emoji]'); if(ce2){ const i=document.getElementById('chatInput'); if(i){ i.value+=ce2.dataset.chatEmoji; i.focus(); } return; }
+  if(t.closest('[data-chat-send]')) return chatSend();
   const co=t.closest('[data-coach-open]'); if(co){ co.style.display='none'; const bar=co.parentNode.querySelector('.coach-bar'); bar.style.display=''; const inp=bar.querySelector('[data-coach-text]'); if(inp) inp.focus(); return; }
   const ch=t.closest('[data-coach-heart]'); if(ch){ const on=ch.getAttribute('aria-pressed')!=='true'; ch.setAttribute('aria-pressed',on); ch.textContent=on?'❤️ Beğendin':'🤍 Beğen'; ch.style.background=on?'#ffe0ea':''; return; }
   const ce=t.closest('[data-coach-emoji]'); if(ce){ const bar=ce.closest('.coach-bar'); const on=ce.getAttribute('aria-pressed')!=='true'; bar.querySelectorAll('[data-coach-emoji]').forEach(b=>{ b.setAttribute('aria-pressed','false'); b.style.background=''; }); if(on){ ce.setAttribute('aria-pressed','true'); ce.style.background='#fff3c4'; } return; }
   const cs=t.closest('[data-coach-send]'); if(cs){ return coachSend(cs.closest('.coach-bar')); }
   const dno=t.closest('[data-dismiss-notice]'); if(dno){ const c=clientOf(S.client); const [kind,nid]=dno.dataset.dismissNotice.split(':');
-    if(kind==='mf') c.mealFeedback=(c.mealFeedback||[]).filter(x=>x.id!==nid);
-    else if(kind==='cn') c.clientNotes=(c.clientNotes||[]).filter(x=>x.id!==nid);
-    else if(kind==='mp') c.mealPhotos=(c.mealPhotos||[]).filter(x=>x.id!==nid);
-    else if(kind==='ref') c.referrals=(c.referrals||[]).filter(x=>x.id!==nid);
-    else if(kind==='dm') c.dailyMeals=(c.dailyMeals||[]).filter(x=>x.id!==nid);
-    else c.journal=(c.journal||[]).filter(x=>x.id!==nid);
+    const hide=arr=>(arr||[]).forEach(x=>{ if(x.id===nid){ x.hidden=true; if(x.photo) x.photo=''; } });
+    if(kind==='mf') hide(c.mealFeedback); else if(kind==='cn') hide(c.clientNotes); else if(kind==='mp') hide(c.mealPhotos);
+    else if(kind==='ref') hide(c.referrals); else if(kind==='dm') hide(c.dailyMeals); else hide(c.journal);
     await save(); return render(); }
   const en=t.closest('[data-edit-note]'); if(en){ S.editNote=en.dataset.editNote; return openModal('note-edit'); }
   const dn=t.closest('[data-del-note]'); if(dn){ const c=clientOf(S.client);
@@ -11585,6 +11588,66 @@ function pmPlantDraw(n){
   const st=[['🫘','Toprağa bir tohum bıraktım, sulamayı bekliyor'],['🌱','İlk filiz çıktı! 💧'],['🌱','Filizin güçleniyor'],['🌿','Yaprakları açılıyor'],['🌿','Boy atıyor, çok iyi gidiyorsun'],['🪴','Neredeyse saksıyı dolduracak'],['🪴','Tomurcuk geliyor, az kaldı'],['🌷','Çiçek açmak üzere, bir bardak daha!'],['🌻','Bitkin tam çiçek açtı! Bugün çok iyi su içtin 🎉']][Math.min(8,n)];
   el.innerHTML=`<span style="font-size:${34+n*5}px;display:inline-block;transition:font-size .5s;animation:ttBob 3s ease-in-out infinite">${st[0]}</span><div style="font-size:12px;color:var(--muted);margin-top:2px">${st[1]}</div>`;
 }
+/* ══════════════ 💬 Sohbet: danışandan gelen her şey WhatsApp gibi, hepsine cevap ══════════════ */
+function repliesOf(c){ return [...(c.mealReplies||[]),...(c.msgs||[])].sort((a,b)=>(+a.at||0)-(+b.at||0)).slice(-40); }
+async function replyPush(c){
+  if(!c.shareToken) return toast('Kaydedildi. Danışan linki oluşturulunca görünür',6000);
+  try{
+    const t1=await cloudToken();
+    const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}/mealReplies.json?auth=${encodeURIComponent(t1)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(repliesOf(c))});
+    if(!r.ok) throw new Error(cloudErr(r.status));
+    toast('Danışanın linkine gönderildi ✓',2500);
+  }catch(e){ toast('Gönderilemedi: '+(e.message||''),7000); }
+}
+function chatItems(c){
+  const it=[]; const im=(v,w)=>isPhoto(v)?`<img src="${esc(v)}" style="display:block;margin-top:6px;max-width:${w||220}px;max-height:240px;border-radius:10px">`:'';
+  (c.clientNotes||[]).forEach(x=>it.push({k:'cn',id:x.id,at:x.at,html:esc(x.text||'').replace(/\n/g,'<br>'),label:'“'+String(x.text||'').slice(0,50)+'”'}));
+  (c.dailyMeals||[]).forEach(x=>it.push({k:'dm',id:x.id,at:x.at,html:'🍽 <b>'+esc(x.mealType||'Öğün')+'</b>'+(x.text?'<br>'+esc(x.text):'')+(x.photo?im(x.photo):'<div style="font-size:11px;color:var(--muted)">(fotoğraf kaldırıldı)</div>').replace('<div style="font-size:11px;color:var(--muted)">(fotoğraf kaldırıldı)</div>',x.hidden?'<div style="font-size:11px;color:var(--muted)">(fotoğraf kaldırıldı)</div>':''),label:(x.mealType||'Öğün')+(x.text?' — '+String(x.text).slice(0,40):'')}));
+  (c.mealPhotos||[]).forEach(x=>it.push({k:'mp',id:x.id,at:x.at,html:'📷 <b>'+esc((x.dayLabel?x.dayLabel+' · ':'')+(x.mealName||'Öğün'))+'</b> fotoğrafı'+im(x.photo),label:(x.dayLabel?x.dayLabel+' · ':'')+(x.mealName||'Öğün')}));
+  (c.mealFeedback||[]).forEach(x=>it.push({k:'mf',id:x.id,at:x.at,html:(x.liked?'👍':'👎')+' <b>'+esc((x.dayLabel||'')+' '+(x.mealName||'öğün')).trim()+'</b> öğününü '+(x.liked?'beğendi':'sevmedi'),label:((x.dayLabel||'')+' '+(x.mealName||'öğün')).trim()}));
+  (c.journal||[]).forEach(x=>{ const pt=[]; if(x.water!=null&&x.water!=='') pt.push('💧 '+esc(x.water)+' bardak'); if(x.steps!=null&&x.steps!=='') pt.push('🚶 '+esc(x.steps)+' adım'); if(x.sleep!=null&&x.sleep!=='') pt.push('😴 '+esc(x.sleep)+' sa');
+    if(x.cheated===true) pt.push('🍬 kaçamak yaptı'); else if(x.cheated===false) pt.push('✅ kaçamak yapmadı'); if(x.mood) pt.push(esc(x.mood));
+    it.push({k:'j',id:x.id,at:x.at,html:'📝 '+(pt.join(' · ')||'Günü işaretledi'),label:'Günlük işaretlemen'}); });
+  (c.referrals||[]).forEach(x=>it.push({k:'ref',id:x.id,at:x.at,html:'👋 Arkadaşını önerdi: <b>'+esc(x.friendName||'')+'</b>',label:'Arkadaş önerin'}));
+  return it.map(x=>Object.assign({dir:'in'},x));
+}
+function pageClientChat(c){
+  const inc=chatItems(c);
+  const out=repliesOf(c).concat([]).map(r=>({dir:'out',id:r.id,at:r.at,r,label:r.label}));
+  // repliesOf son 40'ı keser; sohbet için tümünü göster
+  const all=[...(c.mealReplies||[]),...(c.msgs||[])].map(r=>({dir:'out',id:r.id,at:r.at,r,label:r.label}));
+  const L=[...inc,...all].sort((a,b)=>(+a.at||0)-(+b.at||0));
+  let lastDay='';
+  const bubbles=L.map(m=>{
+    const d=new Date(+m.at||Date.now()), dk=localISODate(d); let head='';
+    if(dk!==lastDay){ lastDay=dk; head=`<div style="text-align:center;margin:10px 0 4px"><span style="background:#e9edf0;border-radius:8px;padding:3px 10px;font-size:11px;color:#667">${trDate(dk)}</span></div>`; }
+    const tm=d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+    if(m.dir==='in') return head+`<div style="display:flex;justify-content:flex-start;margin:4px 0"><div style="max-width:78%;background:#fff;border:1px solid var(--line);border-radius:4px 14px 14px 14px;padding:8px 11px;font-size:13.5px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.05)">${m.html}
+      <div style="display:flex;gap:10px;align-items:center;margin-top:4px"><span style="font-size:10.5px;color:var(--muted)">${tm}</span><button type="button" data-chat-reply="${esc(m.k+':'+m.id)}" data-lbl="${esc(m.label||'')}" style="border:0;background:none;color:var(--blue-700);font-size:11.5px;font-weight:700;cursor:pointer;padding:0">↩ Cevapla</button></div></div></div>`;
+    const r=m.r;
+    return head+`<div style="display:flex;justify-content:flex-end;margin:4px 0"><div style="max-width:78%;background:#e3f7d0;border-radius:14px 4px 14px 14px;padding:8px 11px;font-size:13.5px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.05)">
+      ${r.label?`<div style="border-left:3px solid #7bc96f;padding-left:7px;margin-bottom:5px;font-size:11.5px;color:#4a6a44">${esc(r.label)}</div>`:''}
+      ${(r.heart||r.emoji)?`<div style="font-size:22px;line-height:1.2">${r.heart?'❤️':''}${esc(r.emoji||'')}</div>`:''}${r.text?esc(r.text).replace(/\n/g,'<br>'):''}
+      <div style="font-size:10.5px;color:#6a8a64;text-align:right;margin-top:3px">${tm} ✓✓</div></div></div>`;
+  }).join('');
+  const ref=S.chatRef;
+  setTimeout(()=>{ const e=document.getElementById('chatBox'); if(e) e.scrollTop=e.scrollHeight; },60);
+  return `<section class="card"><div class="card-h"><h3>💬 ${esc(c.name||'Danışan')} ile sohbet</h3><div class="spacer"></div>${c.shareToken?'<span class="tag tag-ok">link bağlı</span>':'<span class="tag tag-warn">danışan linki yok</span>'}</div>
+    <div id="chatBox" style="background:#efe7dd;padding:10px 12px;max-height:58vh;min-height:220px;overflow:auto">${bubbles||'<p style="text-align:center;color:var(--muted);margin:30px 0;font-size:13px">Danışandan henüz bir şey gelmedi. Aşağıdan ilk mesajı sen gönderebilirsin 💛</p>'}</div>
+    <div class="card-b" style="border-top:1px solid var(--line)">
+      ${ref?`<div style="display:flex;align-items:center;gap:8px;background:#f3f6f8;border-left:3px solid var(--blue-600);border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">↩ <b>Cevap:</b> ${esc(ref.label||'')}</span><button type="button" data-chat-clear class="x" title="Kaldır">✕</button></div>`:''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${['❤️','👏','🔥','😍','💪','🥗','🌟','😋','🤗','💛'].map(e=>`<button type="button" class="btn btn-sm" data-chat-emoji="${e}" style="padding:3px 8px">${e}</button>`).join('')}</div>
+      <div style="display:flex;gap:8px"><textarea id="chatInput" rows="2" placeholder="Mesajını yaz… (Enter ile gönder)" style="flex:1;min-width:0"></textarea><button type="button" class="btn btn-primary" data-chat-send>💌 Gönder</button></div>
+    </div></section>`;
+}
+async function chatSend(){
+  const c=clientOf(S.client); const inp=document.getElementById('chatInput'); if(!c||!inp) return;
+  const text=(inp.value||'').trim().slice(0,600); if(!text) return toast('Önce bir mesaj yaz');
+  const ref=S.chatRef||null;
+  c.msgs=c.msgs||[];
+  c.msgs.push({id:uid('m'),kind:'msg',ref:ref?ref.id:'',label:ref?String(ref.label||'').slice(0,80):'',date:todayISO(),heart:false,emoji:'',text,at:Date.now()});
+  S.chatRef=null; await save(); render(); replyPush(c);
+}
 /* ══════════════ Diyetisyenin öğün/tabak yorumları (❤️ + emoji + yazı) ══════════════ */
 const COACH_EMO=['👏','🔥','😍','💪','🥗','🌟','😋'];
 function coachBarHtml(c,n){
@@ -11616,7 +11679,7 @@ async function coachSend(bar){
   const rep={id,kind,label,date:src.date||todayISO(),heart,emoji,text,at:Date.now()};
   const i=c.mealReplies.findIndex(x=>x.id===id); if(i>=0) c.mealReplies[i]=rep; else c.mealReplies.push(rep);
   await save(); render();
-  if(c.shareToken) tartiPublish(c); else toast('Kaydedildi. Danışan linki oluşturulunca görünür',6000);
+  replyPush(c);
 }
 function svMsgSeenKey(){ return 'sv_msgseen_'+(window.__shareTok||''); }
 function svMsgFabHtml(snap){
