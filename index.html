@@ -2888,6 +2888,7 @@ function buildShareSnapshot(c){
     plan, pastPlans, notes, booklets,
     birthday: c.birthday||null, targetWeight: c.targetWeight||null, sex: c.sex||'',
     pkg: mn.total? {done:mn.done,total:mn.total,left:mn.left} : null,
+    bodyScans: (c.bodyScans||[]).slice(-4).map(x=>{ const y=Object.assign({},x); delete y.hist; return y; }),
     weeklyTask: c.weeklyTask||null,
     foodPrefs: c.foodPrefs||null,
     pregnancy: (c.pregnant&&c.pregWeek)? {week:c.pregWeek,at:c.pregAt||Date.now(),oksapar:!!c.pregOksapar} : null,
@@ -6841,7 +6842,7 @@ function pageClient(){
       </div></div>`;
   }
   if(S.tab==='olcum'){
-    body=`<section class="card"><div class="card-h"><h3>Ölçüm geçmişi</h3><div class="spacer"></div><button class="btn btn-sm btn-primary" data-modal="measure">${ic('plus',15)} Ölçüm ekle</button></div>
+    body=tartiAdminCard(c)+`<section class="card"><div class="card-h"><h3>Ölçüm geçmişi</h3><div class="spacer"></div><button class="btn btn-sm btn-primary" data-modal="measure">${ic('plus',15)} Ölçüm ekle</button></div>
       ${ms.length? `<table><thead><tr><th>Tarih</th><th class="t-right">Kilo</th><th class="t-right">BKİ</th><th class="t-right">Bel</th><th class="t-right">Kalça</th><th class="t-right">Yağ %</th><th>Not</th><th></th></tr></thead><tbody>
       ${[...ms].reverse().map(m=>{const bb=bmi(m.weight,c.height);return `<tr>
         <td class="num">${trDate(m.date)}</td><td class="t-right num">${n1(m.weight)} kg</td>
@@ -7953,6 +7954,8 @@ function openModal(kind){
 /* ══════════════ Kaydetme işlemleri ══════════════ */
 async function handleOk(act){
   if(act==='close') return closeModal();
+  if(act==='tarti-save') return tartiSave();
+  if(act.startsWith('tarti-note-')){ const c=clientOf(S.client), sc=(c.bodyScans||[]).find(x=>x.id===act.slice(11)); if(sc){ sc.note=(document.getElementById('tt-note')||{}).value||''; await save(); closeModal(); toast('Not kaydedildi ✓'); if(c.shareToken) tartiPublish(c); } return; }
   if(act==='aw-open'){ closeModal(); S.page='aware'; render(); return; }
   if(act==='daily-backup-yes'){ downloadBackupNow(); await save(); closeModal(); toast('Yedek indirildi'); if(S.page==='panel') render(); return; }
   if(act.startsWith('recipe-toggle-')){ const id=act.slice(14); const nowSaved=toggleSaveRecipe(id); await save(); openRecipeModal(id); if(S.page==='panel') render(); toast(nowSaved?'Tarif kaydedildi':'Kayıttan kaldırıldı'); return; }
@@ -9801,6 +9804,10 @@ document.addEventListener('click',async e=>{
       const u=URL.createObjectURL(b), l=document.createElement('a'); l.href=u; l.download='diyet-yedek-'+todayISO()+'.json'; l.click(); URL.revokeObjectURL(u);
       DB.profile.lastBackup=todayISO(); await save(); toast('Yedek indirildi'); if(S.page==='panel') render(); }
     if(a==='import') document.getElementById('importFile').click();
+    if(a==='tarti-view'){ tartiPreview(act.dataset.id); return; }
+    if(a==='tarti-del'){ if(confirm('Bu tartı analizi silinsin mi?')){ const c=clientOf(S.client); c.bodyScans=(c.bodyScans||[]).filter(x=>x.id!==act.dataset.id); await save(); render(); if(c.shareToken) tartiPublish(c); } return; }
+    if(a==='tarti-share'){ const c=clientOf(S.client); if(c&&c.shareToken) tartiPublish(c); return; }
+    if(a==='tarti-wa'){ const c=clientOf(S.client); const u=shareUrl(c.shareToken); const msg='Merhaba '+(c.name||'').split(' ')[0]+' 💛 Tartı sonucumuz hazır! Hadi beraber inceleyelim, her değeri tek tek anlattım: '+u; window.open('https://wa.me/'+phoneIntl(c.phone)+'?text='+encodeURIComponent(msg),'_blank'); return; }
     if(a==='del-logo'){ DB.profile.logo=''; DB.profile.logoCustom=true; await save(); render(); }
     if(a==='reset'){ if(confirm('Tüm danışanlar, programlar ve randevular silinecek. Emin misiniz?')){ DB=seed(); S.page='panel'; await save(); render(); } }
   }
@@ -9943,6 +9950,7 @@ document.addEventListener('change',async e=>{
     }catch(err){ toast('Fotoğraf okunamadı'); }
     return;
   }
+  if(e.target.id==='tartiPdf' && e.target.files && e.target.files[0]){ const f=e.target.files[0]; e.target.value=''; tartiImport(f); return; }
   if(e.target.id==='tplDocx' && e.target.files && e.target.files[0]){ const f=e.target.files[0]; e.target.value=''; docxImportTemplate(f); return; }
   if(e.target.id==='logoFile' && e.target.files && e.target.files[0]){
     try{ DB.profile.logo=await shrink(e.target.files[0],760,0.82,false); DB.profile.logoCustom=true; await save(); const backupMsg=await forceCloudBackup(); toast('Logo kaydedildi'+backupMsg); render(); }
@@ -10652,12 +10660,14 @@ function renderShareView(snap){
       </div>
     </section>
     <nav class="sv-qn">
+      ${(snap.bodyScans||[]).length?'<a href="#sv-tarti">📊 Tartı sonucum</a>':''}
       <a href="#sv-grafik">📈 Grafik</a>
       ${p?'<a href="#sv-program">📋 Program</a>':''}
       <a href="#sv-gunluk">🍽 Bugün</a>
       <a href="#sv-hamilelik">🤰 Hamilelik</a>
       <a href="#sv-rehber">📚 Rehberler</a>
     </nav>
+    ${svBodyHtml(snap)}
     ${kpiHtml}
     ${svWeeklyReportHtml(snap)}
     ${svAchievementHtml(snap)}
@@ -11358,6 +11368,314 @@ function svAchievementHtml(snap){
       <p style="margin:0;font-size:14px;line-height:1.65;color:var(--ink)">${msg}</p>
     </div>
   </section>`;
+}
+/* ══════════════ Tartı / vücut analizi (PDF) ══════════════
+   Diyetisyen cihaz raporunun PDF'ini yükler → metin okunur → değerler ve normal aralıklar ayrıştırılır.
+   Sadece rakamlar saklanır (PDF'in kendisi ve isim saklanmaz). Danışan linkinde her ölçüm
+   cihazın kendi normal aralığına göre sade, motive edici bir dille tek tek anlatılır. */
+const TARTI_PDFJS='vendor/pdfjs/pdf.min.mjs', TARTI_WORKER='vendor/pdfjs/pdf.worker.min.mjs';
+async function tartiPdfText(file){
+  const lib=await import(new URL(TARTI_PDFJS,location.href).href);
+  lib.GlobalWorkerOptions.workerSrc=new URL(TARTI_WORKER,location.href).href;
+  const pdf=await lib.getDocument({data:new Uint8Array(await file.arrayBuffer())}).promise;
+  let out='';
+  for(let p=1;p<=pdf.numPages;p++){
+    const tc=await (await pdf.getPage(p)).getTextContent();
+    const rows=[];
+    tc.items.forEach(it=>{
+      if(!it.str||!it.str.trim()) return;
+      const y=Math.round(it.transform[5]/4), x=it.transform[4];
+      let r=rows.find(r=>Math.abs(r.y-y)<=1); if(!r){ r={y,it:[]}; rows.push(r); }
+      r.it.push({x,s:it.str});
+    });
+    rows.sort((a,b)=>b.y-a.y).forEach(r=>{ r.it.sort((a,b)=>a.x-b.x); out+=r.it.map(i=>i.s.trim()).join('  ')+'\n'; });
+    out+='\n';
+  }
+  return out;
+}
+function tartiParse(txt){
+  const N=s=>{ if(s==null) return null; s=String(s).replace(/\s/g,''); if(/\d,\d{3}(?!\d)/.test(s)&&!/\./.test(s)) s=s.replace(/,/g,''); else s=s.replace(',','.'); const v=parseFloat(s); return isNaN(v)?null:v; };
+  const num='(-?[\\d.,]+)';
+  const t=txt.replace(/[ \t]+/g,' ');
+  const g=(re)=>{ const m=t.match(re); return m?m.slice(1).map(N):null; };
+  const kgPct=(label)=>{
+    const m=t.match(new RegExp('(?:^|[\\s|])'+label+'\\s*'+num+'\\s*kg\\s*/\\s*'+num+'\\s*%\\s*\\(\\s*'+num+'\\s*~\\s*'+num+'\\s*kg\\s*/\\s*'+num+'\\s*~\\s*'+num+'\\s*%'));
+    if(m){ const a=m.slice(1).map(N); return {kg:a[0],pct:a[1],kgR:[a[2],a[3]],pctR:[a[4],a[5]]}; }
+    const m2=t.match(new RegExp('(?:^|[\\s|])'+label+'\\s*'+num+'\\s*kg\\s*/\\s*'+num+'\\s*%'));
+    if(m2) return {kg:N(m2[1]),pct:N(m2[2])};
+    return null;
+  };
+  const s={};
+  const hd=t.match(/(Erkek|Kad[ıi]n)\s+(\S+)\s+(\d{1,3})\s+(\d+(?:[.,]\d+)?)\s+(\d{2,3}(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s*\(\s*(\d+(?:[.,]\d+)?)\s*~\s*(\d+(?:[.,]\d+)?)\s*\)/);
+  if(hd){ s.sex=/^E/i.test(hd[1])?'E':'K'; s.age=+hd[3]; s.weight=N(hd[4]); s.height=N(hd[5]); s.bmi=N(hd[6]); s.bmiR=[N(hd[7]),N(hd[8])]; }
+  const dt=t.match(/(\d{4})-(\d{2})-(\d{2})\s+\d{2}:\d{2}/);
+  if(dt) s.date=dt[1]+'-'+dt[2]+'-'+dt[3];
+  const iw=g(new RegExp('İdeal Kilo\\s*'+num+'\\s*kg\\s*\\(\\s*'+num+'\\s*~\\s*'+num)); if(iw) s.ideal={v:iw[0],r:[iw[1],iw[2]]};
+  s.ffm=kgPct('Yağsız Kütle'); s.muscle=kgPct('Kas'); s.fat=kgPct('Yağ'); s.water=kgPct('Sıvı');
+  s.protein=kgPct('Protein'); s.mineral=kgPct('Mineral');
+  s.softLean=kgPct('Yumuşak Yağsız Kütle'); s.skeletal=kgPct('İskeletsel Kaslar'); s.organ=kgPct('Organsal Kaslar');
+  const ma=g(/Metabolik Ya[şs]\s*(\d+)/); if(ma) s.metAge=ma[0];
+  const bm=g(new RegExp('Bazal Metabolizma Hızı\\s*'+num+'\\s*kcal[^(]*\\(\\s*'+num+'\\s*~\\s*'+num+'\\s*kcal')); if(bm) s.bmr={v:bm[0],r:[bm[1],bm[2]]};
+  const bd=g(new RegExp('Beden Yoğunluğu\\s*'+num+'\\s*\\(\\s*'+num+'\\s*~\\s*'+num)); if(bd) s.density={v:bd[0],r:[bd[1],bd[2]]};
+  const ic=g(new RegExp('Hücre İçi Sıvı\\s*'+num+'\\s*kg')); if(ic) s.icw=ic[0];
+  const ec=g(new RegExp('Hücre Dışı Sıvı\\s*'+num+'\\s*kg')); if(ec) s.ecw=ec[0];
+  const ob=g(new RegExp('Obezite Derecesi\\s*'+num+'\\s*%')); if(ob) s.obesity=ob[0];
+  const vf=g(new RegExp('İç Yağlanma\\s*(\\d+(?:[.,]\\d+)?)\\s*\\(\\s*'+num+'\\s*~\\s*'+num)); if(vf) s.visc={v:vf[0],r:[vf[1],vf[2]]};
+  const fp=g(/Fit Puan[ıi]\s*:?\s*(\d+(?:[.,]\d+)?)\s*\/\s*100/); if(fp) s.fit=fp[0];
+  const bw=g(/BMR\s*\/\s*A[ğg][ıi]rl[ıi]k\s*(\d+(?:[.,]\d+)?)/); if(bw) s.bmrw=bw[0];
+  const wh=g(/Bel\s*\/\s*Kal[çc]a\s*(\d+(?:[.,]\d+)?)/); if(wh) s.whr=wh[0];
+  const wa=g(/Bel\s*\(cm\)\s*(\d+(?:[.,]\d+)?)/); if(wa) s.waist=wa[0];
+  const wt=g(/Bel\s*\/\s*Boy\s*(\d+(?:[.,]\d+)?)/); if(wt) s.whtr=wt[0];
+  const seg=(label)=>{ const m=t.match(new RegExp(label+'\\s*'+Array(5).fill(num).join('\\s+'))); return m?m.slice(1,6).map(N):null; };
+  const sf=seg('Yağ Oranı \\(%\\)'), sk=seg('Yağ \\(kg\\)'), sm=seg('Kas \\(kg\\)');
+  if(sf&&sk&&sm) s.seg={fatPct:sf,fatKg:sk,muscleKg:sm};
+  const hist=[]; const re=/(\d{2})\/(\d{2})\/(\d{4})\s+\d{2}:\d{2}:\d{2}\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)/g; let m;
+  while((m=re.exec(t))){ if(hist.some(h=>h.date===m[3]+'-'+m[2]+'-'+m[1])) continue; hist.push({date:m[3]+'-'+m[2]+'-'+m[1],weight:N(m[4]),fluid:N(m[5]),fat:N(m[6])}); }
+  if(hist.length) s.hist=hist;
+  if(!s.date&&hist.length) s.date=hist[hist.length-1].date;
+  return s;
+}
+function tartiValid(s){ return !!(s&&s.weight&&s.fat&&s.fat.pct!=null&&(s.muscle||s.ffm)); }
+
+/* ---- yorum motoru: her değer cihazın kendi normal aralığıyla kıyaslanır ---- */
+function tartiLevel(v,r){ if(v==null||!r||r[0]==null||r[1]==null) return null; return v<r[0]?'low':v>r[1]?'high':'ok'; }
+function tartiItems(s){
+  const it=[]; const f1=x=>x==null?'':(Math.round(x*10)/10).toString().replace('.',',');
+  const sexM=s.sex!=='K';
+  const add=(o)=>{ if(o.v!=null&&o.v!=='') it.push(o); };
+  if(s.weight&&s.ideal){
+    const lv=tartiLevel(s.weight,s.ideal.r);
+    add({k:'kilo',em:'⚖️',t:'Kilon ve ideal aralığın',v:f1(s.weight),u:'kg',r:s.ideal.r,val:s.weight,lv,work:false,
+      txt:{ok:`İdeal kilo aralığın ${f1(s.ideal.r[0])}–${f1(s.ideal.r[1])} kg ve sen tam bu aralığın içindesin! 🎉 Artık hedef kilo vermek değil, bu güzel dengeyi korumak ve vücut yapını güçlendirmek.`,
+        high:`İdeal aralığın üst sınırı ${f1(s.ideal.r[1])} kg. Aradaki fark küçük ve adım adım kapatılabilir; planına sadık kaldıkça ilerleyeceksin. 💪`,
+        low:`İdeal aralığın alt sınırı ${f1(s.ideal.r[0])} kg. Hedefimiz sağlıklı şekilde, özellikle kas kütleni koruyarak dengeye gelmek. 🌱`},
+      good:lv==='ok'});
+  }
+  if(s.bmi!=null){
+    const r=s.bmiR||[18.5,25], lv=tartiLevel(s.bmi,r);
+    add({k:'bmi',em:'📏',t:'Beden kitle indeksi (BKİ)',v:f1(s.bmi),u:'',r,val:s.bmi,lv,
+      txt:{ok:'BKİ’n normal aralıkta. Ama BKİ sadece boy-kilo oranı; asıl hikâyeyi aşağıdaki yağ, kas ve su değerleri anlatıyor. 😉',
+        high:'BKİ’n normalin biraz üstünde. Bu tek başına bir şey söylemez; yağ oranına birlikte bakıp planı ona göre kuracağız.',
+        low:'BKİ’n normalin biraz altında. Yeterli enerji ve protein alarak güçlü bir şekilde dengeye gelmeyi hedefleyeceğiz.'},good:lv==='ok'});
+  }
+  if(s.fat){
+    const lv=tartiLevel(s.fat.pct,s.fat.pctR);
+    add({k:'yag',em:'🧈',t:'Vücut yağ oranın',v:f1(s.fat.pct),u:'%',sub:f1(s.fat.kg)+' kg',r:s.fat.pctR,val:s.fat.pct,lv,work:lv==='high',
+      txt:{ok:'Yağ oranın ideal aralıkta, harika! 🙌 Bunu korumak için düzenli öğün, yeterli protein ve hareket yeterli.',
+        high:'Yağ oranın olması gerekenin biraz üzerinde, yani <b>yağlanma var</b>. Ama bu çözülebilir bir konu! 💪 Doğru beslenme ve hareketle yağ oranını adım adım aralığa indireceğiz.',
+        low:'Yağ oranın aralığın altında. Hormon dengesi ve enerji için belli bir yağ gerekli; ölçüyü kaçırmadan, besleyici bir plan izleyeceğiz.'},good:lv==='ok'});
+  }
+  if(s.visc){
+    const lv=tartiLevel(s.visc.v,s.visc.r);
+    add({k:'ic',em:'🫀',t:'İç (organ çevresi) yağlanma',v:f1(s.visc.v),u:'',r:s.visc.r,val:s.visc.v,lv,work:lv==='high',
+      txt:{ok:'İç yağlanman normal aralıkta — bu çok değerli bir haber! 🎊 Organlarının çevresinde fazla yağ birikmemiş; kalp ve metabolizma sağlığı için en önemli göstergelerden biri bu.',
+        high:'<b>İç yağlanma var</b>; organlarının çevresindeki yağ sağlık için en önemli takip noktamız. Ama merak etme, iç yağ diyete ve harekete en hızlı yanıt veren yağdır — <b>çözebiliriz!</b> 💪',
+        low:'İç yağlanman çok düşük, bu iyi bir şey. 👍'},good:lv!=='high'});
+  }
+  if(s.muscle){
+    const rg=s.muscle.kgR||s.muscle.pctR, val=s.muscle.kgR?s.muscle.kg:s.muscle.pct, lv=tartiLevel(val,rg);
+    add({k:'kas',em:'💪',t:'Kas kütlen',v:f1(s.muscle.kg),u:'kg',sub:f1(s.muscle.pct)+' %',r:rg,val,lv,work:false,
+      txt:{ok:'Kas kütlen normal aralıkta, bu muhteşem! 💪 Kas, vücudunun “yakıt fırını”dır; dinlenirken bile enerji harcatır. Onu korumak için yeterli protein ve hareket şart.',
+        high:'Kas kütlen aralığın da üstünde — çok güçlü bir vücut yapın var! 🏆 Bu, metabolizmanın hızlı çalışmasına yardım eder.',
+        low:'Kas kütlen normalin biraz altında. Kas, yağ yakmanın en büyük yardımcısı; protein ve hafif direnç egzersizleriyle güçlendireceğiz. 💪'},good:lv!=='low'});
+  }
+  if(s.water){
+    const lv=tartiLevel(s.water.pct,s.water.pctR);
+    add({k:'su',em:'💧',t:'Vücut su oranın',v:f1(s.water.pct),u:'%',sub:f1(s.water.kg)+' kg',r:s.water.pctR,val:s.water.pct,lv,work:false,
+      txt:{ok:'Su dengen çok iyi! 💦 Hücrelerin susuz kalmıyor, enerjin ve sindirimin bundan olumlu etkileniyor. Böyle devam!',
+        high:'Su oranın aralığın üstünde. Genelde tuz ve sıvı dengesiyle ilgilidir; planında bunu birlikte dengeleyeceğiz.',
+        low:'Su oranın biraz düşük görünüyor. Gün içine yayılmış su içmek (ve çay-kahveyi dengelemek) birçok şeyi düzeltir. 🚰'},good:lv!=='low'&&lv!=='high'});
+  }
+  if(s.protein){
+    const lv=tartiLevel(s.protein.pct,s.protein.pctR);
+    add({k:'prot',em:'🥚',t:'Vücut protein oranın',v:f1(s.protein.pct),u:'%',sub:f1(s.protein.kg)+' kg',r:s.protein.pctR,val:s.protein.pct,lv,work:false,
+      txt:{ok:'Protein oranın yerinde. Kas ve doku yapımı için iyi bir zemin. 👌',
+        high:'Protein oranın yüksek, bu genelde güçlü kas yapısına işaret eder. 👍',
+        low:'Protein oranın aralığın biraz altında. Her öğüne yumurta, yoğurt, peynir, tavuk, balık ya da baklagil ekleyerek bunu rahatça yukarı çekeriz. 🥚🍗'},good:lv!=='low'});
+  }
+  if(s.mineral){
+    const lv=tartiLevel(s.mineral.pct,s.mineral.pctR);
+    add({k:'min',em:'🦴',t:'Mineral (kemik) oranın',v:f1(s.mineral.pct),u:'%',sub:f1(s.mineral.kg)+' kg',r:s.mineral.pctR,val:s.mineral.pct,lv,work:false,
+      txt:{ok:'Mineral/kemik yapın dengede. 🦴',
+        high:'Mineral oranın aralığın biraz üstünde. Bu genelde kemik yapısı geniş/yoğun olanlarda görülür ve çoğu zaman sorun değildir; kontrollerde birlikte takip edeceğiz.',
+        low:'Mineral oranın biraz düşük. Süt ürünleri, yeşil yapraklılar ve D vitamini (güneş) kemiklerin için önemli; planına buna uygun yer vereceğiz. 🥛'},good:lv==='ok'});
+  }
+  if(s.metAge!=null&&s.age){
+    const d=s.metAge-s.age, lv=d<=0?'ok':'high';
+    add({k:'metyas',em:'⏱️',t:'Metabolik yaşın',v:String(s.metAge),u:'yaş',sub:'gerçek yaşın '+s.age,r:null,val:null,lv,work:d>0,
+      txt:{ok:d<0?`Metabolizman gerçek yaşından ${Math.abs(d)} yaş daha genç çalışıyor! 🎉 Vücudun enerjik, bunun tadını çıkar.`:'Metabolik yaşın gerçek yaşınla aynı, dengeli bir tablo.',
+        high:`Metabolik yaşın gerçek yaşından ${d} yaş büyük görünüyor. Kas kütleni artırıp yağını azalttıkça bu rakam geriye gelir; hedefimiz bu. 💪`},good:d<=0});
+  }
+  if(s.bmr){
+    const lv=tartiLevel(s.bmr.v,s.bmr.r);
+    add({k:'bmr',em:'🔥',t:'Bazal metabolizma hızın',v:Math.round(s.bmr.v).toLocaleString('tr-TR'),u:'kcal',r:s.bmr.r,val:s.bmr.v,lv,work:false,
+      txt:{ok:'Hiçbir şey yapmasan bile vücudun günde yaklaşık bu kadar kalori yakıyor — nefes almak, kalbin çalışması, hücre yenilenmesi için. Hızın normal aralıkta. 🔥',
+        high:'Bazal metabolizma hızın yüksek — vücudun dinlenirken bile bol enerji yakıyor, bu bir avantaj! 🚀',
+        low:'Bazal metabolizma hızın biraz düşük. Yeterli yemek, protein ve kas kütlesi bunu yukarı taşır; çok düşük kalorili diyetler ise tam tersini yapar. Planlarken bunu hesaba katacağız.'},good:lv!=='low'});
+  }
+  if(s.whr!=null){
+    const lim=sexM?0.9:0.85, lv=s.whr<=lim?'ok':'high';
+    add({k:'whr',em:'🍐',t:'Bel / kalça oranın',v:String(s.whr).replace('.',','),u:'',sub:'sınır '+String(lim).replace('.',','),r:null,val:null,lv,work:lv==='high',
+      txt:{ok:'Bel/kalça oranın sağlıklı sınırın içinde. Yağ dağılımın kalp-damar sağlığı açısından olumlu. 👏',
+        high:'Bel/kalça oranın sınırın biraz üstünde; yağ biraz karın bölgesinde toplanıyor. Bel çevresini küçültmek en çok işimize yarayacak hedef. 🎯'},good:lv==='ok'});
+  }
+  if(s.whtr!=null){
+    const lv=s.whtr<0.5?'ok':'high';
+    add({k:'whtr',em:'📐',t:'Bel / boy oranın',v:String(s.whtr).replace('.',','),u:'',sub:'hedef 0,5 altı',r:null,val:null,lv,work:lv==='high',
+      txt:{ok:'Bel çevren boyunun yarısından küçük — sağlık için altın kural ve sen buna uyuyorsun! ✅',
+        high:'Bel çevren boyunun yarısını geçiyor. Bel çevresini yavaş yavaş küçülttükçe kalp-damar riskin de azalır. 🎯'},good:lv==='ok'});
+  }
+  return it;
+}
+function tartiSegHtml(s){
+  if(!s.seg||!s.seg.fatPct||s.seg.fatPct.length<5) return '';
+  const names=['Sağ bacak','Sol bacak','Sağ kol','Sol kol','Gövde'], em=['🦵','🦵','💪','💪','🧍'];
+  const maxM=Math.max.apply(null,s.seg.muscleKg), maxF=Math.max.apply(null,s.seg.fatPct);
+  const fm=x=>String(x).replace('.',',');
+  const rows=[2,3,0,1,4].map(i=>`<div class="tt-seg"><div class="tt-seg-n">${em[i]} ${names[i]}</div>
+    <div class="tt-seg-b"><span class="tt-mu" style="width:${Math.max(6,s.seg.muscleKg[i]/maxM*100)}%"></span></div><div class="tt-seg-v">${fm(s.seg.muscleKg[i])} kg kas</div>
+    <div class="tt-seg-b"><span class="tt-fa" style="width:${Math.max(6,s.seg.fatPct[i]/maxF*100)}%"></span></div><div class="tt-seg-v">%${fm(s.seg.fatPct[i])} yağ</div></div>`).join('');
+  const hi=s.seg.fatPct.indexOf(maxF);
+  const arm=(s.seg.fatPct[2]+s.seg.fatPct[3])/2, leg=(s.seg.fatPct[0]+s.seg.fatPct[1])/2, tr=s.seg.fatPct[4];
+  let note=`En yüksek yağ oranı <b>${names[hi].toLowerCase()}</b> bölgesinde (%${fm(maxF)}). `;
+  note+= tr>Math.max(arm,leg)+2 ? 'Yağ biraz karın/gövdede toplanmış; bu bölge genelde düzenli beslenme ve yürüyüşe en iyi yanıt veren yerdir. 🚶' : 'Yağ vücuda oldukça dengeli dağılmış, güzel. 👍';
+  if(Math.abs(s.seg.muscleKg[0]-s.seg.muscleKg[1])<=0.6&&Math.abs(s.seg.muscleKg[2]-s.seg.muscleKg[3])<=0.6) note+=' Sağ ve sol tarafın kas dengesi de çok iyi: simetrik bir vücut! ⚖️';
+  return `<div class="tt-card"><div class="tt-ic" style="background:#e8f3ff">🧍</div><div class="tt-body"><h4>Bölgesel analiz: nerede ne var?</h4>
+    <p class="tt-sp">Cihaz vücudunu 5 bölgeye ayırıp her birinde kas ve yağı ayrı ölçtü. <span style="color:#3b82a8">■ kas</span> · <span style="color:#e58a4a">■ yağ oranı</span></p>
+    ${rows}<div class="tt-say"><span>🧑‍⚕️</span><p>${note}</p></div></div></div>`;
+}
+const TT_CSS=`
+.tt-hero{margin-top:16px;border-radius:22px;padding:22px 18px;text-align:center;background:linear-gradient(135deg,#fff3e6,#ffe3ee 55%,#efe6ff);border:1px solid #f3d5e1;box-shadow:0 14px 30px -18px rgba(150,60,100,.45)}
+.tt-hero .big{font-size:46px;line-height:1;display:inline-block;animation:ttBob 2.4s ease-in-out infinite}@keyframes ttBob{50%{transform:translateY(-6px) rotate(-4deg)}}
+.tt-hero h3{margin:8px 0 4px;font-family:'Caveat',cursive,var(--sans);font-size:30px;color:#7a2a4d;line-height:1.1}
+.tt-hero p{margin:0;font-size:13.5px;line-height:1.6;color:#5a3a49}
+.tt-fit{display:inline-flex;align-items:center;gap:8px;margin-top:12px;background:#fff;border-radius:999px;padding:8px 16px;font-weight:700;color:#7a2a4d;box-shadow:0 8px 18px -12px rgba(150,60,100,.6)}
+.tt-sum{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.tt-sum>div{border-radius:16px;padding:12px;text-align:left;font-size:12.5px;line-height:1.55}
+.tt-sum .g{background:#e9f8ee;border:1px solid #bfe7cb;color:#1f6b3a}.tt-sum .w{background:#fff1e6;border:1px solid #f7d1b0;color:#9a4a12}
+.tt-sum b{display:block;margin-bottom:4px;font-size:13px}
+.tt-date{font-size:11.5px;color:var(--muted);margin-top:10px}
+.tt-card{display:flex;gap:12px;margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:14px;box-shadow:0 10px 24px -18px rgba(92,34,56,.5);animation:ttIn .5s both}
+@keyframes ttIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.tt-ic{flex:0 0 54px;height:54px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:30px}
+.tt-body{flex:1;min-width:0}.tt-body h4{margin:0;font-size:14.5px;color:var(--ink)}
+.tt-row{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+.tt-val{font-size:26px;font-weight:800;color:var(--ink)}.tt-u{font-size:12.5px;color:var(--muted);font-weight:600}
+.tt-chip{margin-left:auto;font-size:11.5px;font-weight:700;border-radius:999px;padding:3px 10px}
+.tt-chip.good{background:#e0f5e7;color:#1f7a45}.tt-chip.work{background:#fff0df;color:#b05a14}.tt-chip.watch{background:#fff7d6;color:#8a6a0a}
+.tt-bar{position:relative;height:10px;border-radius:99px;margin:8px 0 4px}
+.tt-pin{position:absolute;top:-6px;width:4px;height:22px;border-radius:3px;background:#7a2a4d;transform:translateX(-2px);box-shadow:0 0 0 3px #fff}
+.tt-rg{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted)}
+.tt-say{display:flex;gap:8px;align-items:flex-start;margin-top:10px;background:#fbf4f7;border-radius:14px;padding:10px 12px}
+.tt-say>span{font-size:22px;line-height:1}.tt-say p{margin:0;font-size:13px;line-height:1.6;color:#4a2c3a}
+.tt-sp{font-size:12px;color:var(--muted);margin:2px 0 8px}
+.tt-seg{display:grid;grid-template-columns:96px 1fr 70px;gap:3px 8px;align-items:center;margin:8px 0;font-size:12px}
+.tt-seg-n{grid-row:span 2;font-weight:600;color:var(--ink)}.tt-seg-b{height:7px;border-radius:9px;background:#f2e9ee;overflow:hidden}
+.tt-mu,.tt-fa{display:block;height:100%;border-radius:9px}.tt-mu{background:#5aa7d1}.tt-fa{background:#eb9a5e}.tt-seg-v{color:var(--muted);font-size:11px;text-align:right;white-space:nowrap}
+.tt-tip{margin-top:14px;border-radius:20px;padding:16px;background:linear-gradient(135deg,#e9f8ee,#fff);border:1px solid #bfe7cb;text-align:center;font-size:13.5px;line-height:1.65;color:#1f5a35}
+.tt-note{margin-top:12px;border-radius:18px;padding:14px;background:#fff;border:2px dashed #e7b8cb;font-size:13.5px;line-height:1.65;color:#4a2c3a}
+.tt-note b{display:block;font-family:'Caveat',cursive,var(--sans);font-size:20px;color:#7a2a4d;margin-bottom:2px}
+.tt-disc{font-size:11px;color:var(--muted);text-align:center;margin:12px 6px 0;line-height:1.5}
+.tt-cmp{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}.tt-cmp div{flex:1;min-width:92px;text-align:center;background:#faf6f8;border-radius:14px;padding:10px 6px;font-size:11.5px;color:var(--muted)}
+.tt-cmp b{display:block;font-size:16px;margin-top:2px;color:var(--ink)}.tt-cmp b.dn{color:#1f7a45}.tt-cmp b.up{color:#b05a14}
+@media(max-width:420px){.tt-sum{grid-template-columns:1fr}.tt-seg{grid-template-columns:84px 1fr 62px}}`;
+function tartiBarHtml(o){
+  if(!o.r||o.val==null||o.r[0]==null||o.r[1]==null) return '';
+  const lo=o.r[0], hi=o.r[1], span=(hi-lo)||1; const a=lo-span*0.45, b=hi+span*0.45;
+  const p=x=>((x-a)/(b-a)*100);
+  let pos=p(o.val); pos=Math.max(3,Math.min(97,pos));
+  const f=x=>(Math.round(x*100)/100).toString().replace('.',',');
+  return `<div class="tt-bar" style="background:linear-gradient(90deg,#ffe0b8 0%,#ffe0b8 ${p(lo)}%,#bfe8c8 ${p(lo)}%,#bfe8c8 ${p(hi)}%,#ffd0b8 ${p(hi)}%)"><i class="tt-pin" style="left:${pos}%"></i></div>
+    <div class="tt-rg"><span>düşük</span><span>normal: ${f(lo)} – ${f(hi)}</span><span>yüksek</span></div>`;
+}
+function svBodyHtml(snap){
+  const L=(snap.bodyScans||[]).slice().sort((a,b)=>(a.date||'')<(b.date||'')?-1:1);
+  if(!L.length) return '';
+  const s=L[L.length-1], prev=L.length>1?L[L.length-2]:null;
+  const items=tartiItems(s);
+  const goods=items.filter(x=>x.good), works=items.filter(x=>x.work);
+  const first=((snap.name||'').split(' ')[0])||'';
+  const chip=x=>x.good?'<span class="tt-chip good">✅ Harika</span>':x.work?'<span class="tt-chip work">🎯 Birlikte çözeceğiz</span>':'<span class="tt-chip watch">👀 Küçük gelişim alanı</span>';
+  const cards=items.map((x,i)=>`<div class="tt-card" style="animation-delay:${Math.min(i,8)*.06}s">
+    <div class="tt-ic" style="background:${x.good?'#e4f6ea':'#fff0df'}">${x.em}</div>
+    <div class="tt-body"><h4>${x.t}</h4>
+      <div class="tt-row"><span class="tt-val">${x.v}</span><span class="tt-u">${x.u}${x.sub?(x.u?' · ':'')+x.sub:''}</span>${chip(x)}</div>
+      ${tartiBarHtml(x)}
+      <div class="tt-say"><span>${x.good?'🧑‍⚕️':'🤗'}</span><p>${(x.txt[x.lv]||x.txt.ok||'')}</p></div></div></div>`).join('');
+  let cmp='';
+  if(prev&&prev.weight&&s.weight){
+    const d=(a,b,u,lowGood)=>{ if(a==null||b==null) return ''; const df=Math.round((a-b)*10)/10; const cl=df===0?'':((df<0)===lowGood?'dn':'up'); return `<div>${u[0]}<b class="${cl}">${df>0?'+':''}${String(df).replace('.',',')} ${u[1]}</b></div>`; };
+    cmp=`<div class="tt-card"><div class="tt-ic" style="background:#efe6ff">📈</div><div class="tt-body"><h4>Geçen ölçüme göre değişim</h4><p class="tt-sp">${trDate(prev.date)} → ${trDate(s.date)}</p>
+      <div class="tt-cmp">${d(s.weight,prev.weight,['⚖️ Kilo','kg'],true)}${d(s.fat&&s.fat.kg,prev.fat&&prev.fat.kg,['🧈 Yağ','kg'],true)}${d(s.muscle&&s.muscle.kg,prev.muscle&&prev.muscle.kg,['💪 Kas','kg'],false)}${d(s.water&&s.water.kg,prev.water&&prev.water.kg,['💧 Su','kg'],false)}</div>
+      <div class="tt-say"><span>🧑‍⚕️</span><p>Yeşil renkler doğru yönde ilerlediğini, turuncular üzerinde çalışacağımız yönü gösterir. Önemli olan tek bir rakam değil, çizginin gidişatı! 🌈</p></div></div></div>`;
+  }
+  const winTxt=goods.length?`<div class="g"><b>🌟 Güzel haberler (${goods.length})</b>${goods.slice(0,5).map(x=>x.t).join(', ')}</div>`:'';
+  const workTxt=works.length?`<div class="w"><b>🎯 Birlikte çalışacağımız (${works.length})</b>${works.slice(0,5).map(x=>x.t).join(', ')}</div>`:'';
+  return `<section id="sv-tarti" style="margin-top:6px"><style>${TT_CSS}</style>
+    <div class="tt-hero"><div class="big">📊</div>
+      <h3>${first?esc(first)+', ':''}tartı sonucumuz hazır! 🎉</h3>
+      <p>Hadi birlikte inceleyelim: vücudunda neler iyi gidiyor, nerede küçük fırsatlar var, tek tek anlatıyorum. Korkacak bir şey yok — her rakamın bir çözümü var! 💛</p>
+      ${s.fit!=null?`<div class="tt-fit">🏅 Fit puanın: ${Math.round(s.fit)} / 100</div>`:''}
+      ${(winTxt||workTxt)?`<div class="tt-sum">${winTxt}${workTxt}</div>`:''}
+      <div class="tt-date">Ölçüm tarihi: ${trDate(s.date)}</div></div>
+    ${cards}${tartiSegHtml(s)}${cmp}
+    ${s.note?`<div class="tt-note"><b>💌 Diyetisyeninden not</b>${esc(s.note).replace(/\n/g,'<br>')}</div>`:''}
+    <div class="tt-tip">${works.length?'Bunların hepsi <b>değişebilir</b> değerler! Planına sadık kaldıkça, su içtikçe, hareket ettikçe sonraki ölçümde bu sayfa daha da yeşile dönecek. 🌱 Ben yanındayım! 💛':'Böyle devam! Bu dengeyi korudukça vücudun sana teşekkür edecek. 🌟 Ben yanındayım! 💛'}</div>
+    <p class="tt-disc">Bu değerler biyoelektrik empedans cihazıyla yapılan tahmini ölçümlerdir; tıbbi bir tanı değildir. Sonuçlar su alımı, öğün ve egzersiz saatinden etkilenebilir. Yorumlar bilgilendirme amaçlıdır, kararlar diyetisyeninle birlikte verilir.</p>
+  </section>`;
+}
+/* ---- yönetim paneli ---- */
+function tartiAdminCard(c){
+  const L=(c.bodyScans||[]).slice().sort((a,b)=>(b.date||'')<(a.date||'')?-1:1);
+  const f=x=>x==null?'—':String(Math.round(x*10)/10).replace('.',',');
+  return `<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>📊 Tartı / vücut analizi</h3><div class="spacer"></div>
+    <label class="btn btn-sm btn-primary" style="cursor:pointer">📄 PDF yükle<input type="file" id="tartiPdf" accept="application/pdf,.pdf" hidden></label></div>
+    <div class="card-b">
+    <p style="margin:0 0 10px;font-size:12.5px;color:var(--muted)">Cihazın PDF raporunu yükle; değerler okunur ve danışanın linkinde sade, motive edici bir dille tek tek anlatılır. PDF’in kendisi ve isim kaydedilmez, sadece rakamlar.</p>
+    ${L.length?`<table><thead><tr><th>Tarih</th><th class="t-right">Kilo</th><th class="t-right">Yağ %</th><th class="t-right">Kas kg</th><th class="t-right">İç yağ</th><th></th></tr></thead><tbody>
+    ${L.map(s=>`<tr><td class="num">${trDate(s.date)}</td><td class="t-right num">${f(s.weight)}</td><td class="t-right num">${f(s.fat&&s.fat.pct)}</td><td class="t-right num">${f(s.muscle&&s.muscle.kg)}</td><td class="t-right num">${f(s.visc&&s.visc.v)}</td>
+      <td class="t-right"><button class="btn btn-sm" data-act="tarti-view" data-id="${s.id}">Önizle / not</button> <button class="btn btn-sm" data-act="tarti-del" data-id="${s.id}">Sil</button></td></tr>`).join('')}</tbody></table>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${c.shareToken?'<button class="btn btn-sm" data-act="tarti-share">🔗 Linki güncelle</button>':''}${c.phone&&c.shareToken?`<button class="btn btn-sm" data-act="tarti-wa">💬 WhatsApp’tan haber ver</button>`:''}</div>`:`<div class="empty" style="padding:14px"><p>Henüz tartı analizi yok.</p></div>`}
+    </div></section>`;
+}
+async function tartiImport(file){
+  const c=clientOf(S.client); if(!c) return;
+  toast('PDF okunuyor…',6000);
+  let s;
+  try{ s=tartiParse(await tartiPdfText(file)); }catch(e){ console.error(e); return toast('PDF okunamadı: '+(e.message||'bilinmeyen hata'),8000); }
+  if(!tartiValid(s)) return toast('Bu PDF’den tartı değerleri okunamadı. Cihazın orijinal (metin içeren) PDF raporunu yükle.',9000);
+  s.id=uid();
+  S.tartiDraft=s;
+  const f=x=>x==null?'—':String(Math.round(x*100)/100).replace('.',',');
+  modal('📊 Okunan değerler',`<p style="font-size:13px;margin:0 0 10px">Rakamlar doğru mu diye göz at, sonra istersen danışana bir not yaz.</p>
+    <div class="kv">Tarih <b>${trDate(s.date)}</b></div><div class="kv">Kilo <b>${f(s.weight)} kg</b></div>
+    <div class="kv">Yağ <b>${f(s.fat&&s.fat.kg)} kg / %${f(s.fat&&s.fat.pct)}</b></div><div class="kv">Kas <b>${f(s.muscle&&s.muscle.kg)} kg</b></div>
+    <div class="kv">Su <b>%${f(s.water&&s.water.pct)}</b></div><div class="kv">İç yağlanma <b>${f(s.visc&&s.visc.v)}</b></div>
+    <div class="kv">Bölgesel analiz <b>${s.seg?'okundu ✓':'yok'}</b></div>
+    <div class="field full" style="margin-top:10px"><label>Danışana kişisel not (isteğe bağlı)</label><textarea id="tt-note" rows="3" placeholder="Örn. Bu ay çok emek verdin, yağ oranın düşüşte. Sıradaki hedefimiz protein ✨"></textarea></div>`,
+    'Kaydet ve linke ekle','tarti-save','480px');
+}
+async function tartiSave(){
+  const c=clientOf(S.client), s=S.tartiDraft; if(!c||!s) return;
+  s.note=(document.getElementById('tt-note')||{}).value||'';
+  c.bodyScans=(c.bodyScans||[]).filter(x=>x.date!==s.date); c.bodyScans.push(s);
+  S.tartiDraft=null; await save(); closeModal(); render();
+  toast('Tartı analizi kaydedildi ✓');
+  if(c.shareToken) tartiPublish(c); else toast('Danışan linki henüz yok — linki oluşturunca bu bölüm de görünür',7000);
+}
+async function tartiPublish(c){
+  try{
+    const snap=buildShareSnapshot(c); snap.createdAt=c.shareCreatedAt||Date.now();
+    const t1=await cloudToken();
+    const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t1)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
+    if(!r.ok) throw new Error(cloudErr(r.status));
+    c.shareUpdatedAt=Date.now(); await save(); toast('Danışan linki güncellendi ✓');
+  }catch(e){ toast('Link güncellenemedi: '+(e.message||''),7000); }
+}
+function tartiPreview(id){
+  const c=clientOf(S.client); const s=(c.bodyScans||[]).find(x=>x.id===id); if(!s) return;
+  modal('👁 Danışan böyle görecek',`<div style="max-height:56vh;overflow:auto;background:#fff8fa;padding:8px;border-radius:14px">${svBodyHtml({bodyScans:[s],name:c.name})}</div>
+    <div class="field full" style="margin-top:10px"><label>Danışana not</label><textarea id="tt-note" rows="3">${esc(s.note||'')}</textarea></div>`,'Notu kaydet','tarti-note-'+id,'560px');
 }
 /* ══════════════ Seans paketi ilerleme çubuğu ══════════════ */
 function svPkgHtml(snap){
