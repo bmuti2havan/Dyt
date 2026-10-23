@@ -74,4 +74,4 @@ async function firebaseWrite(path, value) {
   return true;
 }
 
-module.exports = { firebaseSignIn, firebaseGetData, firebaseWrite, firebaseWriteFullData, CLOUD_DB };
+module.exports = { firebaseSignIn, firebaseGetData, firebaseWrite, firebaseWriteFullData, CLOUD_DB, CLOUD_API };

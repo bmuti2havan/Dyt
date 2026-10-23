@@ -9354,7 +9354,10 @@ function openNotifPanel(){
       <div style="font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(strip(g.last.html)).slice(0,90)}</div></div>
       ${g.unread?`<span style="flex:0 0 auto;min-width:22px;height:22px;border-radius:11px;background:#25d366;color:#fff;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 6px">${g.unread}</span>`:''}
     </div>`).join(''):`<p style="margin:0;color:var(--muted);font-size:13.5px">Şu an danışandan gelen mesaj yok.</p>`}</div>`;
-  modal('🔔 Danışan mesajları',body,'Kapat','close','460px');
+  let pushOn=false; try{ pushOn=localStorage.getItem('dyt_admin_push')==='1'; }catch(e){}
+  const pushBox=pushSupported()?`<div style="margin-top:14px;padding:12px;border-radius:14px;background:#f4f9f6;border:1px solid #cfe8d9;font-size:12.5px;line-height:1.5">${pushOn?'🔔 <b>Bu cihazda bildirim açık.</b> Danışan yazınca telefonuna/bilgisayarına haber gelir.':'📲 <b>Danışan yazınca bu cihaza bildirim gelsin mi?</b>'}<div style="margin-top:8px"><button class="btn btn-sm ${pushOn?'':'btn-primary'}" id="adminPushBtn" type="button">${pushOn?'Yeniden bağla':'🔔 Bildirimi aç'}</button></div></div>`:(pushIsIOS()&&!pushStandalone()?`<p style="margin:14px 0 0;font-size:12px;color:var(--muted)">📲 iPhone’da bildirim için önce uygulamayı Safari’den “Ana Ekrana Ekle” ile ekleyip oradan aç.</p>`:'');
+  modal('🔔 Danışan mesajları',body+pushBox,'Kapat','close','460px');
+  { const ab=document.getElementById('adminPushBtn'); if(ab) ab.addEventListener('click',adminPushEnable); }
   if(unreadNotices().length){ (DB.clients||[]).forEach(c=>{ if(c.chatSeenAt==null) c.chatSeenAt=(DB.profile&&DB.profile.notifSeenAt)||0; }); DB.profile.notifSeenAt=Date.now(); save(); }
   paintNotifBadge();
   document.querySelectorAll('[data-notif-go]').forEach(r=>r.addEventListener('click',()=>{
@@ -10750,6 +10753,7 @@ function renderShareView(snap){
       <button class="btn btn-sm" id="svInstallBtn" type="button" style="margin-top:8px;width:100%;justify-content:center">📲 Ana ekrana ekle</button>
     </div>
     <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Bugün rengimiz ne olsun?</button>
+    ${svPushCardHtml()}
     <section class="pm-daily" aria-label="Günün motivasyonu ve su takibi">
       <div class="pm-quote"><span class="pm-qh">✨ Günün sözü</span><p id="pmQuote"></p></div>
       <div class="pm-water">
@@ -11612,7 +11616,7 @@ async function replyPush(c,quiet){
     const put=(node,val)=>fetch(`${CL().dbUrl}/shares/${c.shareToken}/${node}.json?auth=${encodeURIComponent(t1)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});
     const [r,r2]=await Promise.all([put('mealReplies',repliesOf(c)),put('clientMsgs',clientMsgsOf(c))]);
     if(!r.ok) throw new Error(cloudErr(r.status));
-    if(!quiet) toast('Danışanın linkine gönderildi ✓',2500);
+    if(!quiet){ toast('Danışanın linkine gönderildi ✓',2500); pushNotifyClient(c); }
   }catch(e){ toast('Gönderilemedi: '+(e.message||''),7000); }
 }
 function chatItems(c){
@@ -11667,6 +11671,55 @@ async function chatSend(){
   c.msgs=c.msgs||[];
   c.msgs.push({id:uid('m'),kind:'msg',ref:ref?ref.id:'',label:ref?String(ref.label||'').slice(0,80):'',date:todayISO(),heart:false,emoji:'',text,at:Date.now()});
   S.chatRef=null; await save(); render(); replyPush(c);
+}
+/* ══════════════ 📲 Telefon bildirimleri (Web Push) ══════════════ */
+const PUSH_PUB='BG0k8j09I5TZVqo-Hh38HtpOtEBXtTpAUepo_jqezLPuWWKv3x3RRJuylOLWmJjw4ISYCC4edtpuavWfpbwByhA';
+const pushSupported=()=>('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+const pushIsIOS=()=>/iPhone|iPad|iPod/i.test(navigator.userAgent||'');
+const pushStandalone=()=>(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;
+function pushB64(u){ const p='='.repeat((4-u.length%4)%4); const r=atob((u+p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from([...r].map(c=>c.charCodeAt(0))); }
+function pushIdbSet(obj){ return new Promise(res=>{ try{ const r=indexedDB.open('dyt-push',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>{ const tx=r.result.transaction('kv','readwrite'); Object.keys(obj).forEach(k=>tx.objectStore('kv').put(obj[k],k)); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }; r.onerror=()=>res(); }catch(e){ res(); } }); }
+async function pushSubscribe(role,token){
+  if(!pushSupported()) throw new Error('unsupported');
+  const perm=await Notification.requestPermission(); if(perm!=='granted') throw new Error('denied');
+  const reg=await navigator.serviceWorker.register('/sw.js'); await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:pushB64(PUSH_PUB)});
+  await pushIdbSet({role,url:role==='client'?(location.origin+location.pathname+'?v='+token):'/'});
+  const h={'Content-Type':'application/json'}; if(role==='admin') h.Authorization='Bearer '+await cloudToken();
+  const r=await fetch('/.netlify/functions/push',{method:'POST',headers:h,body:JSON.stringify({action:'subscribe',to:role,token,sub:sub.toJSON()})});
+  if(!r.ok){ let m=''; try{ m=(await r.json()).error||''; }catch(e){} throw new Error(m||('sunucu '+r.status)); }
+}
+function pushNotifyAdmin(){
+  try{ const k='sv_pushthr_'+window.__shareTok; const last=+(localStorage.getItem(k)||0); if(Date.now()-last<20000) return; localStorage.setItem(k,String(Date.now())); }catch(e){}
+  try{ fetch('/.netlify/functions/push',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'notify',to:'admin',token:window.__shareTok})}).catch(()=>{}); }catch(e){}
+}
+async function pushNotifyClient(c){
+  try{
+    const t=await cloudToken();
+    const r=await fetch('/.netlify/functions/push',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({action:'notify',to:'client',token:c.shareToken})});
+    const j=await r.json().catch(()=>({}));
+    if(r.ok&&j.sent) toast('📲 Danışanın telefonuna bildirim gitti',3000);
+  }catch(e){}
+}
+function svPushCardHtml(){
+  const tok=window.__shareTok||''; let on=false; try{ on=localStorage.getItem('sv_push_'+tok)==='1'; }catch(e){}
+  if(on) return '';
+  const st=`display:flex;align-items:center;gap:10px;margin-top:12px;padding:12px 14px;border-radius:16px;background:#fff;border:1.5px solid var(--blue-100);box-shadow:0 8px 18px -14px rgba(92,34,56,.5)`;
+  if(pushSupported()){
+    if(typeof Notification!=='undefined'&&Notification.permission==='denied') return '';
+    return `<div id="svPushCard" style="${st}"><div style="font-size:26px">🔔</div><div style="flex:1;font-size:12.5px;line-height:1.45;color:var(--ink)"><b>Mesaj gelince telefonuna haber vereyim mi?</b><br><span style="color:var(--muted)">Diyetisyenin yazınca bildirim al, hiçbir şeyi kaçırma.</span></div><button type="button" class="btn btn-sm btn-primary" onclick="svPushEnable()">Aç</button></div>`;
+  }
+  if(pushIsIOS()&&!pushStandalone()) return `<div style="${st}"><div style="font-size:26px">🔔</div><div style="flex:1;font-size:12.5px;line-height:1.45"><b>Bildirim almak için:</b> Safari’de paylaş simgesine dokun → <b>Ana Ekrana Ekle</b>, sonra sayfayı oradan aç ve “Aç”a bas.</div></div>`;
+  return '';
+}
+async function svPushEnable(){
+  try{ await pushSubscribe('client',window.__shareTok); try{ localStorage.setItem('sv_push_'+window.__shareTok,'1'); }catch(e){} const c=document.getElementById('svPushCard'); if(c) c.remove(); toast('Bildirimler açıldı 🔔',3000); }
+  catch(e){ toast(e.message==='denied'?'Bildirim izni verilmedi. Telefon ayarlarından açabilirsin.':e.message==='unsupported'?'Bu tarayıcı bildirimi desteklemiyor':'Açılamadı: '+e.message,6000); }
+}
+async function adminPushEnable(){
+  try{ await pushSubscribe('admin','admin'); try{ localStorage.setItem('dyt_admin_push','1'); }catch(e){} toast('Bu cihaza bildirimler açıldı 🔔',4000); closeModal(); openNotifPanel(); }
+  catch(e){ toast(e.message==='denied'?'Bildirim izni verilmedi':'Açılamadı: '+e.message,7000); }
 }
 /* ══════════════ Diyetisyenin öğün/tabak yorumları (❤️ + emoji + yazı) ══════════════ */
 const COACH_EMO=['👏','🔥','😍','💪','🥗','🌟','😋'];
@@ -13039,6 +13092,7 @@ async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   if(!r.ok) throw new Error('Gönderilemedi ('+r.status+')');
+  if(entry&&['clientNote','dailyMeal','mealPhoto'].includes(entry.type)) pushNotifyAdmin();
   return r.json();
 }
 async function svSendMealFeedback(btn){
