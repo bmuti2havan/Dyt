@@ -6937,6 +6937,7 @@ function pageClient(){
       <button class="btn btn-sm ${c.invoiced?'':'btn-primary'}" data-inv-toggle="${c.id}">🧾 ${c.invoiced?'Faturayı geri al':'Fatura kesildi'}</button>
       <button class="btn btn-sm btn-primary" data-newplan="${c.id}">${ic('plus',15)} Program</button>
       <button class="btn btn-sm btn-primary" data-brief-run="${c.id}">🧾 Görüşme brifingi</button>
+      <label class="btn btn-sm btn-primary" style="cursor:pointer">📊 Tartı PDF yükle<input type="file" id="tartiPdf" accept="application/pdf,.pdf" hidden></label>
       <button class="btn btn-sm" data-ask-open="${c.id}">💬 Soruya cevap</button>
       <button class="btn btn-sm" data-act="progress-docx">${ic('down',15)} İlerleme raporu</button>
       <button class="btn btn-danger btn-sm" data-del-client="${c.id}">Sil</button>
@@ -10634,6 +10635,7 @@ function renderShareView(snap){
   document.getElementById('shareView').innerHTML=`<div class="sv-wrap">
     ${svChatHtml()}
     ${svBirthdayHtml(snap)}
+    ${(snap.bodyScans||[]).length?'<a href="#sv-tarti" style="display:flex;align-items:center;justify-content:center;gap:8px;margin:0 0 12px;padding:14px 16px;border-radius:18px;background:linear-gradient(135deg,#ff8fb1,#ffb36b);color:#fff;font-weight:800;font-size:15px;text-decoration:none;box-shadow:0 12px 24px -12px rgba(220,90,120,.7)"><span style="font-size:22px">📊</span> Tartı sonucun hazır! Hemen incele 🎉</a>':''}
     <div class="sv-hero">
       <div class="sv-brand">
         ${snap.profile&&snap.profile.logo?`<img src="${snap.profile.logo}">`:''}
