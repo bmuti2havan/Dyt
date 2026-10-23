@@ -1594,7 +1594,14 @@ const LOGO='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDA
 
 /* Logo sürümü: 3 = Aysenur Korkmaz Diyetisyen (yapraklı yazı logosu). Sürüm değişince herkeste yeni logo yüklenir;
    sonradan Ayarlar'dan yüklenen özel logo korunur. */
-function logoUpgrade(){ const p=DB.profile; if(!p.logo || p.logoV!==3){ p.logo=LOGO; p.logoV=3; } }
+function logoUpgrade(){
+  /* Kullanıcının logosu ASLA kendiliğinden değiştirilmez: var olan logo (hangisi olursa olsun) korunur;
+     logo bilerek silindiyse boş kalır. Varsayılan logo yalnızca hiç logo ayarlanmamış yeni kurulumlara konur. */
+  const p=DB.profile; if(!p) return;
+  if(p.logoCustom) return;
+  if(p.logo){ p.logoV=3; if(p.logo!==LOGO) p.logoCustom=true; return; }
+  if(p.logoV===undefined){ p.logo=LOGO; p.logoV=3; } else { p.logoCustom=true; }
+}
 /* Logonun en-boy oranını (PNG/JPEG başlığından) okur; Word'de ezilmeden yerleşsin diye */
 function logoAspect(dataUrl){
   try{
@@ -1847,83 +1854,308 @@ async function zipOpen(buf){
   };
   return {get,has:n=>!!files[n]};
 }
-const DOCX_MEALS=[['kahvalti','Kahvaltı'],['ara ogun','Ara Öğün'],['ogle','Öğle'],['aksam','Akşam'],['gece','Ara Öğün'],['ikindi','Ara Öğün'],['kusluk','Ara Öğün'],['sabah','Kahvaltı']];
-function docxMealName(t){
-  const f=FOLD(t.replace(/[^\p{L}\p{N}\s]/gu,' ')).replace(/\s+/g,' ').trim();
-  if(!f||f.length>26) return null;
-  const f2=f.replace(/\s*\d+$/,'').replace(/ yemegi$/,'').replace(/ ogunu$/,'');
-  const hit=DOCX_MEALS.find(m=>f2===m[0]); return hit?hit[1]:null;
+/* ── Öğün / gün başlığı tanıma ── */
+function docxMealName(raw){
+  let f=FOLD(String(raw||'').replace(/\([^)]*\)|\[[^\]]*\]/g,' ').replace(/\b\d{1,2}\s*[:.]\s*\d{2}\b/g,' '));
+  f=f.replace(/\b(saat|gibi|civari)\b/g,' ').replace(/\s+/g,' ').trim();
+  if(!f||f.length>34) return null;
+  f=f.replace(/^\d+\s*/,'').replace(/\s*\d+$/,'').trim();
+  if(/^(sabah )?kahvalti(si)?$/.test(f)) return 'Kahvaltı';
+  if(/^(ogle|oglen)( yemegi| ogunu| yemek)?$/.test(f)) return 'Öğle';
+  if(/^aksam( yemegi| ogunu| yemek)?$/.test(f)) return 'Akşam';
+  if(/^(ara( ogun(u)?| atistirmalik)?|kusluk( ogunu)?|ikindi( ogunu| atistirmasi)?|gece( ogunu| atistirmasi)?|atistirmalik|aperatif|ek ogun|uyumadan once( ogun)?)$/.test(f)) return 'Ara Öğün';
+  return null;
+}
+const DOCX_WD='pazartesi|sali|carsamba|persembe|cuma|cumartesi|pazar';
+function docxDayInfo(raw){
+  const c=String(raw||'').replace(/^[^\p{L}\p{N}]+/u,'').trim();
+  if(!c||c.length>60) return null;
+  const f=FOLD(c);
+  const restOk=r=>!r||new RegExp('^('+DOCX_WD+'|menu|menusu|program|programi|listesi|diyet listesi|\\d{1,2}( [a-z]+)?( \\d{4})?)$').test(r.trim());
+  let m=f.match(/^(\d{1,2}) ?gun(?: (.*))?$/);
+  if(m&&restOk(m[2])) return {sig:'g'+(+m[1]),num:+m[1]};
+  m=f.match(/^gun (\d{1,2})(?: (.*))?$/);
+  if(m&&restOk(m[2])) return {sig:'g'+(+m[1]),num:+m[1]};
+  m=f.match(new RegExp('^('+DOCX_WD+')(?: (.*))?$'));
+  if(m&&(!m[2]||/^(\d{1,2}( [a-z]+)?( \d{4})?|gunu|menusu|menu|programi)$/.test(m[2]))) return {sig:m[1],num:null};
+  return null;
+}
+function docxHead(t){
+  const n=docxMealName(t); if(n) return {name:n,rest:''};
+  const m2=String(t).match(/^(.{3,26}?)\s*(?::|[-–—])\s+(.+)$/);
+  if(m2){ const n2=docxMealName(m2[1]); if(n2) return {name:n2,rest:m2[2]}; }
+  return null;
+}
+const docxOn=el=>{ if(!el) return false; const v=el.getAttribute('w:val'); return !(v==='0'||v==='false'||v==='off'); };
+const docxInFallback=el=>{ for(let q=el.parentNode;q;q=q.parentNode) if(q.nodeName==='mc:Fallback') return true; return false; };
+/* Bir <w:p> → satırlara (satır sonu / sekme dikkate alınarak) ayrılmış paragraf */
+function docxParas(pe,rels){
+  const segs=[{t:'',b:false,i:false}];
+  const style=((pe.getElementsByTagName('w:pStyle')[0]||{getAttribute:()=>''}).getAttribute('w:val')||'').toLowerCase();
+  const styleBold=/heading|baslik|başlık|title|konu/.test(style);
+  const cur=()=>segs[segs.length-1];
+  const run=r=>{
+    const rp=r.getElementsByTagName('w:rPr')[0];
+    const b=rp?docxOn(rp.getElementsByTagName('w:b')[0]):false, it=rp?docxOn(rp.getElementsByTagName('w:i')[0]):false;
+    for(const n of r.childNodes){
+      if(n.nodeType!==1) continue;
+      if(n.nodeName==='w:t'){ const t=n.textContent; if(t){ cur().t+=t; if(b&&t.trim()) cur().b=true; if(it&&t.trim()) cur().i=true; } }
+      else if(n.nodeName==='w:tab') cur().t+=' ';
+      else if(n.nodeName==='w:noBreakHyphen') cur().t+='-';
+      else if(n.nodeName==='w:br'||n.nodeName==='w:cr') segs.push({t:'',b:false,i:false});
+    }
+  };
+  const walk=el=>{
+    for(const n of el.childNodes){
+      if(n.nodeType!==1) continue;
+      const nm=n.nodeName;
+      if(nm==='w:r') run(n);
+      else if(nm==='mc:AlternateContent'){ const ch=[...n.childNodes].find(x=>x.nodeName==='mc:Choice'); if(ch) walk(ch); }
+      else if(nm==='w:hyperlink'||nm==='w:smartTag'||nm==='w:sdt'||nm==='w:sdtContent'||nm==='w:ins'||nm==='w:fldSimple') walk(n);
+    }
+  };
+  walk(pe);
+  const imgs=[];
+  [...pe.getElementsByTagName('a:blip')].forEach(b=>{ if(!docxInFallback(b)){ const id=b.getAttribute('r:embed'); if(id&&rels[id]) imgs.push(rels[id]); } });
+  [...pe.getElementsByTagName('v:imagedata')].forEach(b=>{ if(!docxInFallback(b)){ const id=b.getAttribute('r:id'); if(id&&rels[id]) imgs.push(rels[id]); } });
+  const bullet=pe.getElementsByTagName('w:numPr').length>0;
+  const lines=segs.map(s=>({t:s.t.replace(/[ ​‌‍﻿]/g,' ').replace(/\s+/g,' ').trim(),b:s.b||styleBold,i:s.i})).filter(s=>s.t);
+  const out=[{lines,imgs,bullet}];
+  /* metin kutuları (aynı içerik mc:Fallback'te tekrar eder, onu atla) */
+  [...pe.getElementsByTagName('w:txbxContent')].forEach(tb=>{
+    if(docxInFallback(tb)) return;
+    [...tb.childNodes].forEach(c=>{ if(c.nodeName==='w:p') docxParas(c,rels).forEach(x=>out.push(x)); });
+  });
+  return out;
+}
+/* Gövde → blok listesi: {k:'p',p} ve {k:'tbl',rows:[[blocks]]} */
+function docxBlocks(el,rels,out){
+  for(const n of el.childNodes){
+    if(n.nodeType!==1) continue;
+    const nm=n.nodeName;
+    if(nm==='w:p') docxParas(n,rels).forEach(p=>out.push({k:'p',p}));
+    else if(nm==='w:tbl'){
+      const tb={k:'tbl',rows:[]};
+      for(const tr of n.childNodes){
+        if(tr.nodeName!=='w:tr') continue;
+        const cells=[];
+        for(const tc of tr.childNodes){ if(tc.nodeName!=='w:tc') continue; const sub=[]; docxBlocks(tc,rels,sub); cells.push(sub); }
+        tb.rows.push(cells);
+      }
+      out.push(tb);
+    }
+    else if(nm==='w:sdt'||nm==='w:sdtContent'||nm==='w:ins'||nm==='w:customXml'||nm==='mc:AlternateContent'||nm==='mc:Choice') docxBlocks(n,rels,out);
+  }
+}
+const docxFlat=blocks=>{ const o=[]; blocks.forEach(b=>{ if(b.k==='p') o.push(b.p); else b.rows.forEach(r=>r.forEach(c=>docxFlat(c).forEach(p=>o.push(p)))); }); return o; };
+const docxHasTbl=blocks=>blocks.some(b=>b.k==='tbl');
+function docxNewDay(){ return {sub:'',photo:'',meals:MEAL_PRESET.map(m=>({name:m[0],emoji:m[1],title:'',lines:[],photo:'',_sel:false,_items:[]}))}; }
+const docxCleanLine=t=>t.replace(/^[\s·•▪●◦○■□▫☐☑✓✔➢➤→►▶\-–—*]+/,'').replace(/^\(?\d{1,2}[.)]\s+/,'').trim();
+/* Bir öğünün toplanan satırlarını başlık / madde / not olarak yerleştirir */
+function docxFinalizeMeal(m){
+  const it=m._items||[]; m.title=''; m.lines=[]; m.tip='';
+  if(!it.length) return;
+  let start=0;
+  if(!it[0].bu&&it[0].c.length<=80&&(it[0].b||it.slice(1).some(x=>x.bu))){ m.title=it[0].c; start=1; }
+  for(let k=start;k<it.length;k++){
+    const x=it[k];
+    if(k===it.length-1&&it.length-start>=2&&x.i&&!x.bu&&!m.tip&&x.c.length>20){ m.tip=x.c; continue; }
+    m.lines.push(x.c);
+  }
+}
+/* Matris tablo (günler üstte/yanda, öğünler yanda/üstte) tanıma */
+function docxMatrix(tb){
+  const rows=tb.rows.map(r=>r.map(c=>docxFlat(c)));
+  if(rows.length<2||rows[0].length<2) return null;
+  const txt=cell=>cell.flatMap(p=>p.lines.map(l=>l.t)).join(' ').trim();
+  const dayAt=cell=>docxDayInfo(txt(cell)), mealAt=cell=>docxMealName(txt(cell));
+  const r0=rows[0], col0=rows.map(r=>r[0]);
+  const aDays=r0.map(dayAt).filter(Boolean).length, aMeals=col0.map(mealAt).filter(Boolean).length;
+  const bDays=col0.map(dayAt).filter(Boolean).length, bMeals=r0.map(mealAt).filter(Boolean).length;
+  let orient=null;
+  if(aDays>=2&&aMeals>=2) orient='A'; else if(bDays>=2&&bMeals>=2) orient='B';
+  if(!orient) return null;
+  if(rows.some(r=>r.some(c=>c.some(p=>p.lines.some(l=>/^[+]\s*\d+\s*madde$/i.test(l.t)))))) return null;   /* bu uygulamanın haftalık özet tablosu (kısaltılmış) */
+  const days=[];
+  const fillCell=(day,mealName,cell)=>{
+    const slot=docxPickSlot(day,mealName,-1);
+    const m=slot; cell.forEach(p=>{ p.lines.forEach(l=>m._items.push({c:docxCleanLine(l.t),bu:p.bullet,b:l.b,i:l.i})); p.imgs.forEach(path=>m._imgs=(m._imgs||[]).concat(path)); });
+  };
+  if(orient==='A'){
+    r0.forEach((hc,j)=>{ const di=dayAt(hc); if(!di) return; const d=docxNewDay(); d._sig=di.sig; d._num=di.num;
+      rows.forEach((r,i)=>{ if(i===0) return; const mn=mealAt(r[0]); if(mn&&r[j]) fillCell(d,mn,r[j]); }); days.push(d); });
+  } else {
+    rows.forEach((r,i)=>{ if(i===0) return; const di=dayAt(r[0]); if(!di) return; const d=docxNewDay(); d._sig=di.sig; d._num=di.num;
+      r0.forEach((hc,j)=>{ if(j===0) return; const mn=mealAt(hc); if(mn&&r[j]) fillCell(d,mn,r[j]); }); days.push(d); });
+  }
+  days.forEach(d=>{ d.meals.forEach(m=>{ m._items=m._items.filter(x=>x.c); }); });
+  return days;
+}
+/* Güne öğün yerleştir: önce sıradaki uygun boş slot, yoksa herhangi boş slot, yoksa yeni öğün ekle */
+function docxPickSlot(day,name,after){
+  let k=-1;
+  for(let i=after+1;i<day.meals.length;i++){ if(day.meals[i].name===name&&!day.meals[i]._sel){ k=i; break; } }
+  if(k<0) for(let i=0;i<day.meals.length;i++){ if(day.meals[i].name===name&&!day.meals[i]._sel){ k=i; break; } }
+  if(k<0){ day.meals.push({name,emoji:(MEAL_PRESET.find(x=>x[0]===name)||[0,'🍽'])[1],title:'',lines:[],photo:'',_sel:false,_items:[]}); k=day.meals.length-1; }
+  day.meals[k]._sel=true; day._last=k;
+  return day.meals[k];
 }
 async function docxToTemplate(file){
+  if(typeof DecompressionStream==='undefined') throw new Error('Tarayıcın bu özelliği desteklemiyor — güncel Chrome/Edge/Safari kullan');
+  if(file.size>40*1024*1024) throw new Error('Dosya çok büyük (40 MB üstü)');
   const z=await zipOpen(await file.arrayBuffer());
-  const xml=await z.get('word/document.xml'); if(!xml) throw new Error('Word içeriği okunamadı');
+  const xml=await z.get('word/document.xml'); if(!xml) throw new Error('Word içeriği okunamadı (bu bir .docx değil)');
   const relx=await z.get('word/_rels/document.xml.rels');
   const dec=b=>new TextDecoder().decode(b);
   const rels={}; if(relx){ const rd=new DOMParser().parseFromString(dec(relx),'application/xml');
-    [...rd.getElementsByTagName('Relationship')].forEach(r=>rels[r.getAttribute('Id')]=r.getAttribute('Target')); }
+    [...rd.getElementsByTagName('Relationship')].forEach(r=>{
+      let t=r.getAttribute('Target')||''; if(r.getAttribute('TargetMode')==='External') return;
+      let path=t.startsWith('/')?t.slice(1):('word/'+t);
+      const parts=[]; path.split('/').forEach(s=>{ if(s==='..') parts.pop(); else if(s&&s!=='.') parts.push(s); });
+      rels[r.getAttribute('Id')]=parts.join('/'); }); }
   const doc=new DOMParser().parseFromString(dec(xml),'application/xml');
-  const paras=[...doc.getElementsByTagName('w:p')].map(pe=>{
-    let text='',bold=false,ital=false;
-    [...pe.getElementsByTagName('w:r')].forEach(r=>{
-      const t=[...r.getElementsByTagName('w:t')].map(x=>x.textContent).join('');
-      if(t){ text+=t; if(r.getElementsByTagName('w:b').length) bold=true; if(r.getElementsByTagName('w:i').length) ital=true; }
-    });
-    const imgs=[...pe.getElementsByTagName('a:blip')].map(b=>rels[b.getAttribute('r:embed')]).filter(Boolean);
-    return {text:text.replace(/\s+/g,' ').trim(),bold,ital,imgs,bullet:pe.getElementsByTagName('w:numPr').length>0};
-  });
-  const clean=t=>t.replace(/^[\s·•▪●◦\-–—*☐☑✓✔]+/,'').replace(/^[^\p{L}\p{N}]+/u,'').trim();
-  const days=[]; let day=null, meal=null, slot=-1;
-  const dayRe=/(?:^|\s)(\d{1,2})\s*[.)]?\s*g[uü]n\b/i, wdRe=/^(pazartesi|sal[ıi]|[çc]ar[şs]amba|per[şs]embe|cuma|cumartesi|pazar)\b/i;
-  const newDay=()=>({sub:'',photo:'',meals:MEAL_PRESET.map(m=>({name:m[0],emoji:m[1],title:'',lines:[],photo:''}))});
-  const pendingImgs=[];  // {path, dayIdx, mealIdx|-1}
-  let stop=false;
-  for(const pr of paras){
-    if(stop) break;
-    const t=pr.text, tl=FOLD(t);
-    if(/alisveris listesi/.test(tl)&&t.length<60&&days.length){ stop=true; break; }
-    const isDay=t&&t.length<70&&(dayRe.test(t.replace(/^[^\p{L}\p{N}]+/u,''))||wdRe.test(FOLD(clean(t))));
-    if(isDay){
-      const sig=FOLD(clean(t)).replace(/\s+/g,' ');
-      const same=days.find(d=>d._sig===sig&&!d.meals.some(m=>m.lines.length||m.title||m.photo)&&!d.photo);   /* haftalık özet tablosundaki boş başlık: aynı günü yeniden kullan */
-      if(same){ day=same; days.splice(days.indexOf(same),1); days.push(same); }
-      else{ day=newDay(); day._sig=sig; days.push(day); }
-      meal=null; slot=-1;
-      const rest=clean(t).replace(/^\d{1,2}\s*[.)]?\s*g[uü]n\s*[·\-–—:]*\s*/i,'');
-      continue;
+  if(doc.getElementsByTagName('parsererror').length) throw new Error('Word içeriği bozuk görünüyor');
+  const bodyEl=doc.getElementsByTagName('w:body')[0]; if(!bodyEl) throw new Error('Word gövdesi bulunamadı');
+  const blocks=[]; docxBlocks(bodyEl,rels,blocks);
+
+  /* 1) Matris tablolar (gün × öğün) */
+  const matrixDays=[]; const consumed=new Set();
+  blocks.forEach(b=>{ if(b.k==='tbl'){ const md=docxMatrix(b); if(md&&md.length){ md.forEach(d=>matrixDays.push(d)); consumed.add(b); } } });
+
+  /* 2) Sıralı okuma (başlıklar + maddeler) */
+  const days=[]; const orphans=[]; const warns=[];
+  let day=null, meal=null, stop=false;
+  const pend=[];   // {path, day, meal}
+  let trail=[];    // son metin satırından beri eklenen resimler
+  const pre=[];    // ilk gün başlığından önceki resimler (logo vb.)
+  const startDay=di=>{
+    const d=docxNewDay(); d._sig=di.sig; d._num=di.num; days.push(d); day=d; meal=null; d._last=-1;
+    /* gün başlığından hemen önce duran resim (başlık görseli/logo) önceki öğüne değil yeni güne aittir */
+    trail.forEach(e=>{ e.day=d; e.meal=null; }); trail=[];
+  };
+  const useMeal=name=>{ meal=docxPickSlot(day,name,day._last); };
+  const handleLine=(ln,p)=>{
+    const t=ln.t; if(!t) return;
+    const tl=FOLD(t);
+    if(days.length&&/alisveris listesi/.test(tl)&&t.length<60&&(ln.b||t===t.toLocaleUpperCase('tr'))){ stop=true; return; }
+    if(/kisiye ozel/.test(tl)&&/hazirlan/.test(tl)||/hazirlanmistir\s*$/.test(tl)||/^💧.*💧$/.test(t)) return;
+    const di=(!p.bullet||ln.b)?docxDayInfo(t):null;
+    if(di){ startDay(di); return; }
+    if(!day) return;
+    const hd=docxHead(t);
+    if(hd){
+      useMeal(hd.name);
+      if(hd.rest) meal._items.push({c:docxCleanLine(hd.rest),bu:p.bullet,b:false,i:ln.i});
+      return;
     }
-    if(!day){ continue; }
-    const mn=docxMealName(clean(t));
-    if(mn&&(pr.bold||t===t.toLocaleUpperCase('tr')||pr.text.length<20)){
-      let k=slot+1; while(k<day.meals.length&&day.meals[k].name!==mn) k++;
-      if(k>=day.meals.length){ day.meals.push({name:mn,emoji:'🍽',title:'',lines:[],photo:''}); k=day.meals.length-1; }
-      slot=k; meal=day.meals[k]; continue;
+    const c=docxCleanLine(t); if(!c) return;
+    const m=meal;
+    if(!m){
+      if(ln.i&&!day.sub) day.sub=c;
+      else if(!day._seenMeal&&c.length<=90&&!day.sub&&days.length) day.sub=c;
+      else orphans.push({day:days.length,text:c});
+      return;
     }
-    pr.imgs.forEach(path=>pendingImgs.push({path,day,meal}));
-    if(!t) continue;
-    if(/tarafindan kisiye ozel|^💧/.test(tl)||/^💧/.test(t)) continue;
-    if(!meal){ if(pr.ital&&!day.sub) day.sub=clean(t); continue; }
-    const c=clean(t); if(!c) continue;
-    if(!pr.bullet&&pr.ital&&!meal.tip&&meal.lines.length) meal.tip=c;
-    else if(!pr.bullet&&pr.bold&&!meal.title&&!meal.lines.length) meal.title=c;
-    else meal.lines.push(c);
+    day._seenMeal=true;
+    m._items.push({c,bu:p.bullet,b:ln.b,i:ln.i});
+  };
+  const handlePara=p=>{
+    p.imgs.forEach(path=>{ if(day){ const e={path,day,meal}; pend.push(e); trail.push(e); } else pre.push(path); });
+    p.lines.forEach(ln=>{ if(!stop){ handleLine(ln,p); trail=[]; } });
+  };
+  const handleBlocks=bl=>{
+    for(const b of bl){
+      if(stop) return;
+      if(b.k==='p'){ handlePara(b.p); continue; }
+      if(consumed.has(b)) continue;
+      for(const cells of b.rows){
+        if(stop) return;
+        if(cells.some(c=>docxHasTbl(c))){ cells.forEach(c=>handleBlocks(c)); continue; }
+        const paras=cells.flatMap(c=>docxFlat(c));
+        /* Satırda öğün başlığı varsa (resim solda/sağda fark etmez) resim ve içerik o öğüne ait */
+        const hasDay=paras.some(p=>p.lines.some(l=>docxDayInfo(l.t)&&(!p.bullet||l.b)));
+        let rowMeal=null;
+        if(!hasDay&&day){
+          outer:for(const p of paras){ for(const l of p.lines){ const hd=docxHead(l.t); if(hd){ useMeal(hd.name); rowMeal=meal; break outer; } } }
+        }
+        let headDone=false;
+        paras.forEach(p=>{
+          if(!rowMeal){ handlePara(p); return; }
+          const keep=[];
+          p.lines.forEach(l=>{
+            const hd=!headDone&&docxHead(l.t);
+            if(hd&&hd.name===rowMeal.name){ headDone=true; if(hd.rest) rowMeal._items.push({c:docxCleanLine(hd.rest),bu:p.bullet,b:false,i:l.i}); }
+            else keep.push(l);
+          });
+          handlePara({lines:keep,imgs:p.imgs,bullet:p.bullet});
+        });
+      }
+    }
+  };
+  handleBlocks(blocks);
+  const seqDays=days;
+
+  const score=ds=>ds.reduce((a,d)=>a+d.meals.reduce((b,m)=>b+(m._items||[]).length,0),0);
+  let chosen=seqDays, source='metin';
+  if(matrixDays.length&&score(matrixDays)>score(seqDays)*1.15){ chosen=matrixDays; source='tablo'; }
+  if(!chosen.length) throw new Error('Gün başlığı bulunamadı — dosyada "1. GÜN", "2. GÜN" (ya da Pazartesi, Salı…) başlıkları ve Kahvaltı / Öğle / Akşam öğün başlıkları olmalı');
+
+  /* içerik olmayan günleri ayıkla; sayılı günleri numarasına göre yerleştir */
+  const hasContent=d=>d.meals.some(m=>(m._items||[]).length)||d.photo||(pend.some(x=>x.day===d));
+  let list=chosen.filter(hasContent);
+  if(!list.length) throw new Error('Günler bulundu ama öğün içeriği okunamadı');
+  if(list.every(d=>d._num)&&new Set(list.map(d=>d._num)).size===list.length&&Math.max(...list.map(d=>d._num))<=8){
+    const mx=Math.max(7,...list.map(d=>d._num)); const arr=Array.from({length:mx},()=>docxNewDay());
+    list.forEach(d=>{ arr[d._num-1]=d; }); list=arr;
   }
-  for(let i=days.length-1;i>=0;i--){ if(i<days.length-1 && !days[i].meals.some(m=>m.lines.length||m.title||m.photo) && !days[i].photo) days.splice(i,1); }
-  days.forEach(d=>delete d._sig);
-  if(!days.length) throw new Error('Dosyada "1. GÜN", "2. GÜN" gibi gün başlıkları bulunamadı');
-  let used=0;
-  for(const im of pendingImgs){
-    const d=im.day; if(!d||!days.includes(d)) continue;
-    const path=im.path.replace(/^\/?(word\/)?/,'word/'); const bytes=await z.get(path); if(!bytes) continue;
-    const ext=(path.split('.').pop()||'').toLowerCase();
-    if(!['png','jpg','jpeg','gif','webp','bmp'].includes(ext)) continue;
-    const blob=new Blob([bytes],{type:ext==='png'?'image/png':ext==='gif'?'image/gif':'image/jpeg'});
+  if(list.length>8){ warns.push((list.length-8)+' fazla gün (8. günden sonrası) alınmadı'); }
+  list=list.slice(0,8);
+  while(list.length<7) list.push(docxNewDay());
+
+  /* öğünleri kesinleştir */
+  list.forEach(d=>d.meals.forEach(m=>docxFinalizeMeal(m)));
+
+  /* 3) Resimler */
+  const matrixImgs=[]; chosen===matrixDays&&matrixDays.forEach(d=>d.meals.forEach(m=>(m._imgs||[]).forEach(path=>matrixImgs.push({path,day:d,meal:m}))));
+  const allImgs=chosen===matrixDays?matrixImgs:pend;
+  const useCount={}; allImgs.forEach(x=>useCount[x.path]=(useCount[x.path]||0)+1);
+  const dayUse={}; allImgs.forEach(x=>{ if(!x.meal){ (dayUse[x.path]=dayUse[x.path]||new Set()).add(x.day); } });
+  pre.forEach(path=>{ useCount[path]=(useCount[path]||0)+1; (dayUse[path]=dayUse[path]||new Set()).add('pre'); });
+  let used=0, skippedDeco=0, skippedFmt=0;
+  for(const im of allImgs){
+    if(!list.includes(im.day)) continue;
+    if(useCount[im.path]>=4||(!im.meal&&dayUse[im.path]&&dayUse[im.path].size>=2)){ skippedDeco++; continue; }   // her yerde tekrar eden süs/logo
+    const ext=(im.path.split('.').pop()||'').toLowerCase();
+    if(!['png','jpg','jpeg','gif','webp','bmp'].includes(ext)){ skippedFmt++; continue; }
+    const bytes=await z.get(im.path); if(!bytes) continue;
+    const blob=new Blob([bytes],{type:ext==='png'?'image/png':ext==='gif'?'image/gif':ext==='webp'?'image/webp':ext==='bmp'?'image/bmp':'image/jpeg'});
     try{
+      let w=999,h=999; try{ const bm=await createImageBitmap(blob); w=bm.width; h=bm.height; bm.close&&bm.close(); }catch(e){}
+      if(Math.max(w,h)<90||bytes.length<1200){ skippedDeco++; continue; }
       if(im.meal&&!im.meal.photo){ im.meal.photo=await shrink(blob,620,0.72,true); used++; }
-      else if(!im.meal&&!d.photo){ d.photo=await shrink(blob,1100,0.72,false); used++; }
+      else if(!im.meal&&!im.day.photo){ im.day.photo=await shrink(blob,1100,0.72,false); used++; }
+      else if(im.meal&&im.meal.photo){ warns.push('Bir öğüne birden fazla resim vardı, ilki kullanıldı'); }
     }catch(e){}
   }
-  while(days.length<7) days.push(newDay());
-  return {days:days.slice(0,8),photos:used,filled:days.filter(d=>d.meals.some(m=>m.lines.length)).length};
+  if(skippedDeco) warns.push(skippedDeco+' küçük/tekrarlayan süs resmi atlandı');
+  if(skippedFmt) warns.push(skippedFmt+' resim biçimi (EMF/WMF vb.) desteklenmiyor, atlandı');
+  list.forEach(d=>{ ['_sig','_num','_last','_seenMeal'].forEach(k=>delete d[k]); d.meals.forEach(m=>{ delete m._sel; delete m._items; delete m._imgs; delete m._headDone; }); });
+  const filled=list.filter(d=>d.meals.some(m=>m.lines.length||m.title)).length;
+  const mealCount=list.reduce((a,d)=>a+d.meals.filter(m=>m.lines.length||m.title).length,0);
+  const lineCount=list.reduce((a,d)=>a+d.meals.reduce((b,m)=>b+m.lines.length,0),0);
+  return {days:list,photos:used,filled,mealCount,lineCount,orphans:orphans.slice(0,30),orphanCount:orphans.length,warns,source};
+}
+function docxReportHtml(r,name){
+  const rows=r.days.map((d,i)=>{
+    const ms=d.meals.filter(m=>m.lines.length||m.title);
+    if(!ms.length) return `<tr><td style="padding:6px 8px;white-space:nowrap"><b>${i+1}. gün</b></td><td style="padding:6px 8px;color:var(--muted)">boş</td></tr>`;
+    return `<tr><td style="padding:6px 8px;white-space:nowrap;vertical-align:top"><b>${i+1}. gün</b></td><td style="padding:6px 8px">${ms.map(m=>esc(m.name)+' <span style="color:var(--muted)">('+m.lines.length+' madde'+(m.photo?' · 📷':'')+')</span>').join(' · ')}</td></tr>`;
+  }).join('');
+  return `<p style="margin:0 0 10px"><b>${esc(name)}</b> şablon olarak eklendi: <b>${r.filled}</b> gün · <b>${r.mealCount}</b> öğün · <b>${r.lineCount}</b> madde · <b>${r.photos}</b> resim.</p>
+    <div class="tw" style="max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:10px"><table style="width:100%;font-size:12.5px"><tbody>${rows}</tbody></table></div>
+    ${r.orphanCount?`<p style="margin:12px 0 4px;color:var(--warn)"><b>⚠ Hiçbir öğüne bağlanamayan ${r.orphanCount} satır var:</b></p><ul style="margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-2)">${r.orphans.map(o=>`<li>${o.day}. gün: ${esc(o.text)}</li>`).join('')}</ul>`:''}
+    ${r.warns.length?`<p style="margin:12px 0 0;color:var(--muted);font-size:12.5px">${r.warns.map(esc).join('<br>')}</p>`:''}
+    <p style="margin:12px 0 0;color:var(--muted);font-size:12.5px">Eksik gördüğün öğün olursa şablonu bir danışana atayıp programda düzeltebilirsin.</p>`;
 }
 async function docxImportTemplate(file){
   toast('Word okunuyor…',8000);
@@ -1935,8 +2167,8 @@ async function docxImportTemplate(file){
       theme:(DB.profile&&DB.profile.docTheme)||'deniz',fontH:'',fontB:'',docSummary:true,docShopping:false});
     await save();
     S.planView='tpl'; render();
-    toast('Şablon eklendi: '+r.filled+' gün, '+r.photos+' resim — kontrol edip Düzenle\'den adını/mevsimini ayarlayabilirsin',7000);
-  }catch(err){ toast('Yüklenemedi: '+(err.message||err),7000); }
+    modal('İçe aktarma raporu',docxReportHtml(r,name),'Tamam','close','560px');
+  }catch(err){ toast('Yüklenemedi: '+(err.message||err),8000); }
 }
 
 /* Word sayfasının ekrandaki küçük karşılığı — indirmeden görmek için */
@@ -9569,7 +9801,7 @@ document.addEventListener('click',async e=>{
       const u=URL.createObjectURL(b), l=document.createElement('a'); l.href=u; l.download='diyet-yedek-'+todayISO()+'.json'; l.click(); URL.revokeObjectURL(u);
       DB.profile.lastBackup=todayISO(); await save(); toast('Yedek indirildi'); if(S.page==='panel') render(); }
     if(a==='import') document.getElementById('importFile').click();
-    if(a==='del-logo'){ DB.profile.logo=''; await save(); render(); }
+    if(a==='del-logo'){ DB.profile.logo=''; DB.profile.logoCustom=true; await save(); render(); }
     if(a==='reset'){ if(confirm('Tüm danışanlar, programlar ve randevular silinecek. Emin misiniz?')){ DB=seed(); S.page='panel'; await save(); render(); } }
   }
 });
@@ -9713,7 +9945,7 @@ document.addEventListener('change',async e=>{
   }
   if(e.target.id==='tplDocx' && e.target.files && e.target.files[0]){ const f=e.target.files[0]; e.target.value=''; docxImportTemplate(f); return; }
   if(e.target.id==='logoFile' && e.target.files && e.target.files[0]){
-    try{ DB.profile.logo=await shrink(e.target.files[0],760,0.82,false); await save(); const backupMsg=await forceCloudBackup(); toast('Logo kaydedildi'+backupMsg); render(); }
+    try{ DB.profile.logo=await shrink(e.target.files[0],760,0.82,false); DB.profile.logoCustom=true; await save(); const backupMsg=await forceCloudBackup(); toast('Logo kaydedildi'+backupMsg); render(); }
     catch(err){ toast('Görsel okunamadı'); }
   }
   if(e.target.id==='libFiles' && e.target.files && e.target.files.length){
