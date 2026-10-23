@@ -10280,6 +10280,12 @@ function pmTrack(ev){
     else fetch('/.netlify/functions/track',{method:'POST',body:b,keepalive:true});
   }catch(e){}
 }
+/* Tanıtım sayfasındaki örnek tartı analizi — tamamen KURGUSAL değerler (gerçek danışan verisi değildir) */
+const PM_DEMO_SCAN={sex:'K',age:34,weight:78.4,height:165,bmi:28.8,bmiR:[20,25],date:'2026-10-01',ideal:{v:58.8,r:[50.3,67.3]},
+  ffm:{kg:51.8,pct:66,kgR:[40.5,46.2],pctR:[67,79]},muscle:{kg:36.1,pct:46,kgR:[37.1,43.9],pctR:[47,56]},fat:{kg:26.6,pct:34,kgR:[14.9,23.1],pctR:[21,33]},
+  water:{kg:33.8,pct:43.1,kgR:[35,47],pctR:[45,60]},protein:{kg:9.8,pct:12.5,kgR:[10.5,12.5],pctR:[14,16]},mineral:{kg:2.9,pct:3.7,kgR:[2.6,3.4],pctR:[3.5,4.5]},
+  metAge:41,bmr:{v:1390,r:[1300,1700]},visc:{v:11,r:[1,9]},fit:62,whr:0.89,whtr:0.54,
+  seg:{fatPct:[34,34.5,32,31.5,38],fatKg:[4.5,4.4,1.9,1.8,13.9],muscleKg:[6.2,6.1,1.9,1.9,20]}};
 function svPromoHtml(profile,plan){
   const WA='https://wa.me/905475373522?text='+encodeURIComponent('Merhaba, tanışıp birlikte başlamak istiyorum 💛');
   const WAI='<svg viewBox="0 0 32 32" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M16.003 3C8.83 3 3 8.83 3 16c0 2.29.6 4.52 1.74 6.49L3 29l6.7-1.7A12.95 12.95 0 0 0 16 29c7.17 0 13-5.83 13-13S23.17 3 16.003 3zm0 23.7c-1.95 0-3.86-.53-5.53-1.52l-.4-.24-3.98 1.01 1.06-3.88-.26-.4A10.66 10.66 0 0 1 5.3 16c0-5.9 4.8-10.7 10.7-10.7S26.7 10.1 26.7 16s-4.8 10.7-10.7 10.7zm5.87-8c-.32-.16-1.9-.94-2.2-1.04-.3-.11-.51-.16-.73.16-.22.32-.84 1.04-1.03 1.26-.19.21-.38.24-.7.08-.32-.16-1.35-.5-2.57-1.58-.95-.85-1.59-1.9-1.78-2.22-.19-.32-.02-.49.14-.65.14-.14.32-.38.48-.57.16-.19.21-.32.32-.54.11-.21.05-.4-.03-.56-.08-.16-.73-1.76-1-2.4-.26-.63-.53-.55-.73-.56h-.62c-.21 0-.56.08-.85.4-.3.32-1.12 1.1-1.12 2.68s1.15 3.1 1.31 3.32c.16.21 2.26 3.45 5.47 4.84.76.33 1.36.53 1.82.68.77.24 1.46.21 2.01.13.61-.09 1.9-.78 2.17-1.53.27-.75.27-1.4.19-1.53-.08-.13-.3-.21-.62-.37z"/></svg>';
@@ -10302,10 +10308,12 @@ function svPromoHtml(profile,plan){
     <p class="pm-proud">Buraya kadar gelmen bile kendin için bir başarı ✨</p>
     <a class="pm-morelink" href="#pm-ornek">Örnek programı gör <span>↓</span></a>
   </section>
+  <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Bugün rengimiz ne olsun?</button>
   <section class="pm-daily" aria-label="Günün motivasyonu ve su takibi">
     <div class="pm-quote"><span class="pm-qh">✨ Günün sözü</span><p id="pmQuote"></p></div>
     <div class="pm-water">
       <div class="pm-wh"><b>💧 Bugün su içtin mi?</b><span id="pmWaterTxt"></span></div>
+      <div id="pmPlant" style="text-align:center;margin:4px 0 8px"></div>
       <div class="pm-cups" id="pmCups"></div>
       <p class="pm-wnote">Su; vücudumuzun yarısından fazlasını oluşturur. Yeterli su içmek sindirimi, enerjiyi ve konsantrasyonu destekler; bazen susuzluğu açlıkla karıştırırız. Genel bilgidir, kişiye göre ihtiyaç değişir.</p>
     </div>
@@ -10320,6 +10328,10 @@ function svPromoHtml(profile,plan){
     <div class="sv-card" style="margin:0"><div style="padding:14px">${lineChart([
       {date:'2026-07-01',weight:78},{date:'2026-07-15',weight:76.8},{date:'2026-08-01',weight:75.4},
       {date:'2026-08-15',weight:74.1},{date:'2026-09-01',weight:73},{date:'2026-09-15',weight:72}])}</div></div>
+    <details class="sv-card" style="margin:18px 0 0;overflow:hidden"><summary style="padding:14px 16px;cursor:pointer;font-weight:700;color:var(--blue-700);list-style:none">📊 Tartı analizi böyle anlatılır — örneği gör ↓</summary>
+      <div style="padding:0 12px 14px"><p class="pm-muted" style="margin:6px 4px 0;font-size:12px">Kurgusal örnek değerlerdir; gerçek bir danışana ait değildir.</p>${svBodyHtml({bodyScans:[PM_DEMO_SCAN],name:'Ayşe'})}</div></details>
+    <details class="sv-card" style="margin:12px 0 0;overflow:hidden"><summary style="padding:14px 16px;cursor:pointer;font-weight:700;color:var(--blue-700);list-style:none">🌸 Öğün fotoğrafına diyetisyen yorumu — örneği gör ↓</summary>
+      <div style="padding:0 12px 14px">${svReplyHtml({mealReplies:[{id:'x1',label:'Öğle — Izgara tavuk salata',date:localISODate(new Date()),heart:true,emoji:'🔥',text:'Harika tabak, böyle devam! 👏',at:2},{id:'x2',label:'Kahvaltı — Lorlu omlet',date:localISODate(new Date()),heart:false,emoji:'💪',text:'Proteinin çok güzel, bir bardak su da ekle 💧',at:1}]})}</div></details>
   </section>
   <section class="pm-sec pm-chal" id="pm-meydan">
     <h2 class="pm-h2">7 günlük küçük meydan okuma</h2>
@@ -10559,6 +10571,7 @@ function pmDailyInit(){
 }
 function svPromoWire(){
   pmDailyInit();
+  try{ svThemeApply(); }catch(e){}
   pmTrack('view');
   document.querySelectorAll('.pm a[href*="wa.me"],.pm-fabs a[href*="wa.me"]').forEach(a=>a.addEventListener('click',()=>pmTrack('wa')));
   document.querySelectorAll('.pm a[href*="instagram.com"],.pm-fabs a[href*="instagram.com"]').forEach(a=>a.addEventListener('click',()=>pmTrack('ig')));
