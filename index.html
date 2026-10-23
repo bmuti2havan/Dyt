@@ -7102,6 +7102,7 @@ function pagePlanEdit(){
         <button class="btn btn-sm" data-act="shopping">🛒 Alışveriş listesi</button>
         <button class="btn btn-sm" data-act="share">Paylaş</button>
         ${c?`<button class="btn btn-sm" data-act="share-open" data-cid="${c.id}">🔗 Danışan linki</button>`:''}
+        ${c?`<label class="btn btn-sm" style="cursor:pointer">📊 Tartı yükle<input type="file" id="tartiPdf" data-cid="${c.id}" accept="application/pdf,.pdf" hidden></label>`:''}
         <button class="btn btn-sm btn-primary" data-act="docx">${ic('down',15)} Word olarak indir</button>
         <button class="btn btn-sm btn-primary" data-act="pdf">${ic('down',15)} PDF olarak indir</button>
       </div>
@@ -9951,7 +9952,7 @@ document.addEventListener('change',async e=>{
     }catch(err){ toast('Fotoğraf okunamadı'); }
     return;
   }
-  if(e.target.id==='tartiPdf' && e.target.files && e.target.files[0]){ const f=e.target.files[0]; e.target.value=''; tartiImport(f); return; }
+  if(e.target.id==='tartiPdf' && e.target.files && e.target.files[0]){ const f=e.target.files[0]; e.target.value=''; tartiImport(f,e.target.dataset.cid); return; }
   if(e.target.id==='tplDocx' && e.target.files && e.target.files[0]){ const f=e.target.files[0]; e.target.value=''; docxImportTemplate(f); return; }
   if(e.target.id==='logoFile' && e.target.files && e.target.files[0]){
     try{ DB.profile.logo=await shrink(e.target.files[0],760,0.82,false); DB.profile.logoCustom=true; await save(); const backupMsg=await forceCloudBackup(); toast('Logo kaydedildi'+backupMsg); render(); }
@@ -11640,8 +11641,9 @@ function tartiAdminCard(c){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">${c.shareToken?'<button class="btn btn-sm" data-act="tarti-share">🔗 Linki güncelle</button>':''}${c.phone&&c.shareToken?`<button class="btn btn-sm" data-act="tarti-wa">💬 WhatsApp’tan haber ver</button>`:''}</div>`:`<div class="empty" style="padding:14px"><p>Henüz tartı analizi yok.</p></div>`}
     </div></section>`;
 }
-async function tartiImport(file){
-  const c=clientOf(S.client); if(!c) return;
+async function tartiImport(file,cid){
+  const c=clientOf(cid||S.client); if(!c) return;
+  S.client=c.id;
   toast('PDF okunuyor…',6000);
   let s;
   try{ s=tartiParse(await tartiPdfText(file)); }catch(e){ console.error(e); return toast('PDF okunamadı: '+(e.message||'bilinmeyen hata'),8000); }
