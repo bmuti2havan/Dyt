@@ -3646,14 +3646,14 @@ async function runClaudeTest(){
   }catch(e){ S.claudeDiag={state:'err',msg:e.message,status:e.status||0}; }
   claudeDiagModal();
 }
-function autoReplyCfg(){ return Object.assign({on:true,delay:5,quietFrom:23,quietTo:7},(DB.profile&&DB.profile.autoReply)||{}); }
+function autoReplyCfg(){ const c=Object.assign({on:true,delay:30,quietFrom:23,quietTo:7},(DB.profile&&DB.profile.autoReply)||{}); if(+c.delay===5) c.delay=30; return c; }
 function autoReplyBoxHtml(){
   const a=autoReplyCfg();
   return `<div style="margin-top:14px;padding:12px;border-radius:12px;background:#f3f8ff;border:1px solid #d6e6ff">
     <label style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:13.5px"><input type="checkbox" id="ar-on" ${a.on?'checked':''}> 🤖 Otomatik cevap (ben cevap vermezsem)</label>
-    <div style="font-size:12px;color:var(--ink-2);margin:6px 0 8px;line-height:1.5">Danışan yazar ya da öğün fotoğrafı atar, belirlenen sürede sen cevap vermezsen yapay zekâ senin ağzından sıcak, kısa, isimsiz ve emojili bir cevap yazar. Hastalık, ilaç, program değişikliği gibi konularda cevap vermez, sana Telegram/bildirim düşer. Sohbette "🤖 otomatik" etiketini sadece sen görürsün.</div>
+    <div style="font-size:12px;color:var(--ink-2);margin:6px 0 8px;line-height:1.5">Danışan yazar ya da öğün fotoğrafı atar, belirlenen sürede sen cevap vermezsen yapay zekâ senin ağzından tek cümlelik, samimi, isimsiz ve emojili bir cevap yazar (örn. “Harikasın, eline sağlık 😍”). Hastalık, ilaç, program değişikliği gibi konularda cevap vermez, sana Telegram/bildirim düşer. Sohbette "🤖 otomatik" etiketini sadece sen görürsün.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12.5px">
-      <label>Bekleme (dk) <input type="number" id="ar-delay" min="1" max="120" value="${+a.delay||5}" style="width:70px"></label>
+      <label>Bekleme (dk) <input type="number" id="ar-delay" min="1" max="180" value="${+a.delay||30}" style="width:70px"></label>
       <label>Sessiz saat başı <input type="number" id="ar-qf" min="0" max="23" value="${a.quietFrom}" style="width:62px"></label>
       <label>bitişi <input type="number" id="ar-qt" min="0" max="23" value="${a.quietTo}" style="width:62px"></label>
     </div></div>`;
@@ -3661,7 +3661,7 @@ function autoReplyBoxHtml(){
 function autoReplyRead(){
   const g=id=>document.getElementById(id); if(!g('ar-on')) return;
   const n=(id,d,lo,hi)=>{ const v=parseInt(g(id).value,10); return isNaN(v)?d:Math.max(lo,Math.min(hi,v)); };
-  DB.profile.autoReply={on:g('ar-on').checked,delay:n('ar-delay',5,1,120),quietFrom:n('ar-qf',23,0,23),quietTo:n('ar-qt',7,0,23)};
+  DB.profile.autoReply={on:g('ar-on').checked,delay:n('ar-delay',30,1,180),quietFrom:n('ar-qf',23,0,23),quietTo:n('ar-qt',7,0,23)};
 }
 function claudeDiagModal(){
   const d=S.claudeDiag||{};
