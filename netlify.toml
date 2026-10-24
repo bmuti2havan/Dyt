@@ -32,3 +32,8 @@
 
 [functions."scheduled-backup"]
   schedule = "0 9,15 * * *"
+
+# Otomatik cevap: her dakika bekleyen danisan mesajlarini kontrol eder.
+[functions."scheduled-autoreply"]
+  schedule = "* * * * *"
+  timeout = 26

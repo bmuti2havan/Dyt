@@ -3341,7 +3341,7 @@ async function pullShareIntake(){
       const r=await fetch(`${CL().dbUrl}/shares/t_${c.shareToken}.json?auth=${encodeURIComponent(t)}`); if(!r.ok) continue;
       const d=await r.json(); if(!d) continue;
       c.msgs=c.msgs||[];
-      Object.values(d).forEach(x=>{ if(x&&x.id&&x.text&&!c.msgs.some(y=>y.id===x.id)){ c.msgs.push({id:x.id,kind:'msg',ref:'',label:'',date:x.date||todayISO(),heart:false,emoji:'',text:x.text,at:x.at||Date.now(),via:'telegram'}); changed=true; touched.add(c); } });
+      Object.values(d).forEach(x=>{ if(x&&x.id&&x.text&&!c.msgs.some(y=>y.id===x.id)){ c.msgs.push({id:x.id,kind:'msg',ref:'',label:'',date:x.date||todayISO(),heart:false,emoji:'',text:x.text,at:x.at||Date.now(),via:x.auto?'auto':'telegram'}); changed=true; touched.add(c); } });
     }catch(e){}
   }
   if(changed){
@@ -3638,6 +3638,23 @@ async function runClaudeTest(){
   }catch(e){ S.claudeDiag={state:'err',msg:e.message,status:e.status||0}; }
   claudeDiagModal();
 }
+function autoReplyCfg(){ return Object.assign({on:true,delay:5,quietFrom:23,quietTo:7},(DB.profile&&DB.profile.autoReply)||{}); }
+function autoReplyBoxHtml(){
+  const a=autoReplyCfg();
+  return `<div style="margin-top:14px;padding:12px;border-radius:12px;background:#f3f8ff;border:1px solid #d6e6ff">
+    <label style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:13.5px"><input type="checkbox" id="ar-on" ${a.on?'checked':''}> 🤖 Otomatik cevap (ben cevap vermezsem)</label>
+    <div style="font-size:12px;color:var(--ink-2);margin:6px 0 8px;line-height:1.5">Danışan yazar ya da öğün fotoğrafı atar, belirlenen sürede sen cevap vermezsen yapay zekâ senin ağzından sıcak, kısa, isimsiz ve emojili bir cevap yazar. Hastalık, ilaç, program değişikliği gibi konularda cevap vermez, sana Telegram/bildirim düşer. Sohbette "🤖 otomatik" etiketini sadece sen görürsün.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12.5px">
+      <label>Bekleme (dk) <input type="number" id="ar-delay" min="1" max="120" value="${+a.delay||5}" style="width:70px"></label>
+      <label>Sessiz saat başı <input type="number" id="ar-qf" min="0" max="23" value="${a.quietFrom}" style="width:62px"></label>
+      <label>bitişi <input type="number" id="ar-qt" min="0" max="23" value="${a.quietTo}" style="width:62px"></label>
+    </div></div>`;
+}
+function autoReplyRead(){
+  const g=id=>document.getElementById(id); if(!g('ar-on')) return;
+  const n=(id,d,lo,hi)=>{ const v=parseInt(g(id).value,10); return isNaN(v)?d:Math.max(lo,Math.min(hi,v)); };
+  DB.profile.autoReply={on:g('ar-on').checked,delay:n('ar-delay',5,1,120),quietFrom:n('ar-qf',23,0,23),quietTo:n('ar-qt',7,0,23)};
+}
 function claudeDiagModal(){
   const d=S.claudeDiag||{};
   const box = d.state==='loading'
@@ -3651,6 +3668,7 @@ function claudeDiagModal(){
     `<div class="field"><label>Anthropic API anahtarı</label>
        <input id="claude-key" value="${esc(claudeKey())}" placeholder="sk-ant- ile başlar"></div>
      <div class="ai-box" style="min-height:120px">${box}</div>
+     ${autoReplyBoxHtml()}
      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
        <button class="btn btn-primary" data-claude-test="1" style="flex:1;justify-content:center">🔎 Anahtarı test et</button>
        <button class="btn" data-claude-save="1" style="flex:1;justify-content:center">Kaydet</button></div>
@@ -9477,7 +9495,7 @@ document.addEventListener('click',async e=>{
   const sp=t.closest('[data-shop]'); if(sp){ return doShop(sp.dataset.shop); }
   const gdg=t.closest('[data-gem-diag]'); if(gdg){ S.gemDiag=null; return gemDiagModal(); }
   const cdt=t.closest('[data-claude-test]'); if(cdt) return runClaudeTest();
-  const cds=t.closest('[data-claude-save]'); if(cds){ DB.profile.claude=val('claude-key'); await save(); toast('Kaydedildi'); return closeModal(); }
+  const cds=t.closest('[data-claude-save]'); if(cds){ DB.profile.claude=val('claude-key'); autoReplyRead(); await save(); toast('Kaydedildi'); return closeModal(); }
   const gt=t.closest('[data-gem-test]'); if(gt){ return runGemTest(); }
   const gs=t.closest('[data-gem-save]'); if(gs){
     const k=(val('gem-key')||'').trim(); if(!k) return toast('Anahtarı yapıştırın');
@@ -12048,7 +12066,7 @@ function pageClientChat(c){
     return head+`<div style="display:flex;justify-content:flex-end;margin:4px 0"><div style="max-width:78%;background:#e3f7d0;border-radius:14px 4px 14px 14px;padding:8px 11px;font-size:13.5px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.05)">
       ${r.label?`<div style="border-left:3px solid #7bc96f;padding-left:7px;margin-bottom:5px;font-size:11.5px;color:#4a6a44">${esc(r.label)}</div>`:''}
       ${(r.heart||r.emoji)?`<div style="font-size:22px;line-height:1.2">${r.heart?'❤️':''}${esc(r.emoji||'')}</div>`:''}${r.text?esc(r.text).replace(/\n/g,'<br>'):''}
-      <div style="font-size:10.5px;color:#6a8a64;text-align:right;margin-top:3px">${tm} ✓✓</div></div></div>`;
+      <div style="font-size:10.5px;color:#6a8a64;text-align:right;margin-top:3px">${r.via==='auto'?'🤖 otomatik · ':''}${tm} ✓✓</div></div></div>`;
   }).join('');
   const ref=S.chatRef;
   setTimeout(()=>{ const e=document.getElementById('chatBox'); if(e) e.scrollTop=e.scrollHeight; },60);
@@ -13496,6 +13514,9 @@ async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   if(!r.ok) throw new Error('Gönderilemedi ('+r.status+')');
+  if(entry&&['clientNote','dailyMeal','mealPhoto'].includes(entry.type)&&tok!=='promo-landing'){
+    try{ fetch('/.netlify/functions/auto-queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok,entry:{type:entry.type,text:entry.text||'',mealType:entry.mealType||'',mealName:entry.mealName||'',photo:entry.photo||''}})}).catch(()=>{}); }catch(e){}
+  }
   if(entry&&['clientNote','dailyMeal','mealPhoto','mealFeedback','journal','measure','taskDone','foodTags','referral'].includes(entry.type)){
     const T={clientNote:()=>entry.text,dailyMeal:()=>'🍽 '+(entry.mealType||'Öğün')+(entry.text?' — '+entry.text:'')+(entry.photo?' 📷':''),mealPhoto:()=>'📷 '+(entry.mealName||'Öğün')+' fotoğrafı gönderdi',
       mealFeedback:()=>(entry.liked?'❤️ beğendi: ':'👎 beğenmedi: ')+(entry.mealName||''),journal:()=>'📝 günü işaretledi',measure:()=>'⚖ ölçüm girdi',taskDone:()=>'🎯 görevi tamamladı: '+(entry.taskText||''),foodTags:()=>'🚫 besin tercihlerini güncelledi',referral:()=>'👋 arkadaşını önerdi: '+(entry.friendName||'')};
