@@ -10342,6 +10342,7 @@ function svPromoHtml(profile,plan){
     ['📘','Mini kitapçıklar','Doğru besin seçimlerini ve porsiyon kontrolünü öğrenirsiniz.'],
     ['📱','Kişisel takip sayfası','Kilo grafiği, program, öğün fotoğrafları — uygulama indirmeden.']];
   return `<div class="pm">
+  <div style="margin:0 0 14px;border-radius:22px;overflow:hidden;background:#fbf7ee;box-shadow:0 14px 30px -20px rgba(92,34,56,.55),0 0 0 1px rgba(92,34,56,.06)"><img src="img/logo-banner.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="1000" height="518" style="display:block;width:100%;height:auto"></div>
   <section class="pm-hero">
     <div id="pmLogo"></div>
     <div class="pm-glow"><div class="pm-photo"><img src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="300" height="375" fetchpriority="high" decoding="async"></div></div>
@@ -10364,6 +10365,7 @@ function svPromoHtml(profile,plan){
       <p class="pm-wnote">Su; vücudumuzun yarısından fazlasını oluşturur. Yeterli su içmek sindirimi, enerjiyi ve konsantrasyonu destekler; bazen susuzluğu açlıkla karıştırırız. Genel bilgidir, kişiye göre ihtiyaç değişir.</p>
     </div>
   </section>
+  ${svStepsCard()}
 
   <section class="pm-sec pm-ex" id="pm-ornek">
     <span class="pm-kicker">En önemlisi</span>
@@ -10617,6 +10619,7 @@ function pmDailyInit(){
 }
 function svPromoWire(){
   pmDailyInit();
+  try{ setTimeout(()=>svPopups({promo:true,name:''}),900); }catch(e){}
   try{ svThemeApply(); }catch(e){}
   pmTrack('view');
   document.querySelectorAll('.pm a[href*="wa.me"],.pm-fabs a[href*="wa.me"]').forEach(a=>a.addEventListener('click',()=>pmTrack('wa')));
@@ -11812,12 +11815,12 @@ function svCelebrations(snap){
   return out;
 }
 function svPopups(snap){
-  const tok=window.__shareTok||''; if(!tok) return;
+  const tok=window.__shareTok||(snap&&snap.promo?'promo':''); if(!tok) return;
   let lsG=k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, lsS=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
   const q=[];
   svCelebrations(snap).forEach(c=>{ if(!lsG('sv_cel_'+tok+c.key)) q.push(Object.assign({kind:'cel'},c)); });
   const day=localISODate(new Date());
-  if(lsG('sv_morning_'+tok)!==day){
+  if(lsG('sv_morning_'+tok)!==day&&!snap.promo){
     const n=Math.floor((Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate())-Date.UTC(2024,0,1))/864e5);
     q.unshift({kind:'morning',msg:SV_MORNING[(n+svTokHash())%SV_MORNING.length]});
   }
