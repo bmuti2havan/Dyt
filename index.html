@@ -11694,7 +11694,7 @@ function svSheet(html){
   let o=document.getElementById('svSheet'); if(o) o.remove();
   if(!document.getElementById('svFunCss')){ const st=document.createElement('style'); st.id='svFunCss'; st.textContent='@keyframes ttBob{50%{transform:translateY(-6px) rotate(-4deg)}}@keyframes ttIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}'; document.head.appendChild(st); }
   o=document.createElement('div'); o.id='svSheet';
-  o.style.cssText='position:fixed;inset:0;z-index:90;background:rgba(40,20,30,.45);display:flex;align-items:flex-end;justify-content:center;animation:ttIn .25s both';
+  o.style.cssText='position:fixed;inset:0;z-index:9000;background:rgba(40,20,30,.45);display:flex;align-items:flex-end;justify-content:center;animation:ttIn .25s both';
   o.innerHTML=`<div style="background:#fff;width:min(520px,100%);border-radius:26px 26px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));max-height:86vh;overflow:auto;box-shadow:0 -16px 40px -12px rgba(0,0,0,.35)">${html}</div>`;
   o.addEventListener('click',e=>{ if(e.target===o) o.remove(); });
   document.body.appendChild(o); return o;
@@ -11781,6 +11781,7 @@ function svPopups(snap){
     const n=Math.floor((Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate())-Date.UTC(2024,0,1))/864e5);
     q.unshift({kind:'morning',msg:SV_MORNING[(n+svTokHash())%SV_MORNING.length]});
   }
+  if(lsG('sv_color_'+tok)!==day) q.splice(q.length&&q[0].kind==='morning'?1:0,0,{kind:'color'});
   if(!q.length) return;
   const nm=((snap.name||'').split(' ')[0])||'';
   const show=()=>{
@@ -11790,13 +11791,22 @@ function svPopups(snap){
       <h3 style="margin:6px 0 8px;font-family:'Caveat',cursive,var(--sans);font-size:32px;color:var(--blue-900)">${svGreeting()}${nm?' '+esc(nm):''}!</h3>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a2c3a">${esc(it.msg)}</p>
       <button type="button" id="svSheetOk" class="btn btn-primary" style="width:100%;justify-content:center">Teşekkür ederim 💛</button></div>`;
+    else if(it.kind==='color'){
+      let cur='pembe'; try{ cur=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){}
+      html=`<div style="text-align:center"><div style="font-size:46px;animation:ttBob 2.4s ease-in-out infinite;display:inline-block">🎨</div>
+      <h3 style="margin:4px 0 4px;font-family:'Caveat',cursive,var(--sans);font-size:31px;line-height:1.1;color:var(--blue-900)">Güne nasıl başladık bakalım${nm?' '+esc(nm):''}? 🌸</h3>
+      <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#4a2c3a">Hadi bugünün rengini seçelim! Ruh haline uyanı seç, sayfan sana göre renklensin 💛</p>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${Object.keys(SV_THEMES).map(k=>{const T=SV_THEMES[k];return `<button type="button" data-svcol="${k}" style="border:2px solid ${cur===k?T.sw:'#eee'};background:${cur===k?'#fff8fb':'#fff'};border-radius:18px;padding:12px 6px;cursor:pointer;font-family:inherit"><div style="width:46px;height:46px;border-radius:50%;margin:0 auto 6px;background:${T.sw};display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 16px -8px ${T.sw}">${T.em}</div><div style="font-size:12px;font-weight:700;color:#4a2c3a">${T.n}</div></button>`;}).join('')}</div>
+      <button type="button" id="svSheetOk" class="btn" style="width:100%;justify-content:center;margin-top:14px;border:0;background:none;color:var(--muted)">Bugün böyle kalsın</button></div>`;
+    }
     else html=`<div style="text-align:center"><div style="font-size:60px;animation:ttBob 1.6s ease-in-out infinite;display:inline-block">${it.em}</div>
       <h3 style="margin:6px 0 8px;font-family:'Caveat',cursive,var(--sans);font-size:32px;color:var(--blue-900)">${esc(it.t)}</h3>
       <p style="margin:0 0 16px;font-size:14.5px;line-height:1.7;color:#4a2c3a">${esc(it.s)}</p>
       <button type="button" id="svSheetOk" class="btn btn-primary" style="width:100%;justify-content:center">Teşekkürler 🥳</button></div>`;
     const o=svSheet(html);
     if(it.kind==='cel') svConfetti(it.cf);
-    const done=()=>{ if(it.kind==='morning') lsS('sv_morning_'+tok,day); else lsS('sv_cel_'+tok+it.key,'1'); o.remove(); setTimeout(show,250); };
+    const done=()=>{ if(it.kind==='morning') lsS('sv_morning_'+tok,day); else if(it.kind==='color') lsS('sv_color_'+tok,day); else lsS('sv_cel_'+tok+it.key,'1'); o.remove(); setTimeout(show,250); };
+    o.querySelectorAll('[data-svcol]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); const k=b.dataset.svcol; lsS(svThemeKey(),k); svThemeApply(k); toast('Bugünün rengi seçildi '+(SV_THEMES[k]||{}).em,2200); done(); });
     o.querySelector('#svSheetOk').onclick=done;
     o.addEventListener('click',e=>{ if(e.target===o) done(); });
   };
