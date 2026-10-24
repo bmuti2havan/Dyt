@@ -10710,17 +10710,31 @@ function svSafePlan(p){
   return p;
 }
 /* ══════════════ 🧭 Danışan sayfası: alttan sekmeli sade düzen ══════════════ */
-const SV_TABS=[['today','🏠','Bugün'],['plan','📋','Program'],['prog','📈','Gelişim'],['chat','💬','Sohbet'],['more','⋯','Daha fazla']];
+const SV_TABS=[['today','☀️','Bugün'],['plan','🥗','Program'],['prog','🌱','Gelişim'],['chat','💌','Sohbet'],['more','🌸','Daha fazla']];
 const SV_TAB_CSS=`.sv-tab{display:none}.sv-tab.on{display:block;animation:svTabIn .25s ease}@keyframes svTabIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.sv-wrap{padding-bottom:104px!important}.sv-tab>*:first-child{margin-top:0!important}
-#svTabBar{position:fixed;left:0;right:0;bottom:0;z-index:8000;display:flex;justify-content:center;gap:2px;background:rgba(255,255,255,.97);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
-#svTabBar button{flex:1;max-width:120px;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font:600 10.5px/1.2 inherit;font-family:inherit;color:var(--muted);padding:6px 2px;border-radius:14px;position:relative;cursor:pointer}
-#svTabBar .ti{font-size:21px;line-height:1}#svTabBar button.on{color:var(--blue-700,#9c3f60);background:var(--blue-50,#fdf0f4)}
-#svTabBar .dot{position:absolute;top:3px;left:calc(50% + 6px);width:10px;height:10px;border-radius:50%;background:#e03170;box-shadow:0 0 0 2px #fff;animation:mfPulse 1.4s ease-in-out infinite}
-#svMsgFab{display:none!important}#svInstallBar{bottom:78px!important}#svNotifFloat{bottom:78px}
+.sv-wrap{padding-bottom:120px!important}.sv-tab>*:first-child{margin-top:0!important}
+#svTabBar{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:8000;display:flex;justify-content:center;gap:4px;max-width:520px;margin:0 auto;padding:7px;border-radius:28px;background:linear-gradient(135deg,var(--sv-g0,#9C3F60) 0%,var(--sv-g1,#D2607C) 58%,var(--sv-g2,#EE9A72) 100%);box-shadow:0 16px 34px -12px rgba(92,34,56,.65),inset 0 1px 0 rgba(255,255,255,.35)}
+#svTabBar button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:1px;font-family:'Caveat','Segoe Script',cursive;font-weight:600;font-size:17px;line-height:1.05;white-space:nowrap;color:rgba(255,255,255,.92);padding:6px 2px 5px;border-radius:21px;position:relative;cursor:pointer;transition:background .2s,transform .2s;-webkit-tap-highlight-color:transparent}
+#svTabBar .ti{font-size:22px;line-height:1.1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.22))}
+#svTabBar button.on{background:#fff;color:var(--sv-g0,#9C3F60);box-shadow:0 6px 14px -6px rgba(0,0,0,.4);transform:translateY(-3px)}
+#svTabBar button.on .ti{filter:none}
+#svTabBar .dot{position:absolute;top:2px;left:calc(50% + 8px);width:11px;height:11px;border-radius:50%;background:#ffe14d;box-shadow:0 0 0 2px var(--sv-g1,#D2607C);animation:mfPulse 1.4s ease-in-out infinite}
+#svMsgFab{display:none!important}#svInstallBar{bottom:96px!important}#svNotifFloat{bottom:78px}
 .sv-wrap .pm-cheer{display:none!important}
 .sv-wrap .sv-card{box-shadow:0 1px 2px rgba(92,34,56,.04),0 10px 24px -20px rgba(92,34,56,.28)}
-.sv-hero{padding:18px 20px!important}`;
+.sv-hero{padding:18px 20px!important}
+#svDrawerBg{position:fixed;inset:0;z-index:8500;background:rgba(40,12,26,.45);opacity:0;pointer-events:none;transition:opacity .25s}
+#svDrawerBg.on{opacity:1;pointer-events:auto}
+#svDrawer{position:fixed;top:0;right:0;bottom:0;z-index:8600;width:min(90vw,430px);background:var(--canvas,#fdf5f8);transform:translateX(104%);transition:transform .3s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;box-shadow:-18px 0 40px -16px rgba(60,20,40,.5)}
+#svDrawer.on{transform:none}
+#svDrawer .dh{display:flex;align-items:center;gap:10px;padding:max(16px,env(safe-area-inset-top)) 16px 14px;background:linear-gradient(135deg,var(--sv-g0,#9C3F60),var(--sv-g1,#D2607C) 60%,var(--sv-g2,#EE9A72));color:#fff}
+#svDrawer .dh b{flex:1;font-family:'Caveat','Segoe Script',cursive;font-size:28px;font-weight:600;line-height:1}
+#svDrawer .dh button{border:0;background:rgba(255,255,255,.22);color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer}
+#svDrawer .db{flex:1;overflow:auto;padding:14px 14px 30px;-webkit-overflow-scrolling:touch}
+#svDrawer .di{display:flex;align-items:center;gap:12px;width:100%;margin-bottom:10px;padding:12px 14px;border:1px solid var(--line);border-radius:18px;background:#fff;text-align:left;cursor:pointer;font:inherit;color:var(--ink);box-shadow:0 8px 18px -16px rgba(92,34,56,.5)}
+#svDrawer .di .de{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:23px;background:linear-gradient(135deg,var(--blue-50,#fdf0f4),var(--blue-100,#f7d7e2))}
+#svDrawer .di .dt{flex:1;min-width:0;line-height:1.25}#svDrawer .di .dt b{display:block;font-size:14.5px}#svDrawer .di .dt span{font-size:12px;color:var(--muted)}
+#svDrawer .di .dc{color:var(--muted);font-size:20px}`;
 function svTabOf(e){
   const id=e.id||'', cl=(e.className&&e.className.toString())||'', tx=(e.textContent||'').trim();
   if(cl.includes('sv-assistant')) return 'more';
@@ -10771,6 +10785,72 @@ function svTabGo(k,scrollTo){
   if(scrollTo){ const el=document.getElementById(scrollTo); if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40); else window.scrollTo(0,0); }
   else window.scrollTo(0,0);
 }
+
+function svMoreItems(){
+  const h=document.querySelector('#shareView .sv-tab[data-tab="more"]'); if(!h) return [];
+  const find=f=>[...h.children].find(f);
+  const sec=(pre)=>find(e=>e.tagName==='SECTION'&&(e.textContent||'').trim().startsWith(pre));
+  const L=[];
+  const asst=find(e=>e.classList.contains('sv-assistant')); if(asst) L.push({k:'asst',e:'🌸',t:'Diyet Asistanım',s:'Aklına takılanları sor',el:asst});
+  L.push({k:'theme',e:'🎨',t:'Renk teması',s:'Sayfanın rengini değiştir',act:()=>svThemeOpen()});
+  const ib=document.getElementById('svInstallBtn'); if(ib) L.push({k:'inst',e:'📲',t:'Ana ekrana ekle',s:'Tek dokunuşla ulaş',act:()=>svInstallClick()});
+  try{ if(svPushCardHtml().includes('svPushCard')) L.push({k:'push',e:'🔔',t:'Bildirimleri aç',s:'Mesaj gelince telefonuna haber ver',act:()=>svPushEnable()}); }catch(e){}
+  const al=sec('🚫'); if(al) L.push({k:'al',e:'🥜',t:'Alerji ve sevmediklerim',s:'Programına yansısın',el:al});
+  const fr=sec('👋'); if(fr) L.push({k:'fr',e:'💝',t:'Arkadaşını davet et',s:'Birlikte daha güzel',el:fr});
+  const hm=document.getElementById('sv-hamilelik'); if(hm) L.push({k:'sv-hamilelik',e:'🤰',t:'Hamilelik rehberi',s:'Hamilelikte beslenme',el:hm});
+  const rh=document.getElementById('sv-rehber'); if(rh) L.push({k:'sv-rehber',e:'📚',t:'Bilgilendirme kitapçığı',s:'Konulara göre kısa yazılar',el:rh});
+  const rg=sec('🌙'); if(rg) L.push({k:'regl',e:'🌙',t:'Regl takibi',s:'Döngüne uygun beslenme',el:rg});
+  return L;
+}
+let __svDrawerCur=null;
+function svDrawerEnsure(){
+  if(document.getElementById('svDrawer')) return;
+  const bg=document.createElement('div'); bg.id='svDrawerBg'; bg.onclick=()=>svDrawerClose();
+  const d=document.createElement('aside'); d.id='svDrawer'; d.setAttribute('aria-label','Daha fazla');
+  d.innerHTML='<div class="dh"><button type="button" id="svDrBack" aria-label="Geri" hidden>‹</button><b id="svDrTitle">Daha fazla</b><button type="button" id="svDrX" aria-label="Kapat">✕</button></div><div class="db" id="svDrBody"></div>';
+  document.body.appendChild(bg); document.body.appendChild(d);
+  document.getElementById('svDrX').onclick=()=>svDrawerClose();
+  document.getElementById('svDrBack').onclick=()=>svDrawerList();
+}
+function svDrawerRestore(){
+  if(!__svDrawerCur) return;
+  const h=document.querySelector('#shareView .sv-tab[data-tab="more"]'); const e=__svDrawerCur; __svDrawerCur=null;
+  if(h&&e) h.appendChild(e);
+}
+function svDrawerList(){
+  svDrawerRestore();
+  const body=document.getElementById('svDrBody'); if(!body) return;
+  document.getElementById('svDrTitle').textContent='Daha fazla'; document.getElementById('svDrBack').hidden=true;
+  body.innerHTML=''; const items=svMoreItems(); window.__svMoreItems=items;
+  items.forEach((it,i)=>{ const b=document.createElement('button'); b.type='button'; b.className='di';
+    b.innerHTML=`<span class="de">${it.e}</span><span class="dt"><b>${esc(it.t)}</b><span>${esc(it.s)}</span></span><span class="dc">›</span>`;
+    b.onclick=()=>{ if(it.act){ svDrawerClose(); setTimeout(it.act,200); } else svDrawerShow(it); }; body.appendChild(b); });
+  const h=document.querySelector('#shareView .sv-tab[data-tab="more"]');
+  const closing=h&&[...h.children].find(e=>e.tagName==='SECTION'&&(e.textContent||'').trim().startsWith('🌸')&&!e.classList.contains('sv-assistant'));
+  if(closing){ closing.style.marginTop='8px'; body.appendChild(closing); }
+  const ft=h&&h.querySelector('.sv-foot'); if(ft) body.appendChild(ft);
+}
+function svDrawerShow(it){
+  const body=document.getElementById('svDrBody'); if(!body||!it.el) return;
+  const h=document.querySelector('#shareView .sv-tab[data-tab="more"]');
+  // liste görünümünde taşınan kapanış kartı / alt yazı yerine dönsün
+  [...body.children].forEach(c=>{ if(!c.classList.contains('di')&&h) h.appendChild(c); });
+  body.innerHTML=''; document.getElementById('svDrTitle').textContent=it.t; document.getElementById('svDrBack').hidden=false;
+  it.el.style.display=''; it.el.style.marginTop='0'; __svDrawerCur=it.el; body.appendChild(it.el); body.scrollTop=0;
+}
+function svDrawerOpen(key){
+  svDrawerEnsure(); svDrawerList();
+  document.getElementById('svDrawerBg').classList.add('on'); document.getElementById('svDrawer').classList.add('on');
+  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.tab==='more'));
+  if(key){ const it=(window.__svMoreItems||[]).find(x=>x.k===key); if(it&&it.el) svDrawerShow(it); }
+}
+function svDrawerClose(){
+  const d=document.getElementById('svDrawer'); if(!d||!d.classList.contains('on')) return;
+  d.classList.remove('on'); document.getElementById('svDrawerBg').classList.remove('on');
+  svDrawerRestore();
+  const cur=(document.querySelector('#shareView .sv-tab.on')||{dataset:{}}).dataset.tab;
+  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===cur));
+}
 function svTabsInit(){
   const w=document.querySelector('#shareView .sv-wrap'); if(!w||w.querySelector('.sv-tab')) return;
   if(!document.getElementById('svTabCss')){ const st=document.createElement('style'); st.id='svTabCss'; st.textContent=SV_TAB_CSS; document.head.appendChild(st); }
@@ -10785,34 +10865,25 @@ function svTabsInit(){
       const norm=x=>String(x||'').toLocaleLowerCase('tr');
       const day=pl.days.find(d=>norm(d.name).includes(norm(wd)))||(pl.days.length>1?null:pl.days[0]);
       if(day&&day.meals&&day.meals.length){
-        hero.insertAdjacentHTML('afterend',`<section class="sv-card" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><div style="padding:6px 16px 4px">${day.meals.map(m=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)"><div style="font-size:22px">${esc(m.emoji||'🍽')}</div><div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc(m.name||'')}</b><div style="font-size:12.5px;color:var(--muted);line-height:1.5">${(m.lines||[]).slice(0,4).map(esc).join(' · ')}</div></div></div>`).join('')}</div><div style="padding:6px 16px 14px"><a href="#sv-program" style="font-size:13px;font-weight:700">Tüm programı gör →</a></div></section>`);
+        hero.insertAdjacentHTML('afterend',`<section class="sv-card" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><div style="padding:6px 16px 4px">${day.meals.map(m=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)"><div style="font-size:22px">${esc(m.emoji||'🍽')}</div><div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc(m.name||'')}</b><div style="font-size:12.5px;color:var(--muted);line-height:1.5">${(m.lines||[]).slice(0,4).map(esc).join(' · ')}</div></div></div>`).join('')}</div><div style="padding:6px 16px 14px"><a href="#sv-program" style="font-size:13px;font-weight:700;color:var(--blue-700);text-decoration:none">Tüm programı gör →</a></div></section>`);
       }
     }
   }catch(e){}
   const ib=document.getElementById('svInstallBtn'); if(ib&&more){ ib.style.marginTop='0'; more.prepend(ib); }
-  [['sv-hamilelik','🤰 Hamilelik Rehberi'],['sv-rehber','📚 Bilgilendirme Kitapçığı']].forEach(([id,label])=>{
-    const sec=document.getElementById(id); if(!sec||!more) return;
-    sec.style.display='none';
-    const btn=document.createElement('button'); btn.type='button'; btn.className='btn';
-    btn.style.cssText='display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:14px;padding:14px 16px;border-radius:16px;font-size:14px;font-weight:700';
-    btn.innerHTML='<span>'+label+'</span><span>▾</span>';
-    btn.onclick=()=>{ const open=sec.style.display==='none'; sec.style.display=open?'':'none'; btn.lastChild.textContent=open?'▴':'▾'; if(open) sec.scrollIntoView({behavior:'smooth',block:'start'}); };
-    sec.before(btn);
-  });
   let bar=document.getElementById('svTabBar'); if(bar) bar.remove();
   bar=document.createElement('nav'); bar.id='svTabBar'; bar.setAttribute('aria-label','Sayfa bölümleri');
   bar.innerHTML=SV_TABS.map(t=>`<button type="button" data-tab="${t[0]}"><span class="ti">${t[1]}</span>${t[2]}</button>`).join('');
   document.body.appendChild(bar);
-  bar.addEventListener('click',e=>{ const b=e.target.closest('button[data-tab]'); if(b) svTabGo(b.dataset.tab); });
+  bar.addEventListener('click',e=>{ const b=e.target.closest('button[data-tab]'); if(!b) return; if(b.dataset.tab==='more') svDrawerOpen(); else { svDrawerClose(); svTabGo(b.dataset.tab); } });
   let first='today'; try{ first=sessionStorage.getItem('sv_tab_'+(window.__shareTok||''))||'today'; }catch(e){}
-  svTabGo(SV_TABS.some(t=>t[0]===first)?first:'today');
+  svTabGo(SV_TABS.some(t=>t[0]===first&&t[0]!=='more')?first:'today');
   window.scrollTo(0,0);
 }
 document.addEventListener('click',e=>{
   const a=e.target.closest&&e.target.closest('#shareView a[href^="#sv-"]'); if(!a) return;
   const id=a.getAttribute('href').slice(1), el=document.getElementById(id); if(!el) return;
   const t=el.closest('.sv-tab'); if(!t) return;
-  e.preventDefault(); if(el.style.display==='none'){ const b=el.previousElementSibling; if(b&&b.tagName==='BUTTON') b.click(); } svTabGo(t.dataset.tab,id);
+  e.preventDefault(); if(t.dataset.tab==='more'){ svDrawerOpen(id); return; } svDrawerClose(); svTabGo(t.dataset.tab,id);
 });
 function renderShareView(snap){
   renderShareViewCore(snap);
@@ -11612,6 +11683,7 @@ function svThemeKey(){ return 'sv_theme_'+(window.__shareTok||''); }
 function svThemeApply(name){
   if(name===undefined){ try{ name=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){ name='pembe'; } }
   const T=SV_THEMES[name]||SV_THEMES.pembe, r=document.documentElement.style;
+  { const g=T.h||['#9C3F60','#D2607C','#EE9A72']; r.setProperty('--sv-g0',g[0]); r.setProperty('--sv-g1',g[1]); r.setProperty('--sv-g2',g[2]); }
   ['--blue-900','--blue-700','--blue-600','--blue-500','--blue-100','--blue-50','--canvas'].forEach((k,i)=>{ if(T.v) r.setProperty(k,T.v[i]); else r.removeProperty(k); });
   let st=document.getElementById('svThemeStyle');
   if(!T.h){ if(st) st.remove(); }
