@@ -11712,11 +11712,15 @@ function pushNotifyAdmin(){
 }
 async function pushNotifyClient(c){
   try{
+    if(!c||!c.shareToken) return;
     const t=await cloudToken();
     const r=await fetch('/.netlify/functions/push',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({action:'notify',to:'client',token:c.shareToken})});
     const j=await r.json().catch(()=>({}));
-    if(r.ok&&j.sent) toast('📲 Danışanın telefonuna bildirim gitti',3000);
-  }catch(e){}
+    if(!r.ok) toast('Bildirim gönderilemedi ('+(j.error||('sunucu '+r.status))+')',6000);
+    else if(j.sent) toast('📲 Danışanın telefonuna bildirim gitti',3500);
+    else if(j.gone) toast('Danışanın bildirim kaydı geçersiz; linkten tekrar "Aç"ması gerek',6000);
+    else toast('Danışan henüz bildirimi açmamış (linkteki 🔔 Aç)',5000);
+  }catch(e){ toast('Bildirim hatası: '+(e.message||e),6000); }
 }
 function svPushCardHtml(){
   const tok=window.__shareTok||''; let on=false; try{ on=localStorage.getItem('sv_push_'+tok)==='1'; }catch(e){}
