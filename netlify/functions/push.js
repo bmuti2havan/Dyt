@@ -43,6 +43,23 @@ async function pushAll(path, privKey) {
   if (gone.length) { try { const { idToken } = await firebaseSignIn(); await Promise.all(gone.map(id => fetch(CLOUD_DB + '/' + path + '/' + id + '.json?auth=' + encodeURIComponent(idToken), { method: 'DELETE' }))); } catch (e) {} }
   return { sent, gone: gone.length };
 }
+
+// Telegram: danisan yazinca diyetisyenin Telegram'ina duser (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID varsa).
+// Isim, danisan adina giden gizli baglantidir (?v=token): cevap verirken sunucu token'i oradan okur.
+const htmlEsc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+async function telegramNotify(token, text) {
+  const bot = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
+  if (!bot || !chat) return 0;
+  try {
+    let name = 'Danisan';
+    try { const r = await fetch(CLOUD_DB + '/shares/' + token + '/name.json'); if (r.ok) { const n = await r.json(); if (n) name = String(n).slice(0, 60); } } catch (e) {}
+    const site = process.env.URL || 'https://takip.dytaysenurkorkmazantalya.com.tr';
+    const body = '💌 <a href="' + site + '/?v=' + token + '">' + htmlEsc(name) + '</a>\n' + htmlEsc(String(text || 'yeni bir mesaj/bilgi gonderdi').slice(0, 600)) + '\n\n<i>Cevaplamak icin bu mesaji Yanitla ile sec</i>';
+    const r = await fetch('https://api.telegram.org/bot' + bot + '/sendMessage', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chat, text: body, parse_mode: 'HTML', disable_web_page_preview: true }) });
+    return r.ok ? 1 : 0;
+  } catch (e) { return 0; }
+}
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return res(405);
   const priv = process.env.VAPID_PRIVATE_KEY;
@@ -67,10 +84,13 @@ exports.handler = async function (event) {
       }
       if (b.to === 'admin') {
         if (!(await shareExists(b.token))) return res(404);
-        return res(200, await pushAll('shares/admin-push', priv));
+        const out = await pushAll('shares/admin-push', priv);
+        out.tg = await telegramNotify(b.token, b.text);
+        return res(200, out);
       }
     }
     return res(400);
   } catch (e) { return res(500, { error: String(e.message || e) }); }
 };
+exports.pushAll = pushAll; exports.shareExists = shareExists;
 exports._test = { vapidJwt, sendOne, VAPID_PUBLIC };

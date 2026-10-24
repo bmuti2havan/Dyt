@@ -3334,6 +3334,16 @@ async function pullShareIntake(){
       await fetch(`${CL().dbUrl}/shares/${c.shareToken}/intake.json?auth=${encodeURIComponent(t2)}`,{method:'DELETE'});
     }catch(e){ /* sessiz geç — bir sonraki eşitlemede tekrar denenir */ }
   }
+  /* Telegram'dan verilen cevapları panele al (sohbette görünsün) */
+  for(const c of withToken){
+    try{
+      const t=await cloudToken();
+      const r=await fetch(`${CL().dbUrl}/shares/t_${c.shareToken}.json?auth=${encodeURIComponent(t)}`); if(!r.ok) continue;
+      const d=await r.json(); if(!d) continue;
+      c.msgs=c.msgs||[];
+      Object.values(d).forEach(x=>{ if(x&&x.id&&x.text&&!c.msgs.some(y=>y.id===x.id)){ c.msgs.push({id:x.id,kind:'msg',ref:'',label:'',date:x.date||todayISO(),heart:false,emoji:'',text:x.text,at:x.at||Date.now(),via:'telegram'}); changed=true; touched.add(c); } });
+    }catch(e){}
+  }
   if(changed){
     await save({noCloud:true});
     await cloudPushMerged();
@@ -11706,9 +11716,9 @@ async function pushSubscribe(role,token){
   const r=await fetch('/.netlify/functions/push',{method:'POST',headers:h,body:JSON.stringify({action:'subscribe',to:role,token,sub:sub.toJSON()})});
   if(!r.ok){ let m=''; try{ m=(await r.json()).error||''; }catch(e){} throw new Error(m||('sunucu '+r.status)); }
 }
-function pushNotifyAdmin(){
-  try{ const k='sv_pushthr_'+window.__shareTok; const last=+(localStorage.getItem(k)||0); if(Date.now()-last<8000) return; localStorage.setItem(k,String(Date.now())); }catch(e){}
-  try{ fetch('/.netlify/functions/push',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'notify',to:'admin',token:window.__shareTok})}).catch(()=>{}); }catch(e){}
+function pushNotifyAdmin(text){
+  try{ const k='sv_pushthr_'+window.__shareTok; if(text){ localStorage.removeItem(k); } const last=+(localStorage.getItem(k)||0); if(Date.now()-last<8000) return; localStorage.setItem(k,String(Date.now())); }catch(e){}
+  try{ fetch('/.netlify/functions/push',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'notify',to:'admin',token:window.__shareTok,text:String(text||'').slice(0,500)})}).catch(()=>{}); }catch(e){}
 }
 async function pushNotifyClient(c){
   try{
@@ -11798,7 +11808,8 @@ function svReplyHtml(snap){
     const loc=svChatMine().filter(m=>!srv.some(x=>x.text===m.text&&Math.abs(x.at-(+m.at||0))<10*60*1000));
     mine=[...srv,...loc];
   }
-  const L=[...(snap.mealReplies||[]).map(r=>({d:'in',at:+r.at||0,r})),...mine.map(m=>({d:'out',at:+m.at||0,m}))].sort((a,b)=>a.at-b.at).slice(-30);
+  const inAll=[...(snap.mealReplies||[])]; (snap.tgIn||[]).forEach(t=>{ if(t&&!inAll.some(x=>x.id===t.id)) inAll.push(t); });
+  const L=[...inAll.map(r=>({d:'in',at:+r.at||0,r})),...mine.map(m=>({d:'out',at:+m.at||0,m}))].sort((a,b)=>a.at-b.at).slice(-30);
   if(!L.length) return '';
   let last='';
   const bub=L.map(x=>{
@@ -11837,17 +11848,19 @@ function svChatPollStart(){
       const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(window.__shareTok)}/mealReplies.json`); if(!r.ok) return;
       const arr=await r.json(); const list=Array.isArray(arr)?arr.filter(Boolean):(arr?Object.values(arr):[]);
       const snap=window.__shareSnap; if(!snap) return;
+      let tg=snap.tgIn||[];
+      try{ const r3=await fetch(`${CLOUD_DB}/shares/t_${encodeURIComponent(window.__shareTok)}.json`); if(r3.ok){ const a3=await r3.json(); tg=a3?Object.values(a3).filter(x=>x&&x.id):[]; } }catch(e){}
       let cm=snap.clientMsgs||[];
       try{ const r2=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(window.__shareTok)}/clientMsgs.json`); if(r2.ok){ const a2=await r2.json(); cm=Array.isArray(a2)?a2.filter(Boolean):(a2?Object.values(a2):[]); } }catch(e){}
-      if(JSON.stringify(list)===JSON.stringify(snap.mealReplies||[])&&JSON.stringify(cm)===JSON.stringify(snap.clientMsgs||[])) return;
-      snap.mealReplies=list; snap.clientMsgs=cm;
+      if(JSON.stringify(list)===JSON.stringify(snap.mealReplies||[])&&JSON.stringify(cm)===JSON.stringify(snap.clientMsgs||[])&&JSON.stringify(tg)===JSON.stringify(snap.tgIn||[])) return;
+      snap.mealReplies=list; snap.clientMsgs=cm; snap.tgIn=tg;
       const el=document.getElementById('sv-yorum'); const h=svReplyHtml(snap);
       if(el) el.outerHTML=h; else { const nav=document.querySelector('.sv-qn'); if(nav) nav.insertAdjacentHTML('afterend',h); }
       if(!document.getElementById('svMsgFab')) document.body.insertAdjacentHTML('beforeend',svMsgFabHtml(snap));
       svChatScroll();
     }catch(e){}
   };
-  setInterval(tick,20000);
+  setInterval(tick,20000); setTimeout(tick,1500);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
 }
 /* ══════════════ Tartı / vücut analizi (PDF) ══════════════
@@ -13112,7 +13125,11 @@ async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   if(!r.ok) throw new Error('Gönderilemedi ('+r.status+')');
-  if(entry&&['clientNote','dailyMeal','mealPhoto','mealFeedback','journal','measure','taskDone','foodTags','referral'].includes(entry.type)) pushNotifyAdmin();
+  if(entry&&['clientNote','dailyMeal','mealPhoto','mealFeedback','journal','measure','taskDone','foodTags','referral'].includes(entry.type)){
+    const T={clientNote:()=>entry.text,dailyMeal:()=>'🍽 '+(entry.mealType||'Öğün')+(entry.text?' — '+entry.text:'')+(entry.photo?' 📷':''),mealPhoto:()=>'📷 '+(entry.mealName||'Öğün')+' fotoğrafı gönderdi',
+      mealFeedback:()=>(entry.liked?'❤️ beğendi: ':'👎 beğenmedi: ')+(entry.mealName||''),journal:()=>'📝 günü işaretledi',measure:()=>'⚖ ölçüm girdi',taskDone:()=>'🎯 görevi tamamladı: '+(entry.taskText||''),foodTags:()=>'🚫 besin tercihlerini güncelledi',referral:()=>'👋 arkadaşını önerdi: '+(entry.friendName||'')};
+    pushNotifyAdmin(entry.type==='clientNote'||entry.type==='dailyMeal'||entry.type==='mealPhoto'||entry.type==='mealFeedback'||entry.type==='taskDone'||entry.type==='foodTags'||entry.type==='referral'||entry.type==='journal'||entry.type==='measure'?T[entry.type]():'');
+  }
   return r.json();
 }
 async function svSendMealFeedback(btn){
