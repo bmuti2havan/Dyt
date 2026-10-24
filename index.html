@@ -10722,7 +10722,7 @@ const SV_TAB_CSS=`.sv-tab{display:none}.sv-tab.on{display:block;animation:svTabI
 #svMsgFab{display:none!important}#svInstallBar{bottom:96px!important}#svNotifFloat{bottom:78px}
 .sv-wrap .pm-cheer{display:none!important}
 .sv-wrap .sv-card{box-shadow:0 1px 2px rgba(92,34,56,.04),0 10px 24px -20px rgba(92,34,56,.28)}
-.sv-hero{padding:18px 20px!important}
+.sv-hero{padding:18px 20px!important}.sv-hero .sv-brand{display:none!important}.sv-banner{margin:0 0 14px;border-radius:22px;overflow:hidden;background:#fbf7ee;box-shadow:0 14px 30px -20px rgba(92,34,56,.55),0 0 0 1px rgba(92,34,56,.06)}.sv-banner img{display:block;width:100%;height:auto}
 #svDrawerBg{position:fixed;inset:0;z-index:8500;background:rgba(40,12,26,.45);opacity:0;pointer-events:none;transition:opacity .25s}
 #svDrawerBg.on{opacity:1;pointer-events:auto}
 #svDrawer{position:fixed;top:0;right:0;bottom:0;z-index:8600;width:min(90vw,430px);background:var(--canvas,#fdf5f8);transform:translateX(104%);transition:transform .3s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;box-shadow:-18px 0 40px -16px rgba(60,20,40,.5)}
@@ -10852,6 +10852,7 @@ function svDrawerClose(){
   document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===cur));
 }
 /* ══════════════ 🚶 Adım → kalori → "ne kadar yedin" hesaplayıcı ══════════════ */
+const SV_WQ=["Sen çok güçlü bir kadınsın, çünkü kendine değer veriyorsun ve işte bu yüzden buradasın. 💛", "Kendine özen göstermek bencillik değil, kadın olmanın en güzel güç gösterisidir. 🌸", "Her adımın, daha sağlıklı ve daha mutlu bir sana gidiyor. Yürümeye devam. 👣", "Bu yolda kimseyi memnun etmek zorunda değilsin; tek sözün kendine verdiğin söz. ✨", "Aynadaki kadına bugün gülümse; o senin için çok çalışıyor. 🪞", "Mükemmel olmana gerek yok, sadece vazgeçmemen yeterli. Sen zaten harikasın. 🌷", "Bir kadın kendine yatırım yaptığında, çevresindeki herkese ışık olur. 🕯️", "Bugün attığın her adım, dünkü seninle gurur duymanın bir yolu. 🏅", "Sen sadece bir rakam değilsin; hikâyen, emeğin ve gücünle çok daha fazlasısın. 🌈", "Kendine sabırlı ol, güzel şeyler zaman ister. Çiçekler de bir günde açmaz. 🌺", "Dünyayı taşıyan omuzların biraz da kendine yürüyüş hak ediyor. 🚶‍♀️", "Bugün kendin için yaptığın küçük şey, yarının büyük farkı olur. 🌱", "Güçlü kadınlar düşmeyenler değil, her seferinde ayağa kalkanlardır. Sen de onlardansın. 💪", "Sağlıklı olmak, kendine söylediğin en güzel “seni seviyorum”dur. 💗", "Sen kendine bakmaya başladığında hayat da sana başka bakar. 🌟", "Bu kadar çabanın karşılığı mutlaka gelir; sen sadece yola devam et. 🛤️", "Kimsenin senin yolunu yürüme şansı yok. Sen onu çoktan başladın bile! 🦋", "Bugün kendine “iyi ki varım” demek için çok güzel bir gün. 🌼", "Güzellik, kendine iyi davranmaktan gelir; sen de tam bunu yapıyorsun. 💐", "Küçük adımlar küçümsenmez; her büyük değişim küçük bir adımla başlar. 🐾", "Sen emek veren, üreten, taşıyan bir kadınsın; şimdi de kendine emek veriyorsun. 👑", "Yorulduysan dinlen ama vazgeçme; dinlenmek de yolun bir parçası. 🌙", "Kendini sevmek bir varış noktası değil, her gün seçtiğin bir yoldur. 🤍", "Vücudun senin en sadık dostun; ona bugün de nazik davran. 🫶", "Kendine verdiğin değer, hayatındaki her şeyin çıtasını yükseltir. 📈", "Bugün kendin için ayırdığın her dakika, en güzel yatırımın. ⏳", "Sen zor günleri de atlatan, güçlü bir kadınsın; bu yolu da başaracaksın. 🌅", "Başkalarına gösterdiğin şefkati bugün kendine de göster. 🤗", "Hedeflerin senin kadar büyük, sen de onları başaracak kadar güçlüsün. 🎯", "Yeni bir gün, yeni bir şans; dünü geride bırak, bugünün tadını çıkar. ☀️", "Bir kadın kendine inandığında, dağlar bile yol açar. ⛰️", "Sen yeterince iyisin, yeterince güçlüsün ve yeterince değerlisin. Hep öyleydin. 💎", "Kendine iyi bakmak, sevdiklerine verebileceğin en güzel hediyedir. 🎁", "Bugün için en iyisini yaptıysan, bu kutlamaya değer. Aferin sana! 🥳", "Güzel bir kadın, kendini ihmal etmeyi bırakıp kendine zaman ayırandır. 🌹", "Yürüdüğün her kilometre, kendine yazdığın bir aşk mektubu gibi. 💌", "Enerjin, azmin ve gülüşünle zaten ışıksın; bırak bugün de parlasın. ✨", "Kendine karşı en nazik sözlerle konuş; en çok onları duyuyorsun. 💬", "Bu yolculukta yalnız değilsin; seninle gurur duyan biri hep var. 🤝", "Vazgeçmek kolaydı ama sen devam ediyorsun; işte gücün tam da bu. 🔥", "Sen her sabah yeniden başlamayı bilen bir kadınsın; bu muazzam bir güç. 🌄", "Bir adım daha at; yarın bugüne bakıp “iyi ki yürümüşüm” diyeceksin. 🚶‍♀️", "Kendine verdiğin değer kadar değer görürsün; bugün çıtayı yüksek tut. 🏆", "Kilon ya da bedenin değil, kendine gösterdiğin özen seni güzel yapar. 🌸", "Mutlu kadın, ışığıyla çevresini aydınlatan kadındır; önce kendini mutlu et. 🌻", "Zamanın en güzel hali, kendine ayırdığın zamandır. 🕊️", "Bugün yürüdün, su içtin, kendini düşündün; bu bile kocaman bir başarı. 🎉", "Kendini önemsemeyi seçen kadın, kaderini de güzelleştirir. 🌠", "Hatalar yolun parçası; önemli olan sen devam ediyorsun. Sen harikasın! 💫", "Sen güçlü bir kadınsın ve her adımınla bunu bir kez daha kanıtlıyorsun. 👏"];
 const SV_EQ=[[80,'🍎','1 elma'],[105,'🍌','1 muz'],[190,'🍰','1 dilim baklava'],[285,'🍕','1 dilim pizza'],[300,'🥯','1 simit'],[500,'🌯','1 tavuk dürüm'],[560,'🍔','1 hamburger']];
 function svStepsCalc(steps,snap){
   steps=Math.max(0,Math.min(100000,Math.round(+steps||0)));
@@ -10871,14 +10872,22 @@ function svStepsHtml(r){
   <div style="text-align:center;margin-top:12px;padding:12px;border-radius:16px;background:linear-gradient(135deg,var(--blue-50),#fff)">${eqTxt}<div style="margin-top:6px;font-size:13px;color:#4a2c3a">${cheer}</div></div>
   <p class="pm-muted" style="margin:8px 2px 0;font-size:11px">Yaklaşık bir hesaptır; kilon, boyun ve yürüyüş hızına göre değişir.</p>`;
 }
+function svWomanQuote(snap,bump){
+  if((snap&&snap.sex)==='E') return '';
+  const n=Math.floor((Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate())-Date.UTC(2024,0,1))/864e5);
+  const i=((n*7+svTokHash()+(bump||0))%SV_WQ.length+SV_WQ.length)%SV_WQ.length;
+  return `<div id="svWQ" data-i="${bump||0}" style="margin-top:14px;padding:14px 14px 10px;border-radius:18px;text-align:center;background:linear-gradient(135deg,var(--blue-50),#fff);border:1px dashed var(--blue-100)"><p style="margin:0;font-family:'Caveat','Segoe Script',cursive;font-size:25px;line-height:1.2;color:var(--blue-900)">${esc(SV_WQ[i])}</p><button type="button" data-svwq style="margin-top:6px;border:0;background:none;color:var(--muted);font-size:12px;cursor:pointer">🔄 Başka bir söz</button></div>`;
+}
 function svStepsCard(){
   return `<section class="sv-card" id="svStepsCard" style="margin-top:14px"><div class="sv-card-h"><h3>🚶‍♀️ Bugün kaç adım yürüdün?</h3></div><div style="padding:6px 16px 16px">
+    <p style="margin:0 0 10px;font-family:'Caveat','Segoe Script',cursive;font-size:21px;line-height:1.2;color:var(--blue-900)">Adımını yaz, ben de kaç simit yaktığını hesaplayayım 🥯😄 Merak etme, kimseye söylemem!</p>
     <div style="display:flex;gap:8px"><input type="number" inputmode="numeric" id="svStepCalcIn" placeholder="Örn. 10000" style="flex:1;min-width:0"><span style="align-self:center;font-size:13px;color:var(--muted)">adım</span></div>
     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${[3000,5000,8000,10000].map(n=>`<button type="button" class="chip" data-svstep="${n}">${n.toLocaleString('tr-TR')}</button>`).join('')}</div>
-    <div id="svStepOut">${svStepsHtml({steps:0})}</div></div></section>`;
+    <div id="svStepOut">${svStepsHtml({steps:0})}</div>${svWomanQuote(window.__shareSnap,0)}</div></section>`;
 }
 function svStepsUpdate(v){ const o=document.getElementById('svStepOut'); if(o) o.innerHTML=svStepsHtml(svStepsCalc(v,window.__shareSnap)); }
 document.addEventListener('input',e=>{ const t=e.target; if(!t||!t.id) return; if(t.id==='svStepCalcIn'||t.id==='svJSteps'){ const o=document.getElementById(t.id==='svStepCalcIn'?'svJSteps':'svStepCalcIn'); if(o) o.value=t.value; svStepsUpdate(t.value); } });
+document.addEventListener('click',e=>{ const q=e.target.closest&&e.target.closest('[data-svwq]'); if(!q) return; const w=document.getElementById('svWQ'); if(w) w.outerHTML=svWomanQuote(window.__shareSnap,(+w.dataset.i||0)+1); });
 document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-svstep]'); if(!b) return; const i=document.getElementById('svStepCalcIn'); if(i){ i.value=b.dataset.svstep; i.dispatchEvent(new Event('input',{bubbles:true})); } });
 function svTabsInit(){
   const w=document.querySelector('#shareView .sv-wrap'); if(!w||w.querySelector('.sv-tab')) return;
@@ -10887,6 +10896,7 @@ function svTabsInit(){
   SV_TABS.forEach(t=>{ const d=document.createElement('div'); d.className='sv-tab'; d.dataset.tab=t[0]; w.appendChild(d); });
   svTabsRegroup();
   const more=w.querySelector('.sv-tab[data-tab="more"]');
+  try{ const td0=w.querySelector('.sv-tab[data-tab="today"]'); if(td0&&!td0.querySelector('.sv-banner')) td0.insertAdjacentHTML('afterbegin','<div class="sv-banner"><img src="img/logo-banner.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="1000" height="518" fetchpriority="high"></div>'); }catch(e){}
   try{
     const snap=window.__shareSnap||{}, pl=svSafePlan(snap.plan), td=w.querySelector('.sv-tab[data-tab="today"]'), hero=td&&td.querySelector('.sv-hero');
     if(pl&&pl.days&&pl.days.length&&hero){
@@ -10894,11 +10904,11 @@ function svTabsInit(){
       const norm=x=>String(x||'').toLocaleLowerCase('tr');
       const day=pl.days.find(d=>norm(d.name).includes(norm(wd)))||(pl.days.length>1?null:pl.days[0]);
       if(day&&day.meals&&day.meals.length){
-        hero.insertAdjacentHTML('afterend',`<section class="sv-card" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><div style="padding:6px 16px 4px">${day.meals.map(m=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)"><div style="font-size:22px">${esc(m.emoji||'🍽')}</div><div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc(m.name||'')}</b><div style="font-size:12.5px;color:var(--muted);line-height:1.5">${(m.lines||[]).slice(0,4).map(esc).join(' · ')}</div></div></div>`).join('')}</div><div style="padding:6px 16px 14px"><a href="#sv-program" style="font-size:13px;font-weight:700;color:var(--blue-700);text-decoration:none">Tüm programı gör →</a></div></section>`);
+        hero.insertAdjacentHTML('afterend',`<section class="sv-card" id="svMealsCard" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><div style="padding:6px 16px 4px">${day.meals.map(m=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)"><div style="font-size:22px">${esc(m.emoji||'🍽')}</div><div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc(m.name||'')}</b><div style="font-size:12.5px;color:var(--muted);line-height:1.5">${(m.lines||[]).slice(0,4).map(esc).join(' · ')}</div></div></div>`).join('')}</div><div style="padding:6px 16px 14px"><a href="#sv-program" style="font-size:13px;font-weight:700;color:var(--blue-700);text-decoration:none">Tüm programı gör →</a></div></section>`);
       }
     }
   }catch(e){}
-  try{ const dly=w.querySelector('.sv-tab[data-tab="today"] .pm-daily'); if(dly&&!document.getElementById('svStepsCard')) dly.insertAdjacentHTML('afterend',svStepsCard()); }catch(e){}
+  try{ const dly=w.querySelector('.sv-tab[data-tab="today"] .pm-daily'); if(dly&&!document.getElementById('svStepsCard')){ dly.insertAdjacentHTML('afterend',svStepsCard()); const ml=document.getElementById('svMealsCard'), sc=document.getElementById('svStepsCard'); if(ml&&sc) sc.after(ml); } }catch(e){}
   const ib=document.getElementById('svInstallBtn'); if(ib&&more){ ib.style.marginTop='0'; more.prepend(ib); }
   let bar=document.getElementById('svTabBar'); if(bar) bar.remove();
   bar=document.createElement('nav'); bar.id='svTabBar'; bar.setAttribute('aria-label','Sayfa bölümleri');
