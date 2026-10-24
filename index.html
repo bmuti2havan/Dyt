@@ -10229,6 +10229,7 @@ function svInstallBar(){
     const b=document.createElement('div'); b.id='svInstallBar';
     b.style.cssText='position:fixed;left:12px;bottom:14px;right:84px;z-index:9000;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:16px;background:#fff;border:1.5px solid var(--blue-100);box-shadow:0 10px 26px -10px rgba(60,20,40,.45);font-size:12.5px';
     b.innerHTML='<span style="font-size:22px">📲</span><span style="flex:1;line-height:1.35"><b>Linki ana ekrana ekle</b><br><span style="color:var(--muted)">Tek dokunuşla ulaş</span></span><button type="button" class="btn btn-sm btn-primary" id="svInstBarGo">Ekle</button><button type="button" id="svInstBarX" aria-label="Kapat" style="border:0;background:none;font-size:18px;color:var(--muted);padding:4px">✕</button>';
+    b.style.display='none'; setTimeout(()=>{ b.style.display='flex'; },7000);
     document.body.appendChild(b);
     document.getElementById('svInstBarGo').onclick=()=>{ svInstallClick(); };
     document.getElementById('svInstBarX').onclick=()=>{ b.remove(); try{ localStorage.setItem(k,String(Date.now())); }catch(e){} };
@@ -10708,7 +10709,116 @@ function svSafePlan(p){
   });
   return p;
 }
+/* ══════════════ 🧭 Danışan sayfası: alttan sekmeli sade düzen ══════════════ */
+const SV_TABS=[['today','🏠','Bugün'],['plan','📋','Program'],['prog','📈','Gelişim'],['chat','💬','Sohbet'],['more','⋯','Daha fazla']];
+const SV_TAB_CSS=`.sv-tab{display:none}.sv-tab.on{display:block;animation:svTabIn .25s ease}@keyframes svTabIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.sv-wrap{padding-bottom:104px!important}.sv-tab>*:first-child{margin-top:0!important}
+#svTabBar{position:fixed;left:0;right:0;bottom:0;z-index:8000;display:flex;justify-content:center;gap:2px;background:rgba(255,255,255,.97);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom))}
+#svTabBar button{flex:1;max-width:120px;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font:600 10.5px/1.2 inherit;font-family:inherit;color:var(--muted);padding:6px 2px;border-radius:14px;position:relative;cursor:pointer}
+#svTabBar .ti{font-size:21px;line-height:1}#svTabBar button.on{color:var(--blue-700,#9c3f60);background:var(--blue-50,#fdf0f4)}
+#svTabBar .dot{position:absolute;top:3px;left:calc(50% + 6px);width:10px;height:10px;border-radius:50%;background:#e03170;box-shadow:0 0 0 2px #fff;animation:mfPulse 1.4s ease-in-out infinite}
+#svMsgFab{display:none!important}#svInstallBar{bottom:78px!important}#svNotifFloat{bottom:78px}
+.sv-wrap .pm-cheer{display:none!important}
+.sv-wrap .sv-card{box-shadow:0 1px 2px rgba(92,34,56,.04),0 10px 24px -20px rgba(92,34,56,.28)}
+.sv-hero{padding:18px 20px!important}`;
+function svTabOf(e){
+  const id=e.id||'', cl=(e.className&&e.className.toString())||'', tx=(e.textContent||'').trim();
+  if(cl.includes('sv-assistant')) return 'more';
+  if(cl.includes('sv-hero')) return 'today';
+  if(cl.includes('pm-daily')) return 'today';
+  if(cl.includes('sv-qn')) return 'hide';
+  if(cl.includes('sv-kpi')) return 'prog';
+  if(cl.includes('pm-cheer')) return 'hide';
+  if(cl.includes('sv-foot')) return 'more';
+  if(e.tagName==='BUTTON') return 'more';
+  if(e.tagName==='A') return 'today';
+  if(id==='svPushCard') return 'today';
+  if(id==='sv-grafik'||id==='sv-tarti') return 'prog';
+  if(id==='sv-program') return 'plan';
+  if(id==='sv-yorum'||id==='sv-gunluk') return 'chat';
+  if(id==='sv-hamilelik'||id==='sv-rehber') return 'more';
+  if(tx.startsWith('📊')) return 'prog';
+  if(tx.startsWith('📝 Bugünü')||tx.startsWith('🎯')) return 'today';
+  if(tx.startsWith('💬')) return 'chat';
+  if(tx.startsWith('📝 Diyetisyeninden')||tx.startsWith('📋')) return 'plan';
+  return 'more';
+}
+function svTabsRegroup(){
+  const w=document.querySelector('#shareView .sv-wrap'); if(!w||!w.querySelector('.sv-tab')) return;
+  [...w.children].forEach(e=>{
+    if(e.classList.contains('sv-tab')) return;
+    const k=svTabOf(e); if(k==='hide'){ e.style.display='none'; return; }
+    const t=w.querySelector('.sv-tab[data-tab="'+k+'"]'); if(!t) return;
+    if(e.id==='sv-yorum'||e.id==='sv-program') t.prepend(e); else t.appendChild(e);
+  });
+  svTabsDot();
+}
+function svTabsDot(){
+  try{
+    const b=document.querySelector('#svTabBar [data-tab="chat"]'); if(!b) return;
+    const snap=window.__shareSnap||{}; const unseen=svMsgFabHtml(snap)!=='';
+    const has=b.querySelector('.dot');
+    if(unseen&&!has&&!b.classList.contains('on')) b.insertAdjacentHTML('beforeend','<span class="dot"></span>');
+    if((!unseen||b.classList.contains('on'))&&has) has.remove();
+  }catch(e){}
+}
+function svTabGo(k,scrollTo){
+  const w=document.querySelector('#shareView .sv-wrap'); if(!w) return;
+  w.querySelectorAll('.sv-tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===k));
+  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===k));
+  try{ sessionStorage.setItem('sv_tab_'+(window.__shareTok||''),k); }catch(e){}
+  if(k==='chat'){ try{ const last=Math.max.apply(null,((window.__shareSnap||{}).mealReplies||[]).map(r=>+r.at||0)); localStorage.setItem(svMsgSeenKey(),String(last||Date.now())); }catch(e){} svTabsDot(); setTimeout(()=>{ try{ svChatScroll(); }catch(e){} },30); }
+  if(scrollTo){ const el=document.getElementById(scrollTo); if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40); else window.scrollTo(0,0); }
+  else window.scrollTo(0,0);
+}
+function svTabsInit(){
+  const w=document.querySelector('#shareView .sv-wrap'); if(!w||w.querySelector('.sv-tab')) return;
+  if(!document.getElementById('svTabCss')){ const st=document.createElement('style'); st.id='svTabCss'; st.textContent=SV_TAB_CSS; document.head.appendChild(st); }
+  const foot=w.querySelector('.sv-foot');
+  SV_TABS.forEach(t=>{ const d=document.createElement('div'); d.className='sv-tab'; d.dataset.tab=t[0]; w.appendChild(d); });
+  svTabsRegroup();
+  const more=w.querySelector('.sv-tab[data-tab="more"]');
+  try{
+    const snap=window.__shareSnap||{}, pl=svSafePlan(snap.plan), td=w.querySelector('.sv-tab[data-tab="today"]'), hero=td&&td.querySelector('.sv-hero');
+    if(pl&&pl.days&&pl.days.length&&hero){
+      const wd=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'][new Date().getDay()];
+      const norm=x=>String(x||'').toLocaleLowerCase('tr');
+      const day=pl.days.find(d=>norm(d.name).includes(norm(wd)))||(pl.days.length>1?null:pl.days[0]);
+      if(day&&day.meals&&day.meals.length){
+        hero.insertAdjacentHTML('afterend',`<section class="sv-card" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><div style="padding:6px 16px 4px">${day.meals.map(m=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)"><div style="font-size:22px">${esc(m.emoji||'🍽')}</div><div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc(m.name||'')}</b><div style="font-size:12.5px;color:var(--muted);line-height:1.5">${(m.lines||[]).slice(0,4).map(esc).join(' · ')}</div></div></div>`).join('')}</div><div style="padding:6px 16px 14px"><a href="#sv-program" style="font-size:13px;font-weight:700">Tüm programı gör →</a></div></section>`);
+      }
+    }
+  }catch(e){}
+  const ib=document.getElementById('svInstallBtn'); if(ib&&more){ ib.style.marginTop='0'; more.prepend(ib); }
+  [['sv-hamilelik','🤰 Hamilelik Rehberi'],['sv-rehber','📚 Bilgilendirme Kitapçığı']].forEach(([id,label])=>{
+    const sec=document.getElementById(id); if(!sec||!more) return;
+    sec.style.display='none';
+    const btn=document.createElement('button'); btn.type='button'; btn.className='btn';
+    btn.style.cssText='display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:14px;padding:14px 16px;border-radius:16px;font-size:14px;font-weight:700';
+    btn.innerHTML='<span>'+label+'</span><span>▾</span>';
+    btn.onclick=()=>{ const open=sec.style.display==='none'; sec.style.display=open?'':'none'; btn.lastChild.textContent=open?'▴':'▾'; if(open) sec.scrollIntoView({behavior:'smooth',block:'start'}); };
+    sec.before(btn);
+  });
+  let bar=document.getElementById('svTabBar'); if(bar) bar.remove();
+  bar=document.createElement('nav'); bar.id='svTabBar'; bar.setAttribute('aria-label','Sayfa bölümleri');
+  bar.innerHTML=SV_TABS.map(t=>`<button type="button" data-tab="${t[0]}"><span class="ti">${t[1]}</span>${t[2]}</button>`).join('');
+  document.body.appendChild(bar);
+  bar.addEventListener('click',e=>{ const b=e.target.closest('button[data-tab]'); if(b) svTabGo(b.dataset.tab); });
+  let first='today'; try{ first=sessionStorage.getItem('sv_tab_'+(window.__shareTok||''))||'today'; }catch(e){}
+  svTabGo(SV_TABS.some(t=>t[0]===first)?first:'today');
+  window.scrollTo(0,0);
+}
+document.addEventListener('click',e=>{
+  const a=e.target.closest&&e.target.closest('#shareView a[href^="#sv-"]'); if(!a) return;
+  const id=a.getAttribute('href').slice(1), el=document.getElementById(id); if(!el) return;
+  const t=el.closest('.sv-tab'); if(!t) return;
+  e.preventDefault(); if(el.style.display==='none'){ const b=el.previousElementSibling; if(b&&b.tagName==='BUTTON') b.click(); } svTabGo(t.dataset.tab,id);
+});
 function renderShareView(snap){
+  renderShareViewCore(snap);
+  try{ svTabsInit(); }catch(e){ console.error('[sekmeler]',e); }
+}
+function renderShareViewCore(snap){
   window.__shareSnap=snap;
   if(!document.getElementById('svFonts')){ const l=document.createElement('link'); l.id='svFonts'; l.rel='stylesheet'; l.href='https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap'; document.head.appendChild(l); }
   setTimeout(()=>{ try{ pmDailyInit(); }catch(e){} },0);
@@ -11797,7 +11907,7 @@ function svMsgFabHtml(snap){
 function svMsgOpen(at){
   try{ localStorage.setItem(svMsgSeenKey(),String(at||Date.now())); }catch(e){}
   const f=document.getElementById('svMsgFab'); if(f) f.remove();
-  const t=document.getElementById('sv-yorum'); if(t) t.scrollIntoView({behavior:'smooth',block:'center'});
+  if(document.querySelector('#svTabBar')) svTabGo('chat'); else { const t=document.getElementById('sv-yorum'); if(t) t.scrollIntoView({behavior:'smooth',block:'center'}); }
 }
 function svChatKey(){ return 'sv_chat_'+(window.__shareTok||''); }
 function svChatMine(){ try{ return JSON.parse(localStorage.getItem(svChatKey())||'[]'); }catch(e){ return []; } }
@@ -11824,13 +11934,13 @@ function svReplyHtml(snap){
   return `<section class="sv-card" id="sv-yorum" style="margin-top:16px;border:1px solid #f6cfdd">
     <div class="sv-card-h"><h3>🌸 Diyetisyeninle sohbet</h3></div>
     <div id="svChatBox" style="background:linear-gradient(180deg,#fff7fa,#fff);padding:6px 14px 10px;max-height:380px;overflow:auto">${bub}</div>
-    ${snap.demo?'':`<div style="display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid #f3dbe4"><textarea id="svChatInput" rows="1" placeholder="Cevap yaz…" style="flex:1;min-width:0;border-radius:14px"></textarea><button type="button" class="btn btn-primary" id="svChatSendBtn" onclick="svChatSend()">Gönder</button></div>`}</section>`;
+    ${snap.demo?'':`<div style="display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid #f3dbe4"><textarea id="svDmInput" rows="1" placeholder="Cevap yaz…" style="flex:1;min-width:0;border-radius:14px"></textarea><button type="button" class="btn btn-primary" id="svDmSendBtn" onclick="svMsgSend()">Gönder</button></div>`}</section>`;
 }
 function svChatScroll(){ const e=document.getElementById('svChatBox'); if(e) e.scrollTop=e.scrollHeight; }
-async function svChatSend(){
-  const inp=document.getElementById('svChatInput'); if(!inp) return;
+async function svMsgSend(){
+  const inp=document.getElementById('svDmInput'); if(!inp) return;
   const text=(inp.value||'').trim().slice(0,600); if(!text){ toast('Önce bir şeyler yaz'); return; }
-  const btn=document.getElementById('svChatSendBtn'); btn.disabled=true;
+  const btn=document.getElementById('svDmSendBtn'); btn.disabled=true;
   try{
     await svIntakePost({type:'clientNote',date:todayISO(),text,at:Date.now()});
     const l=svChatMine(); l.push({text,at:Date.now()}); try{ localStorage.setItem(svChatKey(),JSON.stringify(l.slice(-40))); }catch(e){}
@@ -11838,7 +11948,7 @@ async function svChatSend(){
     svChatScroll(); toast('Diyetisyenine iletildi 💌',2500);
   }catch(e){ btn.disabled=false; toast('Gönderilemedi, tekrar dene'); }
 }
-document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='svChatInput'&&e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); svChatSend(); } });
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='svDmInput'&&e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); svMsgSend(); } });
 /* Danışan sayfası açıkken yeni cevap gelirse yenilemeden görünsün */
 function svChatPollStart(){
   if(window.__svPoll||!window.__shareTok) return; window.__svPoll=true;
@@ -11857,6 +11967,7 @@ function svChatPollStart(){
       const el=document.getElementById('sv-yorum'); const h=svReplyHtml(snap);
       if(el) el.outerHTML=h; else { const nav=document.querySelector('.sv-qn'); if(nav) nav.insertAdjacentHTML('afterend',h); }
       if(!document.getElementById('svMsgFab')) document.body.insertAdjacentHTML('beforeend',svMsgFabHtml(snap));
+      svTabsRegroup();
       svChatScroll();
     }catch(e){}
   };
