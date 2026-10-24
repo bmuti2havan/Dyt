@@ -10342,7 +10342,6 @@ function svPromoHtml(profile,plan){
     ['📘','Mini kitapçıklar','Doğru besin seçimlerini ve porsiyon kontrolünü öğrenirsiniz.'],
     ['📱','Kişisel takip sayfası','Kilo grafiği, program, öğün fotoğrafları — uygulama indirmeden.']];
   return `<div class="pm">
-  <div style="margin:0 0 14px;border-radius:22px;overflow:hidden;background:#fbf7ee;box-shadow:0 14px 30px -20px rgba(92,34,56,.55),0 0 0 1px rgba(92,34,56,.06)"><img src="img/logo-banner.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="1000" height="518" style="display:block;width:100%;height:auto"></div>
   <section class="pm-hero">
     <div id="pmLogo"></div>
     <div class="pm-glow"><div class="pm-photo"><img src="aysenur.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="300" height="375" fetchpriority="high" decoding="async"></div></div>
@@ -10372,14 +10371,18 @@ function svPromoHtml(profile,plan){
     <h2>Örnek program</h2>
     <p class="pm-muted">Danışanlarımın takip linkinden gördüğü gerçek bir haftalık programdan örnek. Günlere dokunarak öğünleri inceleyebilirsiniz.</p>
     <div class="pm-card pm-ex-box"><div id="pmPlanBox"><p class="pm-muted" style="margin:0;text-align:center">Örnek program yükleniyor…</p></div></div>
-    <p class="pm-muted" style="margin:18px 0 8px">Gelişim grafiğiniz de kişisel sayfanızda böyle görünür (örnek gösterimdir):</p>
-    <div class="sv-card" style="margin:0"><div style="padding:14px">${lineChart([
-      {date:'2026-07-01',weight:78},{date:'2026-07-15',weight:76.8},{date:'2026-08-01',weight:75.4},
-      {date:'2026-08-15',weight:74.1},{date:'2026-09-01',weight:73},{date:'2026-09-15',weight:72}])}</div></div>
-    <details class="sv-card" style="margin:18px 0 0;overflow:hidden"><summary style="padding:14px 16px;cursor:pointer;font-weight:700;color:var(--blue-700);list-style:none">📊 Tartı analizi böyle anlatılır — örneği gör ↓</summary>
-      <div style="padding:0 12px 14px"><p class="pm-muted" style="margin:6px 4px 0;font-size:12px">Kurgusal örnek değerlerdir; gerçek bir danışana ait değildir.</p>${svBodyHtml({bodyScans:[PM_DEMO_SCAN],name:'Ayşe'})}</div></details>
-    <details class="sv-card" style="margin:12px 0 0;overflow:hidden"><summary style="padding:14px 16px;cursor:pointer;font-weight:700;color:var(--blue-700);list-style:none">🌸 Öğün fotoğrafına diyetisyen yorumu — örneği gör ↓</summary>
-      <div style="padding:0 12px 14px">${svReplyHtml({demo:true,mealReplies:[{id:'x1',label:'Öğle — Izgara tavuk salata',date:localISODate(new Date()),heart:true,emoji:'🔥',text:'Harika tabak, böyle devam! 👏',at:2},{id:'x2',label:'Kahvaltı — Lorlu omlet',date:localISODate(new Date()),heart:false,emoji:'💪',text:'Proteinin çok güzel, bir bardak su da ekle 💧',at:1}]})}</div></details>
+  </section>
+  <section class="pm-sec" id="pm-gelisim">
+    <span class="pm-kicker">Gelişimin</span>
+    <h2>Gelişimini böyle takip edersin</h2>
+    <p class="pm-muted" style="margin-bottom:12px">Kurgusal örnek değerlerdir; gerçek bir danışana ait değildir. Kişisel sayfanda kendi ölçümlerin ve tartı analizin böyle görünür.</p>
+    ${svPromoGelisim()}
+  </section>
+  <section class="pm-sec" id="pm-sohbet">
+    <span class="pm-kicker">Sohbet</span>
+    <h2>Diyetisyeninle sohbet</h2>
+    <p class="pm-muted" style="margin-bottom:12px">Öğün fotoğrafına yorum, soru-cevap, motivasyon: her şey tek yerde (örnek gösterimdir).</p>
+    ${svReplyHtml({demo:true,mealReplies:[{id:'x1',label:'Öğle — Izgara tavuk salata',date:localISODate(new Date()),heart:true,emoji:'🔥',text:'Harika tabak, böyle devam! 👏',at:2},{id:'x2',label:'Kahvaltı — Lorlu omlet',date:localISODate(new Date()),heart:false,emoji:'💪',text:'Proteinin çok güzel, bir bardak su da ekle 💧',at:1}]})}
   </section>
   <section class="pm-sec pm-chal" id="pm-meydan">
     <h2 class="pm-h2">7 günlük küçük meydan okuma</h2>
@@ -10619,6 +10622,7 @@ function pmDailyInit(){
 }
 function svPromoWire(){
   pmDailyInit();
+  try{ svPromoTabs(); }catch(e){ console.error('[tanıtım sekmeleri]',e); }
   try{ setTimeout(()=>svPopups({promo:true,name:''}),900); }catch(e){}
   try{ svThemeApply(); }catch(e){}
   pmTrack('view');
@@ -10725,7 +10729,7 @@ const SV_TAB_CSS=`.sv-tab{display:none}.sv-tab.on{display:block;animation:svTabI
 #svMsgFab{display:none!important}#svInstallBar{bottom:96px!important}#svNotifFloat{bottom:78px}
 .sv-wrap .pm-cheer{display:none!important}
 .sv-wrap .sv-card{box-shadow:0 1px 2px rgba(92,34,56,.04),0 10px 24px -20px rgba(92,34,56,.28)}
-.sv-hero{padding:18px 20px!important}.sv-hero .sv-brand{display:none!important}.sv-banner{margin:0 0 14px;border-radius:22px;overflow:hidden;background:#fbf7ee;box-shadow:0 14px 30px -20px rgba(92,34,56,.55),0 0 0 1px rgba(92,34,56,.06)}.sv-banner img{display:block;width:100%;height:auto}
+.sv-hero{padding:18px 20px!important}.sv-hero .sv-brand{display:none!important}.sv-banner{width:min(290px,82%);margin:4px auto 18px;padding:7px;border-radius:26px;background:#fff;box-shadow:0 16px 30px -16px rgba(92,34,56,.55),0 0 0 1.5px var(--blue-100,#f7d7e2);transform:rotate(-1.2deg)}.sv-banner img{display:block;width:100%;height:auto;border-radius:20px}
 #svDrawerBg{position:fixed;inset:0;z-index:8500;background:rgba(40,12,26,.45);opacity:0;pointer-events:none;transition:opacity .25s}
 #svDrawerBg.on{opacity:1;pointer-events:auto}
 #svDrawer{position:fixed;top:0;right:0;bottom:0;z-index:8600;width:min(90vw,430px);background:var(--canvas,#fdf5f8);transform:translateX(104%);transition:transform .3s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;box-shadow:-18px 0 40px -16px rgba(60,20,40,.5)}
@@ -10765,14 +10769,14 @@ function svTabsRegroup(){
   [...w.children].forEach(e=>{
     if(e.classList.contains('sv-tab')) return;
     const k=svTabOf(e); if(k==='hide'){ e.style.display='none'; return; }
-    const t=w.querySelector('.sv-tab[data-tab="'+k+'"]'); if(!t) return;
+    const t=w.querySelector('.sv-tab[data-svtab="'+k+'"]'); if(!t) return;
     if(e.id==='sv-yorum'||e.id==='sv-program') t.prepend(e); else t.appendChild(e);
   });
   svTabsDot();
 }
 function svTabsDot(){
   try{
-    const b=document.querySelector('#svTabBar [data-tab="chat"]'); if(!b) return;
+    const b=document.querySelector('#svTabBar [data-svtab="chat"]'); if(!b) return;
     const snap=window.__shareSnap||{}; const unseen=svMsgFabHtml(snap)!=='';
     const has=b.querySelector('.dot');
     if(unseen&&!has&&!b.classList.contains('on')) b.insertAdjacentHTML('beforeend','<span class="dot"></span>');
@@ -10781,8 +10785,8 @@ function svTabsDot(){
 }
 function svTabGo(k,scrollTo){
   const w=document.querySelector('#shareView .sv-wrap'); if(!w) return;
-  w.querySelectorAll('.sv-tab').forEach(t=>t.classList.toggle('on',t.dataset.tab===k));
-  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===k));
+  w.querySelectorAll('.sv-tab').forEach(t=>t.classList.toggle('on',t.dataset.svtab===k));
+  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.svtab===k));
   try{ sessionStorage.setItem('sv_tab_'+(window.__shareTok||''),k); }catch(e){}
   if(k==='chat'){ try{ const last=Math.max.apply(null,((window.__shareSnap||{}).mealReplies||[]).map(r=>+r.at||0)); localStorage.setItem(svMsgSeenKey(),String(last||Date.now())); }catch(e){} svTabsDot(); setTimeout(()=>{ try{ svChatScroll(); }catch(e){} },30); }
   if(scrollTo){ const el=document.getElementById(scrollTo); if(el) setTimeout(()=>el.scrollIntoView({behavior:'smooth',block:'start'}),40); else window.scrollTo(0,0); }
@@ -10790,7 +10794,8 @@ function svTabGo(k,scrollTo){
 }
 
 function svMoreItems(){
-  const h=document.querySelector('#shareView .sv-tab[data-tab="more"]'); if(!h) return [];
+  if(window.__svPromo) return svPromoMoreItems();
+  const h=document.querySelector('#shareView .sv-tab[data-svtab="more"]'); if(!h) return [];
   const find=f=>[...h.children].find(f);
   const sec=(pre)=>find(e=>e.tagName==='SECTION'&&(e.textContent||'').trim().startsWith(pre));
   const L=[];
@@ -10817,7 +10822,7 @@ function svDrawerEnsure(){
 }
 function svDrawerRestore(){
   if(!__svDrawerCur) return;
-  const h=document.querySelector('#shareView .sv-tab[data-tab="more"]'); const e=__svDrawerCur; __svDrawerCur=null;
+  const h=document.querySelector('#shareView .sv-tab[data-svtab="more"]'); const e=__svDrawerCur; __svDrawerCur=null;
   if(h&&e) h.appendChild(e);
 }
 function svDrawerList(){
@@ -10828,14 +10833,17 @@ function svDrawerList(){
   items.forEach((it,i)=>{ const b=document.createElement('button'); b.type='button'; b.className='di';
     b.innerHTML=`<span class="de">${it.e}</span><span class="dt"><b>${esc(it.t)}</b><span>${esc(it.s)}</span></span><span class="dc">›</span>`;
     b.onclick=()=>{ if(it.act){ svDrawerClose(); setTimeout(it.act,200); } else svDrawerShow(it); }; body.appendChild(b); });
-  const h=document.querySelector('#shareView .sv-tab[data-tab="more"]');
-  const closing=h&&[...h.children].find(e=>e.tagName==='SECTION'&&(e.textContent||'').trim().startsWith('🌸')&&!e.classList.contains('sv-assistant'));
-  if(closing){ closing.style.marginTop='8px'; body.appendChild(closing); }
-  const ft=h&&h.querySelector('.sv-foot'); if(ft) body.appendChild(ft);
+  const h=document.querySelector('#shareView .sv-tab[data-svtab="more"]');
+  if(window.__svPromo){ h&&h.querySelectorAll('.pm-cta,.pm-foot').forEach(x=>body.appendChild(x)); }
+  else{
+    const closing=h&&[...h.children].find(e=>e.tagName==='SECTION'&&(e.textContent||'').trim().startsWith('🌸')&&!e.classList.contains('sv-assistant'));
+    if(closing){ closing.style.marginTop='8px'; body.appendChild(closing); }
+    const ft=h&&h.querySelector('.sv-foot'); if(ft) body.appendChild(ft);
+  }
 }
 function svDrawerShow(it){
   const body=document.getElementById('svDrBody'); if(!body||!it.el) return;
-  const h=document.querySelector('#shareView .sv-tab[data-tab="more"]');
+  const h=document.querySelector('#shareView .sv-tab[data-svtab="more"]');
   // liste görünümünde taşınan kapanış kartı / alt yazı yerine dönsün
   [...body.children].forEach(c=>{ if(!c.classList.contains('di')&&h) h.appendChild(c); });
   body.innerHTML=''; document.getElementById('svDrTitle').textContent=it.t; document.getElementById('svDrBack').hidden=false;
@@ -10844,15 +10852,15 @@ function svDrawerShow(it){
 function svDrawerOpen(key){
   svDrawerEnsure(); svDrawerList();
   document.getElementById('svDrawerBg').classList.add('on'); document.getElementById('svDrawer').classList.add('on');
-  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.tab==='more'));
+  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.svtab==='more'));
   if(key){ const it=(window.__svMoreItems||[]).find(x=>x.k===key); if(it&&it.el) svDrawerShow(it); }
 }
 function svDrawerClose(){
   const d=document.getElementById('svDrawer'); if(!d||!d.classList.contains('on')) return;
   d.classList.remove('on'); document.getElementById('svDrawerBg').classList.remove('on');
   svDrawerRestore();
-  const cur=(document.querySelector('#shareView .sv-tab.on')||{dataset:{}}).dataset.tab;
-  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===cur));
+  const cur=(document.querySelector('#shareView .sv-tab.on')||{dataset:{}}).dataset.svtab;
+  document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.svtab===cur));
 }
 /* ══════════════ 🚶 Adım → kalori → "ne kadar yedin" hesaplayıcı ══════════════ */
 const SV_WQ=["Sen çok güçlü bir kadınsın, çünkü kendine değer veriyorsun ve işte bu yüzden buradasın. 💛", "Kendine özen göstermek bencillik değil, kadın olmanın en güzel güç gösterisidir. 🌸", "Her adımın, daha sağlıklı ve daha mutlu bir sana gidiyor. Yürümeye devam. 👣", "Bu yolda kimseyi memnun etmek zorunda değilsin; tek sözün kendine verdiğin söz. ✨", "Aynadaki kadına bugün gülümse; o senin için çok çalışıyor. 🪞", "Mükemmel olmana gerek yok, sadece vazgeçmemen yeterli. Sen zaten harikasın. 🌷", "Bir kadın kendine yatırım yaptığında, çevresindeki herkese ışık olur. 🕯️", "Bugün attığın her adım, dünkü seninle gurur duymanın bir yolu. 🏅", "Sen sadece bir rakam değilsin; hikâyen, emeğin ve gücünle çok daha fazlasısın. 🌈", "Kendine sabırlı ol, güzel şeyler zaman ister. Çiçekler de bir günde açmaz. 🌺", "Dünyayı taşıyan omuzların biraz da kendine yürüyüş hak ediyor. 🚶‍♀️", "Bugün kendin için yaptığın küçük şey, yarının büyük farkı olur. 🌱", "Güçlü kadınlar düşmeyenler değil, her seferinde ayağa kalkanlardır. Sen de onlardansın. 💪", "Sağlıklı olmak, kendine söylediğin en güzel “seni seviyorum”dur. 💗", "Sen kendine bakmaya başladığında hayat da sana başka bakar. 🌟", "Bu kadar çabanın karşılığı mutlaka gelir; sen sadece yola devam et. 🛤️", "Kimsenin senin yolunu yürüme şansı yok. Sen onu çoktan başladın bile! 🦋", "Bugün kendine “iyi ki varım” demek için çok güzel bir gün. 🌼", "Güzellik, kendine iyi davranmaktan gelir; sen de tam bunu yapıyorsun. 💐", "Küçük adımlar küçümsenmez; her büyük değişim küçük bir adımla başlar. 🐾", "Sen emek veren, üreten, taşıyan bir kadınsın; şimdi de kendine emek veriyorsun. 👑", "Yorulduysan dinlen ama vazgeçme; dinlenmek de yolun bir parçası. 🌙", "Kendini sevmek bir varış noktası değil, her gün seçtiğin bir yoldur. 🤍", "Vücudun senin en sadık dostun; ona bugün de nazik davran. 🫶", "Kendine verdiğin değer, hayatındaki her şeyin çıtasını yükseltir. 📈", "Bugün kendin için ayırdığın her dakika, en güzel yatırımın. ⏳", "Sen zor günleri de atlatan, güçlü bir kadınsın; bu yolu da başaracaksın. 🌅", "Başkalarına gösterdiğin şefkati bugün kendine de göster. 🤗", "Hedeflerin senin kadar büyük, sen de onları başaracak kadar güçlüsün. 🎯", "Yeni bir gün, yeni bir şans; dünü geride bırak, bugünün tadını çıkar. ☀️", "Bir kadın kendine inandığında, dağlar bile yol açar. ⛰️", "Sen yeterince iyisin, yeterince güçlüsün ve yeterince değerlisin. Hep öyleydin. 💎", "Kendine iyi bakmak, sevdiklerine verebileceğin en güzel hediyedir. 🎁", "Bugün için en iyisini yaptıysan, bu kutlamaya değer. Aferin sana! 🥳", "Güzel bir kadın, kendini ihmal etmeyi bırakıp kendine zaman ayırandır. 🌹", "Yürüdüğün her kilometre, kendine yazdığın bir aşk mektubu gibi. 💌", "Enerjin, azmin ve gülüşünle zaten ışıksın; bırak bugün de parlasın. ✨", "Kendine karşı en nazik sözlerle konuş; en çok onları duyuyorsun. 💬", "Bu yolculukta yalnız değilsin; seninle gurur duyan biri hep var. 🤝", "Vazgeçmek kolaydı ama sen devam ediyorsun; işte gücün tam da bu. 🔥", "Sen her sabah yeniden başlamayı bilen bir kadınsın; bu muazzam bir güç. 🌄", "Bir adım daha at; yarın bugüne bakıp “iyi ki yürümüşüm” diyeceksin. 🚶‍♀️", "Kendine verdiğin değer kadar değer görürsün; bugün çıtayı yüksek tut. 🏆", "Kilon ya da bedenin değil, kendine gösterdiğin özen seni güzel yapar. 🌸", "Mutlu kadın, ışığıyla çevresini aydınlatan kadındır; önce kendini mutlu et. 🌻", "Zamanın en güzel hali, kendine ayırdığın zamandır. 🕊️", "Bugün yürüdün, su içtin, kendini düşündün; bu bile kocaman bir başarı. 🎉", "Kendini önemsemeyi seçen kadın, kaderini de güzelleştirir. 🌠", "Hatalar yolun parçası; önemli olan sen devam ediyorsun. Sen harikasın! 💫", "Sen güçlü bir kadınsın ve her adımınla bunu bir kez daha kanıtlıyorsun. 👏"];
@@ -10892,16 +10900,66 @@ function svStepsUpdate(v){ const o=document.getElementById('svStepOut'); if(o) o
 document.addEventListener('input',e=>{ const t=e.target; if(!t||!t.id) return; if(t.id==='svStepCalcIn'||t.id==='svJSteps'){ const o=document.getElementById(t.id==='svStepCalcIn'?'svJSteps':'svStepCalcIn'); if(o) o.value=t.value; svStepsUpdate(t.value); } });
 document.addEventListener('click',e=>{ const q=e.target.closest&&e.target.closest('[data-svwq]'); if(!q) return; const w=document.getElementById('svWQ'); if(w) w.outerHTML=svWomanQuote(window.__shareSnap,(+w.dataset.i||0)+1); });
 document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-svstep]'); if(!b) return; const i=document.getElementById('svStepCalcIn'); if(i){ i.value=b.dataset.svstep; i.dispatchEvent(new Event('input',{bubbles:true})); } });
+function svTabCssEnsure(){ if(!document.getElementById('svTabCss')){ const st=document.createElement('style'); st.id='svTabCss'; st.textContent=SV_TAB_CSS+'.pm-fabs{bottom:96px!important}'; document.head.appendChild(st); } }
+function svTabBarBuild(first){
+  let bar=document.getElementById('svTabBar'); if(bar) bar.remove();
+  bar=document.createElement('nav'); bar.id='svTabBar'; bar.setAttribute('aria-label','Sayfa bölümleri');
+  bar.innerHTML=SV_TABS.map(t=>`<button type="button" data-svtab="${t[0]}"><span class="ti">${t[1]}</span>${t[2]}</button>`).join('');
+  document.body.appendChild(bar);
+  bar.addEventListener('click',e=>{ const b=e.target.closest('button[data-svtab]'); if(!b) return; if(b.dataset.svtab==='more') svDrawerOpen(); else { svDrawerClose(); svTabGo(b.dataset.svtab); } });
+  svTabGo(first||'today'); window.scrollTo(0,0);
+}
+/* Tanıtım (örnek) sayfası da aynı alt menü + sağdan açılan "Daha fazla" ile gezilir */
+function svPromoGelisim(){
+  const pts=[{date:'2026-07-01',weight:78},{date:'2026-07-15',weight:76.8},{date:'2026-08-01',weight:75.4},{date:'2026-08-15',weight:74.1},{date:'2026-09-01',weight:73},{date:'2026-09-15',weight:72}];
+  const first=pts[0], last=pts[pts.length-1], diff=last.weight-first.weight;
+  return `<div class="sv-kpi">
+      <div class="sv-kpi-c"><div class="l">Başlangıç</div><div class="v">${n1(first.weight)}<small> kg</small></div></div>
+      <div class="sv-kpi-c"><div class="l">Güncel</div><div class="v">${n1(last.weight)}<small> kg</small></div></div>
+      <div class="sv-kpi-c"><div class="l">Fark</div><div class="v" style="color:var(--ok)">${n1(diff)} kg</div></div></div>
+    ${svAchievementHtml({measures:pts})}
+    <section class="sv-card" style="margin-top:16px"><div class="sv-card-h"><h3>⚖ Gelişim grafiğin</h3></div><div style="padding:16px">${lineChart(pts)}</div></section>
+    <div style="margin-top:16px">${svBodyHtml({bodyScans:[PM_DEMO_SCAN],name:'Ayşe'})}</div>`;
+}
+function svPromoTabOf(e){
+  const id=e.id||'', cl=(e.className&&e.className.toString())||'';
+  if(cl.includes('pm-hero')||cl.includes('pm-daily')||id==='svStepsCard'||id==='pm-meydan') return 'today';
+  if(cl.includes('pm-cheer')) return 'hide';
+  if(id==='pm-ornek'||id==='pm-liste') return 'plan';
+  if(id==='pm-gelisim') return 'prog';
+  if(id==='pm-sohbet'||id==='pm-form') return 'chat';
+  return 'more';
+}
+function svPromoTabs(){
+  const pm=document.querySelector('#shareView .pm'); if(!pm||pm.querySelector('.sv-tab')) return;
+  window.__svPromo=true; svTabCssEnsure();
+  SV_TABS.forEach(t=>{ const d=document.createElement('div'); d.className='sv-tab'; d.dataset.svtab=t[0]; pm.appendChild(d); });
+  [...pm.children].forEach(e=>{ if(e.classList.contains('sv-tab')) return; const k=svPromoTabOf(e); if(k==='hide'){ e.style.display='none'; return; } pm.querySelector('.sv-tab[data-svtab="'+k+'"]').appendChild(e); });
+  let n=0; pm.querySelectorAll('.sv-tab[data-svtab="more"] > *').forEach(e=>{ if(!e.id) e.dataset.k='i'+(n++); });
+  document.querySelectorAll('#shareView .sv-wrap').forEach(w=>{ w.style.paddingBottom='120px'; });
+  svTabBarBuild('today');
+}
+function svPromoMoreItems(){
+  const h=document.querySelector('#shareView .sv-tab[data-svtab="more"]'); if(!h) return [];
+  const L=[{k:'theme',e:'🎨',t:'Renk teması',s:'Sayfanın rengini değiştir',act:()=>svThemeOpen()}];
+  const map=[['kimdir','👩‍⚕️','Diyetisyen kimdir?','Benimle tanışın'],['Nasıl başlıyoruz','🚀','Nasıl başlıyoruz?','Adım adım süreç'],['Neler sunuyorum','🎁','Neler sunuyorum?','Programa dahil olanlar'],['Programım nasıl işliyor','🌸','Programım nasıl işliyor?','Haftalık düzen'],['Beslenme rehberinden','📖','Rehberden örnekler','Kısa ve sade bilgiler'],['Beslenme Rehberi','📚','Beslenme rehberi','63 konuda ücretsiz bilgi'],['Hastalıklara göre beslenme','🩺','Hastalıklara göre beslenme','Merak ettiğiniz konu'],['Ücretsiz hesaplayıcı','🧮','Ücretsiz hesaplayıcı','VKİ ve günlük su ihtiyacı'],['Hamile misiniz','🤰','Hamilelik','Gebeliğe özel program'],['Sık sorulan sorular','❓','Sık sorulan sorular','İlk görüşmede neler olur'],['Konum','📍','Konum','Muratpaşa, Antalya']];
+  [...h.children].forEach(e=>{
+    if(e.tagName!=='SECTION'||e.classList.contains('pm-cta')) return;
+    const tx=(e.textContent||'').replace(/\s+/g,' ').trim().slice(0,120); const m=map.find(x=>tx.includes(x[0]));
+    if(m) L.push({k:e.id||e.dataset.k,e:m[1],t:m[2],s:m[3],el:e});
+  });
+  return L;
+}
 function svTabsInit(){
   const w=document.querySelector('#shareView .sv-wrap'); if(!w||w.querySelector('.sv-tab')) return;
-  if(!document.getElementById('svTabCss')){ const st=document.createElement('style'); st.id='svTabCss'; st.textContent=SV_TAB_CSS; document.head.appendChild(st); }
+  svTabCssEnsure();
   const foot=w.querySelector('.sv-foot');
-  SV_TABS.forEach(t=>{ const d=document.createElement('div'); d.className='sv-tab'; d.dataset.tab=t[0]; w.appendChild(d); });
+  SV_TABS.forEach(t=>{ const d=document.createElement('div'); d.className='sv-tab'; d.dataset.svtab=t[0]; w.appendChild(d); });
   svTabsRegroup();
-  const more=w.querySelector('.sv-tab[data-tab="more"]');
-  try{ const td0=w.querySelector('.sv-tab[data-tab="today"]'); if(td0&&!td0.querySelector('.sv-banner')) td0.insertAdjacentHTML('afterbegin','<div class="sv-banner"><img src="img/logo-banner.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="1000" height="518" fetchpriority="high"></div>'); }catch(e){}
+  const more=w.querySelector('.sv-tab[data-svtab="more"]');
+  try{ const td0=w.querySelector('.sv-tab[data-svtab="today"]'); if(td0&&!td0.querySelector('.sv-banner')) td0.insertAdjacentHTML('afterbegin','<div class="sv-banner"><img src="img/logo-banner.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="1000" height="518" fetchpriority="high"></div>'); }catch(e){}
   try{
-    const snap=window.__shareSnap||{}, pl=svSafePlan(snap.plan), td=w.querySelector('.sv-tab[data-tab="today"]'), hero=td&&td.querySelector('.sv-hero');
+    const snap=window.__shareSnap||{}, pl=svSafePlan(snap.plan), td=w.querySelector('.sv-tab[data-svtab="today"]'), hero=td&&td.querySelector('.sv-hero');
     if(pl&&pl.days&&pl.days.length&&hero){
       const wd=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'][new Date().getDay()];
       const norm=x=>String(x||'').toLocaleLowerCase('tr');
@@ -10911,22 +10969,16 @@ function svTabsInit(){
       }
     }
   }catch(e){}
-  try{ const dly=w.querySelector('.sv-tab[data-tab="today"] .pm-daily'); if(dly&&!document.getElementById('svStepsCard')){ dly.insertAdjacentHTML('afterend',svStepsCard()); const ml=document.getElementById('svMealsCard'), sc=document.getElementById('svStepsCard'); if(ml&&sc) sc.after(ml); } }catch(e){}
+  try{ const dly=w.querySelector('.sv-tab[data-svtab="today"] .pm-daily'); if(dly&&!document.getElementById('svStepsCard')){ dly.insertAdjacentHTML('afterend',svStepsCard()); const ml=document.getElementById('svMealsCard'), sc=document.getElementById('svStepsCard'); if(ml&&sc) sc.after(ml); } }catch(e){}
   const ib=document.getElementById('svInstallBtn'); if(ib&&more){ ib.style.marginTop='0'; more.prepend(ib); }
-  let bar=document.getElementById('svTabBar'); if(bar) bar.remove();
-  bar=document.createElement('nav'); bar.id='svTabBar'; bar.setAttribute('aria-label','Sayfa bölümleri');
-  bar.innerHTML=SV_TABS.map(t=>`<button type="button" data-tab="${t[0]}"><span class="ti">${t[1]}</span>${t[2]}</button>`).join('');
-  document.body.appendChild(bar);
-  bar.addEventListener('click',e=>{ const b=e.target.closest('button[data-tab]'); if(!b) return; if(b.dataset.tab==='more') svDrawerOpen(); else { svDrawerClose(); svTabGo(b.dataset.tab); } });
   let first='today'; try{ first=sessionStorage.getItem('sv_tab_'+(window.__shareTok||''))||'today'; }catch(e){}
-  svTabGo(SV_TABS.some(t=>t[0]===first&&t[0]!=='more')?first:'today');
-  window.scrollTo(0,0);
+  svTabBarBuild(SV_TABS.some(t=>t[0]===first&&t[0]!=='more')?first:'today');
 }
 document.addEventListener('click',e=>{
-  const a=e.target.closest&&e.target.closest('#shareView a[href^="#sv-"]'); if(!a) return;
+  const a=e.target.closest&&e.target.closest('#shareView a[href^="#sv-"],#shareView a[href^="#pm-"]'); if(!a) return;
   const id=a.getAttribute('href').slice(1), el=document.getElementById(id); if(!el) return;
   const t=el.closest('.sv-tab'); if(!t) return;
-  e.preventDefault(); if(t.dataset.tab==='more'){ svDrawerOpen(id); return; } svDrawerClose(); svTabGo(t.dataset.tab,id);
+  e.preventDefault(); if(t.dataset.svtab==='more'){ svDrawerOpen(id); return; } svDrawerClose(); svTabGo(t.dataset.svtab,id);
 });
 function renderShareView(snap){
   renderShareViewCore(snap);
