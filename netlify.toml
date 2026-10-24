@@ -37,3 +37,7 @@
 [functions."scheduled-autoreply"]
   schedule = "* * * * *"
   timeout = 26
+
+# Su hatirlaticisi: 15 dakikada bir, acik olan danisanlara bildirim.
+[functions."scheduled-water"]
+  schedule = "*/15 * * * *"

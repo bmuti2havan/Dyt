@@ -8,7 +8,14 @@ self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('push',e=>{
   e.waitUntil((async()=>{
     const role=(await kvGet('role'))||'client';
-    const o=role==='admin'
+    let water=null;
+    if(role!=='admin'){ try{
+      const m=/[?&]v=([A-Za-z0-9_-]{8,80})/.exec((await kvGet('url'))||'');
+      if(m){ const ac=new AbortController(); setTimeout(()=>ac.abort(),3500);
+        const r=await fetch('https://dyt-aysenur-korkmaz-default-rtdb.europe-west1.firebasedatabase.app/shares/w_'+m[1]+'/last.json?_='+Date.now(),{cache:'no-store',signal:ac.signal});
+        const j=r.ok?await r.json():null; if(j&&j.kind==='water'&&Date.now()-(+j.at||0)<150000&&j.msg) water=j; }
+    }catch(e){} }
+    const o=water?{title:'💧 Su vakti',body:String(water.msg).slice(0,140),tag:'dyt-water'}:role==='admin'
       ? {title:'💌 Danışandan yeni mesaj',body:'Sohbeti açmak için dokun.',tag:'dyt-admin'}
       : {title:'🌸 Diyetisyeninden mesajın var',body:'Seni görmek için dokun, yanıtlayabilirsin 💛',tag:'dyt-client'};
     await self.registration.showNotification(o.title,{body:o.body,tag:o.tag,renotify:true,icon:'/aysenur.jpg',badge:'/aysenur.jpg',data:{role}});
