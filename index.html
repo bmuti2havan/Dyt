@@ -11707,7 +11707,7 @@ async function pushSubscribe(role,token){
   if(!r.ok){ let m=''; try{ m=(await r.json()).error||''; }catch(e){} throw new Error(m||('sunucu '+r.status)); }
 }
 function pushNotifyAdmin(){
-  try{ const k='sv_pushthr_'+window.__shareTok; const last=+(localStorage.getItem(k)||0); if(Date.now()-last<20000) return; localStorage.setItem(k,String(Date.now())); }catch(e){}
+  try{ const k='sv_pushthr_'+window.__shareTok; const last=+(localStorage.getItem(k)||0); if(Date.now()-last<8000) return; localStorage.setItem(k,String(Date.now())); }catch(e){}
   try{ fetch('/.netlify/functions/push',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'notify',to:'admin',token:window.__shareTok})}).catch(()=>{}); }catch(e){}
 }
 async function pushNotifyClient(c){
@@ -13112,7 +13112,7 @@ async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   if(!r.ok) throw new Error('Gönderilemedi ('+r.status+')');
-  if(entry&&['clientNote','dailyMeal','mealPhoto'].includes(entry.type)) pushNotifyAdmin();
+  if(entry&&['clientNote','dailyMeal','mealPhoto','mealFeedback','journal','measure','taskDone','foodTags','referral'].includes(entry.type)) pushNotifyAdmin();
   return r.json();
 }
 async function svSendMealFeedback(btn){
