@@ -2918,8 +2918,8 @@ function buildShareSnapshot(c){
   let plan=null;
   if(act){ migratePlan(act); plan=JSON.parse(JSON.stringify(act)); delete plan.privnote; } // 🔒 özel not asla paylaşılmaz
   // Danışan aynı linkten eski programlarını da görebilsin diye — en fazla son 8 tanesi (veri boyutu için)
-  const pastPlans=all.filter(p=>p.id!==(act&&act.id)).sort((a,b)=>new Date(b.start)-new Date(a.start)).slice(0,8)
-    .map(p=>{ migratePlan(p); const cl=JSON.parse(JSON.stringify(p)); delete cl.privnote; return cl; });
+  const pastPlans=all.filter(p=>p.id!==(act&&act.id)).sort((a,b)=>new Date(b.start)-new Date(a.start)).slice(0,40)
+    .map((p,i)=>{ migratePlan(p); const cl=JSON.parse(JSON.stringify(p)); delete cl.privnote; delete cl.privNote; if(i>=3&&cl.days) cl.days.forEach(d=>{ if(d&&d.photo) delete d.photo; }); return cl; });
   const nx=nextApptOf(c.id);
   const notes=(c.notes||[]).filter(n=>n.visible).sort((a,b)=>new Date(b.date)-new Date(a.date))
     .map(n=>({date:n.date,type:n.type,text:n.text}));
@@ -10839,6 +10839,7 @@ function svMoreItems(){
   const hm=document.getElementById('sv-hamilelik'); if(hm) L.push({k:'sv-hamilelik',e:'🤰',t:'Hamilelik rehberi',s:'Hamilelikte beslenme',el:hm});
   const rh=document.getElementById('sv-rehber'); if(rh) L.push({k:'sv-rehber',e:'📚',t:'Bilgilendirme kitapçığı',s:'Konulara göre kısa yazılar',el:rh});
   const rg=sec('🌙'); if(rg) L.push({k:'regl',e:'🌙',t:'Regl takibi',s:'Döngüne uygun beslenme',el:rg});
+  L.push({k:'t-pc',e:'📅',t:'Program takvimim',s:'Eski listelerin gün gün',act:()=>svPCalOpen()});
   L.push({k:'t-lc',e:'📔',t:'Değişim günlüğüm',s:'Diyetle hayatımda neler değişti',act:()=>svLifeOpen()});
   try{ svUpTools().forEach(x=>L.push(x)); }catch(e){}
   return L;
@@ -11062,6 +11063,7 @@ function svPromoMoreItems(){
     const tx=(e.textContent||'').replace(/\s+/g,' ').trim().slice(0,120); const m=map.find(x=>tx.includes(x[0]));
     if(m) L.push({k:e.id||e.dataset.k,e:m[1],t:m[2],s:m[3],el:e});
   });
+  L.push({k:'t-pc',e:'📅',t:'Program takvimim',s:'Eski listelerin gün gün',act:()=>svPCalOpen()});
   L.push({k:'t-lc',e:'📔',t:'Değişim günlüğüm',s:'Diyetle hayatımda neler değişti',act:()=>svLifeOpen()});
   try{ svUpTools().forEach(x=>L.push(x)); }catch(e){}
   return L;
@@ -11233,6 +11235,7 @@ function svUpInit(){
   }catch(e){ console.error('[up]',e); }
   try{ svWrWire(); }catch(e){}
   try{ svLifeInit(); }catch(e){}
+  try{ svPCalInit(); }catch(e){}
   if(!window.__svHaptic){ window.__svHaptic=1; document.addEventListener('click',e=>{ if(e.target.closest&&e.target.closest('#svTabBar button,.pm-cups button,#shareView .btn,#shareView .chip')&&navigator.vibrate){ try{ navigator.vibrate(8); }catch(x){} } },true); }
 }
 /* ══════════════ 🧰 Yeni araçlar: tatlı krizi, dışarıda yeme, evde ne var, tabak, hava, ağaç, his, şükür, zor gün, pazar, ölçü, takvim, albüm ══════════════ */
@@ -11528,6 +11531,51 @@ function svUpPromoInit(){
   }catch(e){ console.error('[promo araçlar]',e); }
   try{ svWrWire(); }catch(e){}
   try{ svLifeInit(); }catch(e){}
+  try{ svPCalInit(); }catch(e){}
+}
+/* ══════════════ 📅 Program takvimi: eski listeler silinmez, gün gün takvimde görünür ══════════════ */
+const SV_PC_COL=['#7c8f3e','#3ba7d6','#e4772f','#b565a7','#d2607c','#8a7a4a'];
+function svDemoPlans(){
+  const iso=n=>{ const x=new Date(); x.setDate(x.getDate()-n); return svIso(x); };
+  const mk=(name,start,tag)=>{ const wd=['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar']; const st=new Date(start+'T12:00:00');
+    return {name,start,firstDay:(st.getDay()+6)%7,days:wd.map((n,i)=>({name:n,meals:SV_DEMO_DAY.meals.map(m=>Object.assign({},m,{title:'',lines:m.lines.map((l,k)=>k===0&&i%2?l+' ('+tag+')':l)}))}))}; };
+  return [mk('Eylül programı',iso(45),'A'),mk('Ekim programı',iso(14),'B')];
+}
+function svPlansAll(){
+  if(window.__svPromo||svIsPromo()) return svDemoPlans();
+  const snap=window.__shareSnap||{}; const L=[svSafePlan(snap.plan),...(snap.pastPlans||[]).map(p=>svSafePlan(p))];
+  return L.filter(p=>p&&p.start&&p.days&&p.days.length).sort((a,b)=>String(a.start).localeCompare(String(b.start)));
+}
+function svPlanOn(iso,plans){
+  plans=plans||svPlansAll(); let hit=null,ci=-1;
+  for(let i=0;i<plans.length;i++){ const p=plans[i], nx=plans[i+1]; if(String(p.start)<=iso&&(!nx||iso<String(nx.start))){ hit=p; ci=i; } }
+  if(!hit) return null;
+  const a=new Date(String(hit.start).slice(0,10)+'T12:00:00'), b=new Date(iso+'T12:00:00'), diff=Math.round((b-a)/864e5), n=hit.days.length;
+  return {plan:hit,ci,day:hit.days[((diff%n)+n)%n]};
+}
+let __svPcOff=0, __svPcSel=null;
+function svPCalOpen(){ __svPcOff=0; __svPcSel=svIso(); svSheet('<div id="svPcBox"></div>'); svPCalDraw(); }
+function svPCalDraw(){
+  const box=document.getElementById('svPcBox'); if(!box) return;
+  const plans=svPlansAll(), now=new Date(), d=new Date(now.getFullYear(),now.getMonth()+__svPcOff,1), y=d.getFullYear(), m=d.getMonth();
+  const ay=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][m];
+  if(!plans.length){ box.innerHTML=svHd('📅','Program takvimim','')+svEmptyHtml('Henüz program yok','Diyetisyenin programını hazırlayınca burada gün gün görünür 🌿'); return; }
+  const first=(d.getDay()+6)%7, days=new Date(y,m+1,0).getDate(); let cells=''; for(let i=0;i<first;i++) cells+='<div></div>';
+  for(let i=1;i<=days;i++){ const iso=y+'-'+String(m+1).padStart(2,'0')+'-'+String(i).padStart(2,'0'), hit=svPlanOn(iso,plans), c=hit?SV_PC_COL[hit.ci%SV_PC_COL.length]:null, sel=iso===__svPcSel, td=iso===svIso();
+    cells+='<button type="button" onclick="__svPcSel=\''+iso+'\';svPCalDraw()" style="aspect-ratio:1;border:0;border-radius:11px;background:'+(sel&&c?c:c?c+'26':'#f6f7f0')+';color:'+(sel&&c?'#fff':'#33401A')+';font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;'+(td?'box-shadow:0 0 0 2px #e4772f':'')+'">'+i+'</button>'; }
+  const hit=svPlanOn(__svPcSel,plans); let det='';
+  if(hit){ const dd=hit.day, fl=(dd.meals||[]).filter(x=>(x.lines&&x.lines.length)||x.title);
+    det='<div style="margin-top:12px;padding:12px;border-radius:16px;background:'+SV_PC_COL[hit.ci%SV_PC_COL.length]+'14;border:1px solid '+SV_PC_COL[hit.ci%SV_PC_COL.length]+'55"><div style="font-size:12px;color:var(--muted)">'+trDate(__svPcSel)+' · '+esc(hit.plan.name||'Program')+'</div><div style="font-weight:800;font-size:15px;margin:2px 0 6px">'+esc(dd.name||'')+'</div>'+(fl.length?fl.map(x=>'<div style="display:flex;gap:10px;padding:8px 0;border-top:1px solid rgba(0,0,0,.06)"><div style="font-size:22px">'+esc(x.emoji||'🍽')+'</div><div style="flex:1;min-width:0"><b style="font-size:13.5px">'+esc(x.name||'')+'</b><div style="font-size:12.5px;color:var(--muted);line-height:1.5">'+(x.title?esc(x.title)+(x.lines&&x.lines.length?' · ':''):'')+(x.lines||[]).map(esc).join(' · ')+'</div></div></div>').join(''):'<div style="font-size:13px;color:var(--muted)">Bu güne öğün yazılmamış.</div>')+'</div>'; }
+  else det='<div style="margin-top:12px;padding:12px;border-radius:16px;background:#f6f7f0;font-size:13px;color:var(--muted);text-align:center">'+trDate(__svPcSel)+' tarihinde bir program yoktu.</div>';
+  box.innerHTML=svHd('📅','Program takvimim','Eski listelerin silinmez, her günü buradan görebilirsin')+
+  '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+svBtn('‹','__svPcOff--;svPCalDraw()','background:#f1f5e1;color:#55662A;padding:6px 14px')+'<b>'+ay+' '+y+'</b>'+svBtn('›','__svPcOff++;svPCalDraw()','background:#f1f5e1;color:#55662A;padding:6px 14px')+'</div>'+
+  '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px">'+['Pt','Sa','Ça','Pe','Cu','Ct','Pz'].map(x=>'<div>'+x+'</div>').join('')+'</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">'+cells+'</div>'+
+  '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;font-size:11.5px">'+plans.map((p,i)=>'<span style="display:flex;align-items:center;gap:5px"><i style="width:12px;height:12px;border-radius:4px;background:'+SV_PC_COL[i%SV_PC_COL.length]+'"></i>'+esc(p.name||'Program')+' · '+trDate(String(p.start).slice(0,10))+'</span>').join('')+'</div>'+det;
+}
+function svPCalCardHtml(){ return '<section class="svup-card" id="svPcCard"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:34px">📅</div><div style="flex:1;font-size:13px;line-height:1.45"><b style="font-size:15px">Program takvimim</b><br>Eski listelerin de burada, gün gün görünür.</div>'+svBtn('Aç','svPCalOpen()')+'</div></section>'; }
+function svPCalInit(){
+  if(document.getElementById('svPcCard')) return;
+  const t=document.querySelector('#shareView .sv-tab[data-svtab="plan"]'); if(t) t.insertAdjacentHTML('afterbegin',svPCalCardHtml());
 }
 function svTabsInit(){
   const w=document.querySelector('#shareView .sv-wrap'); if(!w||w.querySelector('.sv-tab')) return;
