@@ -3320,6 +3320,12 @@ async function pullShareIntake(){
             c.taskLog.push({id:rid,taskId:e.taskId,taskText:e.taskText||'',at:e.at||Date.now()}); changed=true;
             fresh.push({client:c.name,text:'🎯 haftalık görevi tamamladı: '+(e.taskText||'')});
           }
+        }else if(e.type==='feel'){
+          c.feels=c.feels||[]; if(!c.feels.some(x=>x.id===rid)){ c.feels.push({id:rid,date:e.date||todayISO(),meal:e.meal||'',feel:e.feel||'',at:e.at||Date.now()}); changed=true; }
+        }else if(e.type==='gratitude'){
+          c.gratitude=c.gratitude||[]; if(!c.gratitude.some(x=>x.id===rid)&&e.text){ c.gratitude.push({id:rid,date:e.date||todayISO(),text:String(e.text).slice(0,140),at:e.at||Date.now()}); changed=true; }
+        }else if(e.type==='craving'){
+          c.cravings=c.cravings||[]; if(!c.cravings.some(x=>x.id===rid)){ c.cravings.push({id:rid,date:e.date||todayISO(),won:e.won===true,at:e.at||Date.now()}); changed=true; fresh.push({client:c.name,text:e.won===true?'🆘 tatlı krizini atlattı 💪':'🆘 tatlı krizi geçirdi, yine de yedi'}); }
         }else if(e.type==='visit'){
           c.visits=c.visits||[];
           if(!c.visits.some(x=>x.id===rid)){
@@ -10829,6 +10835,7 @@ function svMoreItems(){
   const hm=document.getElementById('sv-hamilelik'); if(hm) L.push({k:'sv-hamilelik',e:'🤰',t:'Hamilelik rehberi',s:'Hamilelikte beslenme',el:hm});
   const rh=document.getElementById('sv-rehber'); if(rh) L.push({k:'sv-rehber',e:'📚',t:'Bilgilendirme kitapçığı',s:'Konulara göre kısa yazılar',el:rh});
   const rg=sec('🌙'); if(rg) L.push({k:'regl',e:'🌙',t:'Regl takibi',s:'Döngüne uygun beslenme',el:rg});
+  try{ svUpTools().forEach(x=>L.push(x)); }catch(e){}
   return L;
 }
 let __svDrawerCur=null;
@@ -11159,7 +11166,7 @@ function svNowMealHtml(day){
   const n=day.meals.length, h=new Date().getHours()+new Date().getMinutes()/60;
   const idx=Math.max(0,Math.min(n-1,Math.floor((Math.max(7,Math.min(22.99,h))-7)/(16/n))));
   const m=day.meals[idx];
-  return '<section class="svup-card" id="svNowCard"><div class="svnow"><div class="ne">'+esc(m.emoji||'🍽')+'</div><div style="min-width:0"><div class="nt">Şimdi sıra</div><b>'+esc(m.name||'Öğün')+'</b><div class="nl">'+(m.lines||[]).slice(0,4).map(esc).join(' · ')+'</div></div></div></section>';
+  return '<section class="svup-card" id="svNowCard"><div class="svnow"><div class="ne">'+esc(m.emoji||'🍽')+'</div><div style="min-width:0"><div class="nt">Şimdi sıra</div><b>'+esc(m.name||'Öğün')+'</b><div class="nl">'+(m.lines||[]).slice(0,4).map(esc).join(' · ')+'</div></div></div><div id="svNowFeel">'+svFeelHtml(idx,m.name)+'</div></section>';
 }
 /* ── Su hatırlatıcı (sunucudan telefona bildirim) ── */
 function svWrKey(){ return 'sv_wr_'+(window.__shareTok||''); }
@@ -11213,9 +11220,251 @@ function svUpInit(){
       const anchor=document.getElementById('svNowCard')||hero;
       hero.insertAdjacentHTML('afterend',svNowMealHtml(day)+svRingCardHtml());
     }
+    try{ svToolsInit(); }catch(e){ console.error('[araçlar]',e); }
   }catch(e){ console.error('[up]',e); }
   try{ svWrWire(); }catch(e){}
   if(!window.__svHaptic){ window.__svHaptic=1; document.addEventListener('click',e=>{ if(e.target.closest&&e.target.closest('#svTabBar button,.pm-cups button,#shareView .btn,#shareView .chip')&&navigator.vibrate){ try{ navigator.vibrate(8); }catch(x){} } },true); }
+}
+/* ══════════════ 🧰 Yeni araçlar: tatlı krizi, dışarıda yeme, evde ne var, tabak, hava, ağaç, his, şükür, zor gün, pazar, ölçü, takvim, albüm ══════════════ */
+const svTk=()=>window.__shareTok||'';
+const svIso=d=>localISODate(d||new Date());
+function svMark(iso){ try{ localStorage.setItem('sv_act_'+svTk()+'_'+(iso||svIso()),'1'); }catch(e){} }
+function svDayScore(iso){
+  let s=0; const w=parseInt(pmLS('pm-su-'+iso)||'0',10)||0; if(w>=6) s++;
+  try{ if(svHistLoad().some(x=>x.date===iso)) s++; }catch(e){}
+  try{ if(localStorage.getItem('sv_act_'+svTk()+'_'+iso)) s++; }catch(e){}
+  return s;
+}
+function svPostQuiet(entry){ try{ const tok=svTk(); if(!tok||tok==='promo-landing') return; fetch(CLOUD_DB+'/shares/'+encodeURIComponent(tok)+'/intake.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)}).catch(()=>{}); }catch(e){} }
+const svBtn=(label,fn,st)=>'<button type="button" onclick="'+fn+'" style="border:0;border-radius:16px;padding:12px 14px;font:inherit;font-weight:800;cursor:pointer;'+(st||'background:#7c8f3e;color:#fff')+'">'+label+'</button>';
+const svHd=(e,t,s)=>'<div style="text-align:center"><div style="font-size:34px">'+e+'</div><h3 style="margin:4px 0 2px;font-family:\'Caveat\',cursive,var(--sans);font-size:28px;color:var(--blue-900)">'+t+'</h3>'+(s?'<p style="margin:0 0 12px;color:var(--muted);font-size:13px">'+s+'</p>':'')+'</div>';
+
+/* 🆘 Canım tatlı çekiyor */
+const SV_CRAVE_ALT=['🥜 Bir avuç çiğ fındık ya da badem','🍎 Dilimlenmiş elma + tarçın','🥛 Sıcak süt ya da ayran, yavaş yavaş','🍵 Tarçınlı ya da kuşburnu çayı','🍫 Bir kare bitter çikolata (sadece bir kare, yavaş ye)','🍓 Dondurulmuş meyve ya da yoğurtlu bir kase'];
+let __svCrT=null;
+function svCraveOpen(){
+  const o=svSheet(svHd('🆘','Seni anlıyorum, birlikte geçirelim','Tatlı isteği genelde 10 dakikada hafifler. Hadi önce nefes alalım 🌿')+'<div id="svCrBody"></div>');
+  const B=()=>o.querySelector('#svCrBody'); let n=0;
+  const phases=[['Nefes al…',4],['Tut…',4],['Yavaşça ver…',6]];
+  B().innerHTML='<div id="svBrC" style="width:120px;height:120px;border-radius:50%;margin:10px auto;background:radial-gradient(circle,#dbe6b0,#9fb85a);display:grid;place-items:center;font-weight:800;color:#33401A;transition:transform 4s ease-in-out;box-shadow:0 14px 30px -14px rgba(70,80,30,.6)"><span id="svBrT">Hazır mısın?</span></div><div id="svBrN" style="text-align:center;color:var(--muted);font-size:12.5px">3 tur nefes</div>';
+  let step=0, round=0; clearInterval(__svCrT);
+  const run=()=>{ if(!document.body.contains(o)) return; const c=o.querySelector('#svBrC'), t=o.querySelector('#svBrT'); if(!c) return;
+    const p=phases[step%3]; t.textContent=p[0]; c.style.transitionDuration=p[1]+'s'; c.style.transform=step%3===0?'scale(1.35)':step%3===1?'scale(1.35)':'scale(1)';
+    setTimeout(()=>{ step++; if(step%3===0) round++; if(round>=3){ svCraveTimer(o); return; } run(); },p[1]*1000); };
+  setTimeout(run,900);
+}
+function svCraveTimer(o){
+  if(!document.body.contains(o)) return; let left=600;
+  const B=o.querySelector('#svCrBody');
+  B.innerHTML='<div style="text-align:center;font-size:13px;color:var(--ink-2);margin-bottom:6px">Şimdi 10 dakika bekleyelim. Bu arada bunlardan biri iyi gelir:</div><div style="text-align:center;font-size:44px;font-weight:800;color:#55662A;font-variant-numeric:tabular-nums" id="svCrClock">10:00</div><div style="display:grid;gap:6px;margin:10px 0;font-size:13.5px">'+SV_CRAVE_ALT.slice().sort(()=>Math.random()-.5).slice(0,3).map(x=>'<div style="padding:9px 12px;border-radius:14px;background:#f1f5e1">'+x+'</div>').join('')+'</div><div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">'+svBtn('Atlattım 💪','svCraveEnd(true)')+svBtn('Yine de yedim 💛','svCraveEnd(false)','background:#fff;border:1.5px solid #c9d6a0;color:#55662A')+'</div>';
+  clearInterval(__svCrT); __svCrT=setInterval(()=>{ const c=document.getElementById('svCrClock'); if(!c){ clearInterval(__svCrT); return; } left--; c.textContent=String(Math.floor(left/60)).padStart(2,'0')+':'+String(left%60).padStart(2,'0'); if(left<=0){ clearInterval(__svCrT); c.textContent='Süre doldu 🎉'; } },1000);
+}
+function svCraveEnd(won){
+  clearInterval(__svCrT); svMark();
+  svPostQuiet({type:'craving',date:svIso(),won,at:Date.now()});
+  if(!won) try{ pushNotifyAdmin('🆘 tatlı krizi geçirdi, yine de yedi'); }catch(e){}
+  const o=document.getElementById('svSheet'); if(o) o.remove();
+  svSheet(svHd(won?'🎉':'💛',won?'Bunu başardın!':'Sorun değil, kendine kızma','')+'<p style="text-align:center;line-height:1.6;font-size:14px">'+(won?'Tatlı isteğini yendin. Bu, kasın gibi: her seferinde biraz daha güçleniyor. Seninle gurur duyuyorum 💪':'Hepimizin olur. Önemli olan bir sonraki öğünde yoluna devam etmek. Bir yudum su iç, devam ediyoruz 💧')+'</p><div style="text-align:center;margin-top:10px">'+svBtn('Tamam','document.getElementById(\'svSheet\').remove()')+'</div>');
+}
+/* 🍽 Dışarıda yiyorum */
+const SV_OUT=[
+ ['🥙','Kebapçı','Izgara tavuk, köfte ya da et; yanında bol salata, közlenmiş sebze','Lahmacun + pide gibi hamur ikilisi, bol yağlı soslar, bitmeyen ekmek','Pilav ya da bulguru bir avuç kadar al, ekmeği yarım tut'],
+ ['🍕','Pizza','İnce hamur, sebzeli ya da tavuklu; yanına büyük bir salata','Ekstra peynir, sucuk, kalın hamur, kenarda sos','2 dilimde dur, salatayı önce ye'],
+ ['🍔','Fast food','Tek köfteli, bol yeşillikli burger; ayran ya da su','Büyük boy menü, kola, çift patates, ekstra sos','Patatesi küçük boy yap ya da salata iste'],
+ ['🍰','Tatlıcı / pastane','Sütlü ya da meyveli tatlı, kuru pasta, bir kâse meyve','Şerbetli büyük porsiyon, kremalı pastanın tamamı','Paylaş, yemekten sonra ye, ilk üç kaşıktan keyif al'],
+ ['💍','Düğün / davet','Önce çorba ve salata, sonra ızgara ya da fırın bir protein','Tepsideki tüm çeşitleri tabağa doldurmak','Tek tabak, ikinci tur yok; tatlıdan sadece birkaç kaşık'],
+ ['☕','Kafe','Filtre kahve, sade Türk kahvesi, bitki çayı; yanına yoğurt ya da meyve','Şuruplu, kremalı kahveler, büyük kek dilimi','Tatlıyı paylaş, kahveyi şekersiz dene'],
+ ['🍳','Kahvaltı mekanı','Haşlanmış ya da menemen, peynir, zeytin, domates-salatalık','Sınırsız poğaça, simit, bol reçel','2 dilim ekmek; yumurta ve sebzeyi önce ye'],
+ ['🍲','Esnaf lokantası','Zeytinyağlı sebze, ızgara, çorba, yoğurt','Kızartma, bol yağlı hamur işleri, kuru fasulye + pilav + ekmek üçlüsü','Ana yemek yarım tabak, kalan yarısı sebze'],
+ ['🥢','Uzak Doğu','Sebzeli sote, buharda pişen yemekler, sushi (sade)','Tatlı-ekşi soslar, tempura, kızarmış pilav','Sosu yanda iste, çubukla ye (yavaş yersin)'],
+ ['✈️','Yolculuk','Yanına fındık, meyve, yoğurt, haşlanmış yumurta al','Benzin istasyonu atıştırmalıkları, gazlı içecekler','Aç kalma; her 3-4 saatte küçük bir şey ye, su şişen yanında olsun']
+];
+function svOutOpen(){ svSheet(svHd('🍽','Dışarıda yiyorum','Nereye gidiyorsun? Sana 3 net cümlem var 💛')+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+SV_OUT.map((x,i)=>'<button type="button" onclick="svOutShow('+i+')" style="border:1px solid var(--line);background:#fff;border-radius:16px;padding:12px 8px;font:inherit;font-weight:700;cursor:pointer"><div style="font-size:26px">'+x[0]+'</div>'+x[1]+'</button>').join('')+'</div>'); }
+function svOutShow(i){ const x=SV_OUT[i], o=document.getElementById('svSheet'); if(o) o.remove();
+  svSheet(svHd(x[0],x[1],'')+'<div style="display:grid;gap:8px;font-size:14px;line-height:1.55"><div style="padding:11px 13px;border-radius:14px;background:#eef5dc"><b>✅ Seç</b><br>'+x[2]+'</div><div style="padding:11px 13px;border-radius:14px;background:#fdeee4"><b>⏭ Geç</b><br>'+x[3]+'</div><div style="padding:11px 13px;border-radius:14px;background:#eef3fb"><b>🥄 Porsiyon</b><br>'+x[4]+'</div></div><div style="text-align:center;margin-top:12px">'+svBtn('‹ Geri','svOutOpen()','background:#fff;border:1.5px solid #c9d6a0;color:#55662A')+'</div>'); }
+/* 🧊 Evde ne var? (yapay zekâ) */
+function svFridgeOpen(){
+  svSheet(svHd('🧊','Evde ne var?','Elindeki 3-4 malzemeyi yaz, programına uygun bir tarif çıkaralım')+'<textarea id="svFrIn" rows="2" placeholder="örn. yumurta, kabak, yoğurt, peynir" style="width:100%;box-sizing:border-box;border-radius:14px;border:1.5px solid #c9d6a0;padding:10px;font:inherit"></textarea><div style="text-align:center;margin:10px 0">'+svBtn('✨ Tarif öner','svFridgeGo()')+'</div><div id="svFrOut" style="font-size:14px;line-height:1.65;white-space:pre-wrap"></div>');
+}
+async function svFridgeGo(){
+  const inp=document.getElementById('svFrIn'), out=document.getElementById('svFrOut'); const q=(inp.value||'').trim(); if(!q) return toast('Birkaç malzeme yaz');
+  out.textContent='Tarif düşünülüyor… 🍳';
+  try{
+    const r=await fetch('/.netlify/functions/ask-assistant',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:svTk(),question:'Evimde şunlar var: '+q+'. Programıma uygun, en fazla 15 dakikada hazırlanan basit bir tarif öner. Malzemeler ve kısa yapılış olsun.',context:svChatContext(window.__shareSnap||{}),history:[]})});
+    const d=await r.json().catch(()=>({})); out.textContent=(r.ok&&d.text)?d.text:(d.error||'Şu an tarif çıkaramadım, tekrar dener misin?');
+  }catch(e){ out.textContent='Bağlantı sorunu oldu, tekrar dener misin?'; }
+}
+/* 🥗 Etkileşimli tabak */
+function svPlateOpen(){
+  const parts=[['Sebze','#7fb04a','Tabağın yarısı sebze ya da salata: ızgara, haşlama, zeytinyağlı. Lif ve vitamin kaynağı, doyurur.'],['Protein','#e4772f','Çeyreği protein: tavuk, balık, yumurta, baklagil, yoğurt. Avucunun içi kadar.'],['Karbonhidrat','#e0b84a','Çeyreği tam tahıl: bulgur, esmer pirinç, tam buğday ekmeği. Yumruğun kadar.']];
+  const sec=(a0,a1,c,i)=>{ const r=70, x0=80+r*Math.cos(a0), y0=80+r*Math.sin(a0), x1=80+r*Math.cos(a1), y1=80+r*Math.sin(a1); return '<path d="M80 80 L'+x0.toFixed(1)+' '+y0.toFixed(1)+' A'+r+' '+r+' 0 '+(a1-a0>Math.PI?1:0)+' 1 '+x1.toFixed(1)+' '+y1.toFixed(1)+'Z" fill="'+c+'" stroke="#fff" stroke-width="3" style="cursor:pointer" onclick="svPlateTap('+i+')"/>'; };
+  window.__svPl=parts;
+  svSheet(svHd('🥗','İdeal tabağın','Dokun, ne olduğunu göstereyim')+'<svg viewBox="0 0 160 160" style="width:min(250px,70vw);display:block;margin:0 auto"><circle cx="80" cy="80" r="76" fill="#fff" stroke="#e6ecd0" stroke-width="4"/>'+sec(Math.PI*0.5,Math.PI*1.5,parts[0][1],0)+sec(Math.PI*1.5,Math.PI*2,parts[1][1],1)+sec(0,Math.PI*0.5,parts[2][1],2)+'</svg><div id="svPlTxt" style="text-align:center;margin:10px 0;font-size:14px;line-height:1.55;min-height:62px"></div><div style="padding:11px 13px;border-radius:14px;background:#f3f6e6;font-size:13px;line-height:1.7"><b>✋ Elinle ölç</b><br>Avuç içi = protein · Yumruk = karbonhidrat · İki avuç = sebze · Baş parmak ucu = yağ (zeytinyağı, fındık)</div>');
+  svPlateTap(0);
+}
+function svPlateTap(i){ const p=window.__svPl[i], t=document.getElementById('svPlTxt'); if(t) t.innerHTML='<b style="color:'+p[1]+'">'+p[0]+'</b><br>'+p[2]; }
+/* 🍅 Bu ay pazarda ne var */
+const SV_SEASON=[
+ [['🍊','Portakal','C vitamini, bağışıklık'],['🥬','Lahana','Lifli, hafif'],['🥕','Havuç','A vitamini'],['🍋','Limon','C vitamini'],['🥦','Brokoli','Lif ve demir'],['🧅','Pırasa','Sindirimi rahatlatır']],
+ [['🍊','Mandalina','C vitamini'],['🥬','Ispanak','Demir'],['🍎','Elma','Lif'],['🥦','Karnabahar','Düşük kalorili'],['🧅','Pırasa','Hafif'],['🍋','Limon','Taze lezzet']],
+ [['🥬','Ispanak','Demir'],['🍓','Çilek','C vitamini'],['🥬','Marul','Hafif ve sulu'],['🫛','Bakla','Lif ve protein'],['🥕','Turp','Ferahlatır'],['🍊','Portakal','C vitamini']],
+ [['🍓','Çilek','Antioksidan'],['🫛','Bakla','Lif ve protein'],['🌿','Enginar','Sindirimi destekler'],['🥬','Marul','Sulu'],['🧅','Taze soğan','Lezzet katar'],['🥒','Salatalık','Su dolu']],
+ [['🍒','Kiraz','Antioksidan'],['🍓','Çilek','C vitamini'],['🥒','Salatalık','Ferahlatır'],['🫛','Bezelye','Lif ve protein'],['🥬','Roka','Demir'],['🍑','Kayısı','A vitamini']],
+ [['🍒','Kiraz','Antioksidan'],['🍑','Kayısı','A vitamini'],['🍅','Domates','Likopen'],['🥒','Salatalık','Sulu'],['🫑','Biber','C vitamini'],['🍉','Karpuz','Su dolu']],
+ [['🍉','Karpuz','Su dolu'],['🍈','Kavun','Ferahlatır'],['🍑','Şeftali','Hafif tatlı'],['🍅','Domates','Likopen'],['🍆','Patlıcan','Lifli'],['🫑','Biber','C vitamini']],
+ [['🍇','Üzüm','Doğal tatlı, ölçülü ye'],['🍉','Karpuz','Su dolu'],['🍑','Şeftali','Hafif tatlı'],['🍆','Patlıcan','Lifli'],['🌽','Mısır','Lif'],['🍅','Domates','Likopen']],
+ [['🍇','Üzüm','Ölçülü ye'],['🍐','Armut','Lifli'],['🍎','Elma','Lif'],['🌽','Mısır','Lif'],['🍆','Patlıcan','Lifli'],['🍅','Domates','Likopen']],
+ [['🍎','Elma','Lif'],['🍐','Armut','Lifli'],['🎃','Balkabağı','A vitamini'],['🥬','Ispanak','Demir'],['🫒','Zeytin','Hasat zamanı! Sağlıklı yağ'],['🍇','Üzüm','Ölçülü ye']],
+ [['🍊','Mandalina','C vitamini'],['🍎','Elma','Lif'],['🥬','Lahana','Hafif'],['🎃','Balkabağı','A vitamini'],['🫒','Zeytin','Sağlıklı yağ'],['🥦','Karnabahar','Hafif']],
+ [['🍊','Portakal','C vitamini'],['🍋','Limon','C vitamini'],['🥬','Lahana','Hafif'],['🥕','Havuç','A vitamini'],['🥦','Brokoli','Lif ve demir'],['🔴','Nar','Antioksidan']]
+];
+function svSeasonOpen(){ const m=new Date().getMonth(), ay=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][m];
+  svSheet(svHd('🍅',ay+' ayında pazarda ne var?','Mevsiminde yemek hem ucuz hem lezzetli, hem de daha faydalı 🌿')+'<div style="display:grid;gap:8px">'+SV_SEASON[m].map(x=>'<div style="display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:16px;background:#f3f6e6"><div style="font-size:32px">'+x[0]+'</div><div><b>'+x[1]+'</b><div style="font-size:12.5px;color:var(--muted)">'+x[2]+'</div></div></div>').join('')+'</div>'); }
+/* 📏 Ölçü çevirici */
+const SV_MEAS=[['Pirinç (çiğ)','1 su bardağı',170,610],['Bulgur (çiğ)','1 su bardağı',150,510],['Mercimek (kuru)','1 su bardağı',190,670],['Nohut (haşlanmış)','1 su bardağı',160,260],['Makarna (haşlanmış)','1 su bardağı',140,220],['Un','1 su bardağı',110,400],['Yulaf ezmesi','3 yemek kaşığı',30,115],['Zeytinyağı','1 yemek kaşığı',10,90],['Zeytinyağı','1 tatlı kaşığı',5,45],['Tereyağı','1 yemek kaşığı',12,85],['Tahin','1 yemek kaşığı',15,90],['Bal','1 yemek kaşığı',20,60],['Pekmez','1 yemek kaşığı',20,55],['Toz şeker','1 tatlı kaşığı',5,20],['Süt','1 su bardağı (200 ml)',200,125],['Yoğurt (tam yağlı)','1 su bardağı',200,120],['Ayran','1 su bardağı',200,72],['Beyaz peynir','1 kibrit kutusu',30,80],['Yumurta','1 adet',50,75],['Ekmek','1 dilim',25,65],['Simit','1 adet',110,330],['Patates','1 orta boy',150,115],['Muz','1 orta boy',120,105],['Elma','1 orta boy',150,80],['Portakal','1 orta boy',150,70],['Ceviz (içi)','1 adet',4,26],['Fındık','10 adet',15,95],['Badem','10 adet',12,70],['Siyah zeytin','5 adet',20,45],['Tavuk göğsü (pişmiş)','1 porsiyon (100 g)',100,165],['Kıyma (pişmiş)','1 porsiyon (100 g)',100,250],['Ton balığı (süzülmüş)','1 küçük kutu',80,95],['Kola','1 kutu (330 ml)',330,140],['Çikolata','1 kare',5,28]];
+function svMeasOpen(){
+  svSheet(svHd('📏','Ölçü çevirici','Yaklaşık değerlerdir; marka ve pişirmeye göre değişir')+'<input id="svMeIn" placeholder="Ara… örn. pirinç, zeytinyağı" oninput="svMeasList()" style="width:100%;box-sizing:border-box;border-radius:14px;border:1.5px solid #c9d6a0;padding:10px;font:inherit;margin-bottom:8px"><div id="svMeL" style="display:grid;gap:6px"></div>'); svMeasList();
+}
+function svMeasList(){ const q=((document.getElementById('svMeIn')||{}).value||'').toLocaleLowerCase('tr'); const L=document.getElementById('svMeL'); if(!L) return;
+  const r=SV_MEAS.filter(x=>!q||(x[0]+' '+x[1]).toLocaleLowerCase('tr').includes(q));
+  L.innerHTML=r.length?r.map(x=>'<div style="display:flex;gap:10px;align-items:center;padding:9px 12px;border-radius:14px;background:#f3f6e6;font-size:13.5px"><div style="flex:1"><b>'+x[0]+'</b><div style="color:var(--muted);font-size:12px">'+x[1]+'</div></div><div style="text-align:right"><b>'+x[2]+' g</b><div style="color:#c0561e;font-size:12px">≈ '+x[3]+' kcal</div></div></div>').join(''):'<p style="text-align:center;color:var(--muted)">Bulamadım, farklı bir ad dene 🌿</p>'; }
+/* 🗓 Isı haritası takvimi */
+let __svCalOff=0;
+function svCalOpen(){ __svCalOff=0; svSheet('<div id="svCalBox"></div>'); svCalDraw(); }
+function svCalDraw(){
+  const box=document.getElementById('svCalBox'); if(!box) return;
+  const now=new Date(), d=new Date(now.getFullYear(),now.getMonth()+__svCalOff,1), y=d.getFullYear(), m=d.getMonth();
+  const ay=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'][m];
+  const first=(d.getDay()+6)%7, days=new Date(y,m+1,0).getDate(), col=['#eef1e0','#cfdca0','#9fb85a','#5f7a2a'];
+  let cells='', good=0; for(let i=0;i<first;i++) cells+='<div></div>';
+  for(let i=1;i<=days;i++){ const iso=y+'-'+String(m+1).padStart(2,'0')+'-'+String(i).padStart(2,'0'), fut=new Date(y,m,i)>now, sc=fut?0:svDayScore(iso); if(sc>0) good++;
+    cells+='<div style="aspect-ratio:1;border-radius:10px;background:'+(fut?'#f6f7f0':col[sc])+';display:grid;place-items:center;font-size:12px;font-weight:700;color:'+(sc>=2?'#fff':'#55662A')+';'+(iso===svIso()?'box-shadow:0 0 0 2px #e4772f':'')+'">'+i+'</div>'; }
+  box.innerHTML=svHd('🗓',ay+' '+y,'Koyu yeşil = harika gün')+'<div style="display:flex;justify-content:space-between;margin-bottom:8px">'+svBtn('‹','__svCalOff--;svCalDraw()','background:#f1f5e1;color:#55662A;padding:6px 14px')+'<b style="align-self:center;font-size:13px">'+good+' aktif gün</b>'+svBtn('›','__svCalOff=Math.min(0,__svCalOff+1);svCalDraw()','background:#f1f5e1;color:#55662A;padding:6px 14px')+'</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;text-align:center;font-size:11px;color:var(--muted);margin-bottom:4px">'+['Pt','Sa','Ça','Pe','Cu','Ct','Pz'].map(x=>'<div>'+x+'</div>').join('')+'</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">'+cells+'</div><div style="display:flex;gap:6px;justify-content:center;align-items:center;margin-top:12px;font-size:11.5px;color:var(--muted)">az '+col.map(c=>'<i style="width:16px;height:16px;border-radius:5px;background:'+c+'"></i>').join('')+' çok</div><p style="text-align:center;font-size:11.5px;color:var(--muted);margin:10px 0 0">Su içmek, günlüğü işaretlemek ve küçük adımlar günü yeşillendirir 🌿</p>';
+}
+/* 🖼 Tabak albümüm */
+function svAlbumKey(){ return 'sv_album_'+svTk(); }
+function svAlbumGet(){ try{ return JSON.parse(localStorage.getItem(svAlbumKey())||'[]'); }catch(e){ return []; } }
+function svAlbumAdd(photo,label){
+  if(!photo||!/^data:image/.test(photo)) return;
+  const im=new Image(); im.onload=()=>{ try{ const s=360, c=document.createElement('canvas'); c.width=c.height=s; const x=c.getContext('2d'), k=Math.max(s/im.width,s/im.height), w=im.width*k, h=im.height*k; x.drawImage(im,(s-w)/2,(s-h)/2,w,h);
+    const a=svAlbumGet(); a.push({at:Date.now(),label:label||'',img:c.toDataURL('image/jpeg',.7)}); while(a.length>12) a.shift(); localStorage.setItem(svAlbumKey(),JSON.stringify(a)); }catch(e){} }; im.src=photo;
+}
+function svAlbumOpen(){
+  const a=svAlbumGet().slice(-9);
+  svSheet(svHd('🖼','Tabak albümüm','Gönderdiğin öğün fotoğraflarından güzel bir kolaj')+(a.length?'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">'+a.map(x=>'<img src="'+x.img+'" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px">').join('')+'</div><div style="text-align:center;margin-top:12px">'+svBtn('✨ Kolajı kaydet / paylaş','svAlbumShare()')+'</div>':svEmptyHtml('Albümün henüz boş','Öğün fotoğrafı gönderdikçe burada birikir 📸')));
+}
+function svAlbumShare(){
+  const a=svAlbumGet().slice(-9); if(!a.length) return;
+  const W=1080,H=1350,c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  x.fillStyle='#f6f8ec'; x.fillRect(0,0,W,H); x.fillStyle='#55662A'; x.font='bold 64px Georgia,serif'; x.textAlign='left'; x.fillText('Haftamın tabakları',60,110); x.font='34px Georgia,serif'; x.fillStyle='#7c8f3e'; x.fillText('Adım adım, güzel adım 🫒',60,165);
+  const g=14, cell=(W-120-2*g)/3; let n=0, pend=a.length;
+  const done=()=>{ x.fillStyle='#55662A'; x.font='bold 36px Georgia,serif'; x.textAlign='center'; x.fillText('Diyetisyen Ayşenur Korkmaz',W/2,H-50);
+    c.toBlob(async b=>{ if(!b) return; const f=new File([b],'tabak-albumum.png',{type:'image/png'});
+      try{ if(navigator.canShare&&navigator.canShare({files:[f]})){ await navigator.share({files:[f],title:'Tabak albümüm'}); return; } }catch(e){ if(e&&e.name==='AbortError') return; }
+      const u=URL.createObjectURL(b), l=document.createElement('a'); l.href=u; l.download='tabak-albumum.png'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000); toast('Kolaj indirildi 🖼'); },'image/png'); };
+  a.forEach((it,i)=>{ const im=new Image(); im.onload=()=>{ const cx=60+(i%3)*(cell+g), cy=230+Math.floor(i/3)*(cell+g); x.save(); x.beginPath(); if(x.roundRect) x.roundRect(cx,cy,cell,cell,28); else x.rect(cx,cy,cell,cell); x.clip(); x.drawImage(im,cx,cy,cell,cell); x.restore(); if(--pend===0) done(); }; im.onerror=()=>{ if(--pend===0) done(); }; im.src=it.img; });
+}
+/* 🌸 Zor gün modu */
+function svHardKey(){ return 'sv_hard_'+svTk(); }
+function svIsHard(){ try{ return localStorage.getItem(svHardKey())===svIso(); }catch(e){ return false; } }
+function svHardBanner(){ return svIsHard()?'<section class="svup-card" id="svHardCard" style="background:linear-gradient(135deg,#fff7ef,#fdeee4)"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:34px">🌸</div><div style="font-size:13.5px;line-height:1.55"><b>Bugün zor bir gün, sorun değil.</b><br>Bugünün tek hedefi: biraz su iç ve bir öğünü güzel ye. Gerisini yarına bırak 💛</div></div></section>':''; }
+function svHardToggle(){
+  if(svIsHard()){ try{ localStorage.removeItem(svHardKey()); }catch(e){} toast('Zor gün modu kapandı'); }
+  else{ try{ localStorage.setItem(svHardKey(),svIso()); }catch(e){} svMark(); svPostQuiet({type:'clientNote',date:svIso(),text:'🌸 Bugün zor bir gün geçiriyorum',at:Date.now()}); try{ pushNotifyAdmin('🌸 bugün zor bir gün geçiriyor'); }catch(e){} toast('Anlıyorum 🌸 Bugün kendine nazik ol',3500); }
+  const old=document.getElementById('svHardCard'); if(old) old.remove();
+  const ring=document.getElementById('svRingCard'); if(ring&&svIsHard()) ring.insertAdjacentHTML('beforebegin',svHardBanner());
+}
+/* ⛅ Havaya göre öneri */
+function svWxTip(t,code){
+  const rain=(code>=51&&code<=67)||(code>=80&&code<=82)||code>=95;
+  if(rain) return ['🌧','Yağmurlu bir gün: evde 10 dakika hareket et, sıcak bir çorba ya da bitki çayı iyi gider.'];
+  if(t>=32) return ['🥵','Çok sıcak! Su hedefini 2 bardak artır. Hafif, soğuk yemekler (ayranlı salata, yoğurt, meyve) iyi gelir. Öğle güneşinde yürüyüş yapma.'];
+  if(t>=25) return ['☀️','Sıcak bir gün: su şişeni yanından ayırma, sulu meyve ve sebzeler harika olur.'];
+  if(t>=15) return ['🌤','Hava çok güzel! Yürüyüş için harika bir gün, 15 dakika bile yeter 🚶'];
+  if(t>=5) return ['🍂','Hava serin: sıcak çorba ve bitki çayı günü. Su içmeyi unutma, soğukta susamayı daha az hissederiz.'];
+  return ['❄️','Soğuk bir gün: çorba, sıcak içecekler ve bol kat. Su içmeyi atlama.'];
+}
+async function svWxLoad(){
+  const box=document.getElementById('svWxCard'); if(!box) return;
+  try{
+    const k='sv_wx_'+svTk(); let c=null; try{ c=JSON.parse(localStorage.getItem(k)||'null'); }catch(e){}
+    let loc={lat:36.8969,lon:30.7133,n:'Antalya'}; try{ loc=JSON.parse(localStorage.getItem('sv_loc_'+svTk())||'null')||loc; }catch(e){}
+    if(!c||Date.now()-c.at>30*60e3||c.lat!==loc.lat){
+      const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+loc.lat+'&longitude='+loc.lon+'&current=temperature_2m,weather_code'); if(!r.ok) throw 0;
+      const j=await r.json(); c={at:Date.now(),lat:loc.lat,t:Math.round(j.current.temperature_2m),code:j.current.weather_code}; try{ localStorage.setItem(k,JSON.stringify(c)); }catch(e){}
+    }
+    const tip=svWxTip(c.t,c.code);
+    box.innerHTML='<div style="display:flex;gap:12px;align-items:center"><div style="font-size:36px">'+tip[0]+'</div><div style="font-size:13.5px;line-height:1.55"><b>'+c.t+'° · '+esc(loc.n)+'</b><br>'+tip[1]+'</div></div><div style="text-align:right;margin-top:4px"><button type="button" onclick="svWxLocate()" style="border:0;background:none;color:var(--blue-700);font:inherit;font-size:11.5px;font-weight:700;cursor:pointer">📍 Konumumu kullan</button></div>';
+    box.style.display='';
+  }catch(e){ box.style.display='none'; }
+}
+function svWxLocate(){
+  if(!navigator.geolocation) return toast('Bu cihaz konumu desteklemiyor');
+  navigator.geolocation.getCurrentPosition(p=>{ try{ localStorage.setItem('sv_loc_'+svTk(),JSON.stringify({lat:+p.coords.latitude.toFixed(2),lon:+p.coords.longitude.toFixed(2),n:'Bulunduğun yer'})); localStorage.removeItem('sv_wx_'+svTk()); }catch(e){} svWxLoad(); },()=>toast('Konum izni verilmedi'),{timeout:8000});
+}
+/* 🫒 Zeytin ağacım */
+function svTreeInfo(){
+  let tot=0; const now=new Date(); for(let i=0;i<150;i++){ const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i); if(svDayScore(svIso(d))>0) tot++; }
+  const st=[[0,'Tohum','Toprağa bir tohum bıraktın. Her aktif gün ona su veriyor 💧'],[1,'Filiz','İlk filizin çıktı!'],[5,'Fidan','Fidanın güçleniyor'],[14,'Genç ağaç','Dalların açılıyor 🌿'],[30,'Olgun ağaç','Ağacın gölge veriyor'],[55,'Zeytin hasadı','Ağacın zeytin verdi! Emeğinin meyvesi 🫒']];
+  let lv=0; st.forEach((s,i)=>{ if(tot>=s[0]) lv=i; });
+  return {tot,lv,cur:st[lv],next:st[lv+1]||null};
+}
+function svTreeSvg(lv){
+  const g='<path d="M10 118 Q80 108 150 118 L150 130 L10 130Z" fill="#c9b28a"/><path d="M10 118 Q80 108 150 118" fill="none" stroke="#8a9a4a" stroke-width="3"/>';
+  const L=(x,y,r,c)=>'<ellipse cx="'+x+'" cy="'+y+'" rx="'+(r*1.5)+'" ry="'+r+'" fill="'+c+'" transform="rotate(-25 '+x+' '+y+')"/>';
+  if(lv===0) return '<svg viewBox="0 0 160 130">'+g+'<ellipse cx="80" cy="114" rx="7" ry="5" fill="#8b6b3a"/></svg>';
+  if(lv===1) return '<svg viewBox="0 0 160 130">'+g+'<path d="M80 116 L80 96" stroke="#6a7a3a" stroke-width="3"/>'+L(70,94,6,'#8da04a')+L(90,92,6,'#a3b866')+'</svg>';
+  if(lv===2) return '<svg viewBox="0 0 160 130">'+g+'<path d="M80 118 L80 70" stroke="#7a6a4a" stroke-width="5" stroke-linecap="round"/>'+L(66,76,8,'#8da04a')+L(95,70,8,'#a3b866')+L(72,58,8,'#7e9444')+L(90,52,8,'#a3b866')+'</svg>';
+  const trunk='<path d="M80 118 C76 96 86 84 80 62 M80 96 C94 88 100 80 104 70 M80 86 C66 80 60 72 58 64" stroke="#7a6a4a" stroke-width="'+(lv>=4?7:5)+'" stroke-linecap="round" fill="none"/>';
+  let leaves=L(58,58,10,'#8da04a')+L(104,64,10,'#a3b866')+L(80,50,11,'#7e9444')+L(66,40,9,'#a3b866')+L(96,42,9,'#8da04a');
+  if(lv>=4) leaves+=L(44,70,9,'#a3b866')+L(118,76,9,'#7e9444')+L(80,32,9,'#8da04a')+L(60,50,8,'#7e9444');
+  const ol=lv>=5?[[56,66],[100,74],[78,58],[68,46],[92,48],[46,76],[116,82]].map(p=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3.6" fill="#4a4b2c"/>').join(''):'';
+  return '<svg viewBox="0 0 160 130">'+g+trunk+leaves+ol+'</svg>';
+}
+function svTreeHtml(){
+  const t=svTreeInfo(), pr=t.next?Math.min(100,Math.round((t.tot-t.cur[0])/(t.next[0]-t.cur[0])*100)):100;
+  return '<section class="svup-card" id="svTreeCard"><h3 class="svup-h">Zeytin ağacım</h3><div style="display:flex;gap:12px;align-items:center"><div style="width:120px;flex:none">'+svTreeSvg(t.lv)+'</div><div style="flex:1;font-size:13px;line-height:1.5"><b style="font-size:15px">'+t.cur[1]+'</b><br>'+t.cur[2]+'<div style="height:8px;border-radius:6px;background:#e8eed2;margin:8px 0 4px;overflow:hidden"><div style="height:100%;width:'+pr+'%;background:linear-gradient(90deg,#9fb85a,#55662A)"></div></div><span style="color:var(--muted);font-size:11.5px">'+(t.next?'Sonraki: '+t.next[1]+' · '+(t.next[0]-t.tot)+' aktif gün':'Zirvedesin! 🎉')+' · toplam '+t.tot+' gün</span></div></div></section>';
+}
+/* 💭 Öğün sonrası his + 🌙 şükür */
+function svFeelKey(i){ return 'sv_feel_'+svTk()+'_'+svIso()+'_'+i; }
+function svFeelHtml(i,name){
+  let v=null; try{ v=localStorage.getItem(svFeelKey(i)); }catch(e){}
+  if(v) return '<div style="margin-top:10px;font-size:12.5px;color:#55662A;font-weight:700">💭 Not aldım: '+esc(v)+' ✓</div>';
+  const b=(l)=>'<button type="button" onclick="svFeel('+i+',\''+l+'\',\''+esc(name||'öğün').replace(/'/g,'')+'\')" style="border:1.5px solid #c9d6a0;background:#fff;border-radius:14px;padding:7px 10px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer">'+l+'</button>';
+  return '<div style="margin-top:10px"><div style="font-size:12px;color:var(--muted);margin-bottom:5px">Yedikten sonra nasıl hissediyorsun?</div><div style="display:flex;gap:6px;flex-wrap:wrap">'+b('😋 Aç')+b('🙂 Tok')+b('😵 Çok tok')+'</div></div>';
+}
+function svFeel(i,v,name){ try{ localStorage.setItem(svFeelKey(i),v); }catch(e){} svMark(); svPostQuiet({type:'feel',date:svIso(),meal:name,feel:v,at:Date.now()}); const c=document.getElementById('svNowFeel'); if(c) c.innerHTML=svFeelHtml(i,name); toast('Teşekkürler, not aldım 💛',2000); try{ svRingUpdate(); }catch(e){} }
+function svGratHtml(){
+  if(new Date().getHours()<17) return ''; let done=false; try{ done=!!localStorage.getItem('sv_grat_'+svTk()+'_'+svIso()); }catch(e){}
+  if(done) return '<section class="svup-card" id="svGratCard"><div style="font-size:13.5px;text-align:center">🌙 Bugünün şükür satırını yazdın, tatlı rüyalar 💛</div></section>';
+  return '<section class="svup-card" id="svGratCard"><h3 class="svup-h">🌙 Günün güzel satırı</h3><div style="font-size:12.5px;color:var(--muted);margin-bottom:6px">Bugün kendinle en çok gurur duyduğun şey ne?</div><div style="display:flex;gap:8px"><input id="svGratIn" maxlength="140" placeholder="örn. Su hedefimi tamamladım" style="flex:1;min-width:0;border-radius:14px;border:1.5px solid #c9d6a0;padding:9px 11px;font:inherit"><button type="button" onclick="svGratSave()" style="border:0;border-radius:14px;padding:0 14px;background:#7c8f3e;color:#fff;font-weight:800;cursor:pointer">Kaydet</button></div></section>';
+}
+function svGratSave(){ const i=document.getElementById('svGratIn'); const t=(i&&i.value||'').trim(); if(!t) return toast('Bir cümle yaz 💛');
+  try{ localStorage.setItem('sv_grat_'+svTk()+'_'+svIso(),t); const a=JSON.parse(localStorage.getItem('sv_gratlist_'+svTk())||'[]'); a.push({d:svIso(),t}); localStorage.setItem('sv_gratlist_'+svTk(),JSON.stringify(a.slice(-60))); }catch(e){}
+  svMark(); svPostQuiet({type:'gratitude',date:svIso(),text:t.slice(0,140),at:Date.now()});
+  const c=document.getElementById('svGratCard'); if(c) c.outerHTML=svGratHtml(); toast('Ne güzel! 🌙',2200); }
+function svGratBook(){ let a=[]; try{ a=JSON.parse(localStorage.getItem('sv_gratlist_'+svTk())||'[]'); }catch(e){}
+  svSheet(svHd('📖','Güzel satırlarım','Kendi cümlelerinden oluşan küçük kitabın')+(a.length?'<div style="display:grid;gap:8px">'+a.slice().reverse().map(x=>'<div style="padding:10px 12px;border-radius:14px;background:#f3f6e6;font-size:14px"><div style="font-size:11px;color:var(--muted)">'+trDate(x.d)+'</div>'+esc(x.t)+'</div>').join('')+'</div>':svEmptyHtml('Henüz satır yok','Akşam kartına bir cümle yazınca burada birikir 🌙'))); }
+/* Araç listesi (Daha fazla) */
+function svUpTools(){
+  return [
+   {k:'t-out',e:'🍽',t:'Dışarıda yiyorum',s:'Kebapçıdan düğüne akıllı seçimler',act:()=>svOutOpen()},
+   {k:'t-fr',e:'🧊',t:'Evde ne var?',s:'Malzemeni yaz, tarif çıksın',act:()=>svFridgeOpen()},
+   {k:'t-pl',e:'🥗',t:'İdeal tabağın',s:'Porsiyonu elinle ölç',act:()=>svPlateOpen()},
+   {k:'t-se',e:'🍅',t:'Bu ay pazarda ne var',s:'Mevsiminde yemek',act:()=>svSeasonOpen()},
+   {k:'t-me',e:'📏',t:'Ölçü çevirici',s:'Bardak, kaşık ve gram',act:()=>svMeasOpen()},
+   {k:'t-cal',e:'🗓',t:'Takvimim',s:'Günlerin yeşile boyanıyor',act:()=>svCalOpen()},
+   {k:'t-al',e:'🖼',t:'Tabak albümüm',s:'Fotoğraflarından kolaj',act:()=>svAlbumOpen()},
+   {k:'t-gr',e:'📖',t:'Güzel satırlarım',s:'Şükür defterin',act:()=>svGratBook()},
+   {k:'t-hd',e:'🌸',t:svIsHard()?'Zor gün modunu kapat':'Bugün zor bir gün',s:'Hedefler yumuşasın',act:()=>svHardToggle()}
+  ];
+}
+function svToolsInit(){
+  const td=document.querySelector('#shareView .sv-tab[data-svtab="today"]'); if(!td||document.getElementById('svToolsRow')) return;
+  const ring=document.getElementById('svRingCard'); if(!ring) return;
+  const html=svHardBanner()+'<section class="svup-card" id="svWxCard" style="display:none"></section><div id="svToolsRow" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><button type="button" onclick="svCraveOpen()" style="border:0;border-radius:20px;padding:14px 8px;font:inherit;font-weight:800;font-size:13.5px;line-height:1.3;color:#fff;background:linear-gradient(135deg,#c0561e,#e4772f);box-shadow:0 12px 22px -14px rgba(192,86,30,.8);cursor:pointer"><div style="font-size:26px">🆘</div>Canım tatlı çekiyor</button><button type="button" onclick="svHardToggle()" style="border:0;border-radius:20px;padding:14px 8px;font:inherit;font-weight:800;font-size:13.5px;line-height:1.3;color:#6b3a52;background:linear-gradient(135deg,#fde1ea,#fff0f4);box-shadow:0 12px 22px -16px rgba(150,60,90,.6);cursor:pointer"><div style="font-size:26px">🌸</div>Bugün zor bir gün</button></div>'+svTreeHtml()+svGratHtml();
+  ring.insertAdjacentHTML('afterend',html);
+  svWxLoad();
 }
 function svTabsInit(){
   const w=document.querySelector('#shareView .sv-wrap'); if(!w||w.querySelector('.sv-tab')) return;
@@ -12211,6 +12460,9 @@ function chatItems(c){
   (c.journal||[]).forEach(x=>{ const pt=[]; if(x.water!=null&&x.water!=='') pt.push('💧 '+esc(x.water)+' bardak'); if(x.steps!=null&&x.steps!=='') pt.push('🚶 '+esc(x.steps)+' adım'); if(x.sleep!=null&&x.sleep!=='') pt.push('😴 '+esc(x.sleep)+' sa');
     if(x.cheated===true) pt.push('🍬 kaçamak yaptı'); else if(x.cheated===false) pt.push('✅ kaçamak yapmadı'); if(x.mood) pt.push(esc(x.mood));
     it.push({k:'j',id:x.id,at:x.at,html:'📝 '+(pt.join(' · ')||'Günü işaretledi'),label:'Günlük işaretlemen'}); });
+  (c.feels||[]).forEach(x=>it.push({k:'fl',id:x.id,at:x.at,html:'💭 <b>'+esc(x.meal||'Öğün')+'</b> sonrası: '+esc(x.feel||''),label:'Öğün sonrası hissin'}));
+  (c.gratitude||[]).forEach(x=>it.push({k:'gr',id:x.id,at:x.at,html:'🌙 Günün güzel satırı: “'+esc(x.text||'')+'”',label:'Güzel satırın'}));
+  (c.cravings||[]).forEach(x=>it.push({k:'cr',id:x.id,at:x.at,html:'🆘 Tatlı krizi: '+(x.won?'atlattı 💪':'yine de yedi 💛'),label:'Tatlı krizin'}));
   (c.referrals||[]).forEach(x=>it.push({k:'ref',id:x.id,at:x.at,html:'👋 Arkadaşını önerdi: <b>'+esc(x.friendName||'')+'</b>',label:'Arkadaş önerin'}));
   return it.map(x=>Object.assign({dir:'in'},x));
 }
@@ -13683,6 +13935,7 @@ async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
   if(!r.ok) throw new Error('Gönderilemedi ('+r.status+')');
+  if(entry&&entry.photo&&tok!=='promo-landing'){ try{ svAlbumAdd(entry.photo,entry.mealName||entry.mealType||''); }catch(e){} }
   if(entry&&['clientNote','dailyMeal','mealPhoto'].includes(entry.type)&&tok!=='promo-landing'){
     try{ fetch('/.netlify/functions/auto-queue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:tok,entry:{type:entry.type,text:entry.text||'',mealType:entry.mealType||'',mealName:entry.mealName||'',photo:entry.photo||''}})}).catch(()=>{}); }catch(e){}
   }
