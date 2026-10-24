@@ -10851,6 +10851,35 @@ function svDrawerClose(){
   const cur=(document.querySelector('#shareView .sv-tab.on')||{dataset:{}}).dataset.tab;
   document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.tab===cur));
 }
+/* ══════════════ 🚶 Adım → kalori → "ne kadar yedin" hesaplayıcı ══════════════ */
+const SV_EQ=[[80,'🍎','1 elma'],[105,'🍌','1 muz'],[190,'🍰','1 dilim baklava'],[285,'🍕','1 dilim pizza'],[300,'🥯','1 simit'],[500,'🌯','1 tavuk dürüm'],[560,'🍔','1 hamburger']];
+function svStepsCalc(steps,snap){
+  steps=Math.max(0,Math.min(100000,Math.round(+steps||0)));
+  const pts=((snap&&snap.measures)||[]).filter(m=>m.weight!=null); const kg=pts.length?+pts[pts.length-1].weight:70;
+  const h=(snap&&+snap.height)||165;
+  const stride=Math.max(0.55,Math.min(0.9,h*0.415/100)); // adım boyu (m)
+  const km=steps*stride/1000, kcal=Math.round(0.7*kg*km/5)*5;
+  let eq=null; SV_EQ.forEach(x=>{ if(kcal>=x[0]) eq=x; });
+  let n=eq?Math.round(kcal/eq[0]*2)/2:0;
+  return {steps,km,kcal,eq,n};
+}
+function svStepsHtml(r){
+  if(!r.steps) return '<p class="pm-muted" style="margin:10px 0 0;font-size:13px">Bugün attığın adımı yaz, ne kadar enerji yaktığını birlikte görelim 💪</p>';
+  const eqTxt=r.eq?`<div style="font-size:34px;margin:8px 0 2px">${r.eq[1]}</div><div style="font-weight:800;font-size:15px;color:var(--blue-900)">${r.n>1?String(r.n).replace('.',',')+' '+r.eq[2].replace(/^1 /,''):r.eq[2]} kadar enerji yaktın!</div>`:'<div style="font-size:34px;margin:8px 0 2px">🌱</div><div style="font-weight:800;font-size:15px;color:var(--blue-900)">Güzel bir başlangıç, her adım değerli!</div>';
+  const cheer=r.steps>=10000?'Hedefi tam on ikiden vurdun, çok iyisin! 🏆':r.steps>=7000?'Harika gidiyorsun, hedefe çok az kaldı! 💪':r.steps>=3000?'Güzel tempo, biraz daha yürürsen süper olur! 🌸':'Şimdi kısa bir yürüyüşe ne dersin? 🚶‍♀️';
+  return `<div style="display:flex;gap:10px;margin-top:12px"><div style="flex:1;text-align:center;background:#fff;border-radius:14px;padding:10px 4px;border:1px solid var(--line)"><div style="font-size:11px;color:var(--muted)">Mesafe</div><b style="font-size:19px">${r.km.toFixed(1).replace('.',',')}</b> <small>km</small></div><div style="flex:1;text-align:center;background:#fff;border-radius:14px;padding:10px 4px;border:1px solid var(--line)"><div style="font-size:11px;color:var(--muted)">Yaktığın enerji</div><b style="font-size:19px">~${r.kcal}</b> <small>kcal</small></div></div>
+  <div style="text-align:center;margin-top:12px;padding:12px;border-radius:16px;background:linear-gradient(135deg,var(--blue-50),#fff)">${eqTxt}<div style="margin-top:6px;font-size:13px;color:#4a2c3a">${cheer}</div></div>
+  <p class="pm-muted" style="margin:8px 2px 0;font-size:11px">Yaklaşık bir hesaptır; kilon, boyun ve yürüyüş hızına göre değişir.</p>`;
+}
+function svStepsCard(){
+  return `<section class="sv-card" id="svStepsCard" style="margin-top:14px"><div class="sv-card-h"><h3>🚶‍♀️ Bugün kaç adım yürüdün?</h3></div><div style="padding:6px 16px 16px">
+    <div style="display:flex;gap:8px"><input type="number" inputmode="numeric" id="svStepCalcIn" placeholder="Örn. 10000" style="flex:1;min-width:0"><span style="align-self:center;font-size:13px;color:var(--muted)">adım</span></div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">${[3000,5000,8000,10000].map(n=>`<button type="button" class="chip" data-svstep="${n}">${n.toLocaleString('tr-TR')}</button>`).join('')}</div>
+    <div id="svStepOut">${svStepsHtml({steps:0})}</div></div></section>`;
+}
+function svStepsUpdate(v){ const o=document.getElementById('svStepOut'); if(o) o.innerHTML=svStepsHtml(svStepsCalc(v,window.__shareSnap)); }
+document.addEventListener('input',e=>{ const t=e.target; if(!t||!t.id) return; if(t.id==='svStepCalcIn'||t.id==='svJSteps'){ const o=document.getElementById(t.id==='svStepCalcIn'?'svJSteps':'svStepCalcIn'); if(o) o.value=t.value; svStepsUpdate(t.value); } });
+document.addEventListener('click',e=>{ const b=e.target.closest&&e.target.closest('[data-svstep]'); if(!b) return; const i=document.getElementById('svStepCalcIn'); if(i){ i.value=b.dataset.svstep; i.dispatchEvent(new Event('input',{bubbles:true})); } });
 function svTabsInit(){
   const w=document.querySelector('#shareView .sv-wrap'); if(!w||w.querySelector('.sv-tab')) return;
   if(!document.getElementById('svTabCss')){ const st=document.createElement('style'); st.id='svTabCss'; st.textContent=SV_TAB_CSS; document.head.appendChild(st); }
@@ -10869,6 +10898,7 @@ function svTabsInit(){
       }
     }
   }catch(e){}
+  try{ const dly=w.querySelector('.sv-tab[data-tab="today"] .pm-daily'); if(dly&&!document.getElementById('svStepsCard')) dly.insertAdjacentHTML('afterend',svStepsCard()); }catch(e){}
   const ib=document.getElementById('svInstallBtn'); if(ib&&more){ ib.style.marginTop='0'; more.prepend(ib); }
   let bar=document.getElementById('svTabBar'); if(bar) bar.remove();
   bar=document.createElement('nav'); bar.id='svTabBar'; bar.setAttribute('aria-label','Sayfa bölümleri');
