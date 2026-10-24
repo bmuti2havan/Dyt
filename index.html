@@ -11013,7 +11013,7 @@ function svPromoTabs(){
   SV_TABS.forEach(t=>{ const d=document.createElement('div'); d.className='sv-tab'; d.dataset.svtab=t[0]; pm.appendChild(d); });
   [...pm.children].forEach(e=>{ if(e.classList.contains('sv-tab')) return; const k=svPromoTabOf(e); if(k==='hide'){ e.style.display='none'; return; } pm.querySelector('.sv-tab[data-svtab="'+k+'"]').appendChild(e); });
   let n=0; pm.querySelectorAll('.sv-tab[data-svtab="more"] > *').forEach(e=>{ if(!e.id) e.dataset.k='i'+(n++); });
-  try{ const td=pm.querySelector('.sv-tab[data-svtab="today"]'); if(td) td.insertAdjacentHTML('beforeend',svNameBtnHtml()); }catch(e){}
+  try{ const qd=pm.querySelector('.pm-daily .pm-quote'); if(qd) qd.insertAdjacentHTML('afterend',svNameBtnHtml()); }catch(e){}
   document.querySelectorAll('#shareView .sv-wrap').forEach(w=>{ w.style.paddingBottom='120px'; });
   svTabBarBuild('today');
 }
@@ -11035,7 +11035,7 @@ function svTabsInit(){
   SV_TABS.forEach(t=>{ const d=document.createElement('div'); d.className='sv-tab'; d.dataset.svtab=t[0]; w.appendChild(d); });
   svTabsRegroup();
   const more=w.querySelector('.sv-tab[data-svtab="more"]');
-  try{ const td0=w.querySelector('.sv-tab[data-svtab="today"]'); if(td0&&!td0.querySelector('.sv-banner')) td0.insertAdjacentHTML('afterbegin','<div class="sv-banner"><img src="img/logo-banner.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="1000" height="518" fetchpriority="high"></div>');  }catch(e){}
+  try{ const td0=w.querySelector('.sv-tab[data-svtab="today"]'); if(td0&&!td0.querySelector('.sv-banner')) td0.insertAdjacentHTML('afterbegin','<div class="sv-banner"><img src="img/logo-banner.jpg" alt="Diyetisyen Ayşenur Korkmaz" width="1000" height="520" fetchpriority="high"></div>');  }catch(e){}
   try{
     const snap=window.__shareSnap||{}, pl=svSafePlan(snap.plan), td=w.querySelector('.sv-tab[data-svtab="today"]'), hero=td&&td.querySelector('.sv-hero');
     if(pl&&pl.days&&pl.days.length&&hero){
@@ -11048,7 +11048,7 @@ function svTabsInit(){
     }
   }catch(e){}
   try{ const dly=w.querySelector('.sv-tab[data-svtab="today"] .pm-daily'); if(dly&&!document.getElementById('svStepsCard')){ dly.insertAdjacentHTML('afterend',svStepsCard()); const ml=document.getElementById('svMealsCard'), sc=document.getElementById('svStepsCard'); if(ml&&sc) sc.after(ml); } }catch(e){}
-  try{ const tdb=w.querySelector('.sv-tab[data-svtab="today"]'); if(tdb&&!tdb.querySelector('.svnbtn')) tdb.insertAdjacentHTML('beforeend',svNameBtnHtml()); }catch(e){}
+  try{ const qd=w.querySelector('.sv-tab[data-svtab="today"] .pm-daily .pm-quote'); if(qd&&!w.querySelector('.svnbtn')) qd.insertAdjacentHTML('afterend',svNameBtnHtml()); }catch(e){}
   const ib=document.getElementById('svInstallBtn'); if(ib&&more){ ib.style.marginTop='0'; more.prepend(ib); }
   let first='today'; try{ first=sessionStorage.getItem('sv_tab_'+(window.__shareTok||''))||'today'; }catch(e){}
   svTabBarBuild(SV_TABS.some(t=>t[0]===first&&t[0]!=='more')?first:'today');
