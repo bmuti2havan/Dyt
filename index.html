@@ -11420,8 +11420,8 @@ function svIsHard(){ try{ return localStorage.getItem(svHardKey())===svIso(); }c
 function svHardBanner(){ return svIsHard()?'<section class="svup-card" id="svHardCard" style="background:linear-gradient(135deg,#fff7ef,#fdeee4)"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:34px">🌸</div><div style="font-size:13.5px;line-height:1.55"><b>Bugün zor bir gün, sorun değil.</b><br>Bugünün tek hedefi: biraz su iç ve bir öğünü güzel ye. Gerisini yarına bırak 💛</div></div></section>':''; }
 function svHardToggle(){
   if(svIsHard()){ try{ localStorage.removeItem(svHardKey()); }catch(e){} toast('Zor gün modu kapandı'); }
-  else{ try{ localStorage.setItem(svHardKey(),svIso()); }catch(e){} svMark(); svPostQuiet({type:'clientNote',date:svIso(),text:'🌸 Bugün zor bir gün geçiriyorum',at:Date.now()}); if(!svIsPromo()){ try{ pushNotifyAdmin('🌸 bugün zor bir gün geçiriyor'); }catch(e){} } toast('Anlıyorum 🌸 Bugün kendine nazik ol',3500); }
-  const old=document.getElementById('svHardCard'); if(old) old.remove();
+  else{ try{ localStorage.setItem(svHardKey(),svIso()); localStorage.removeItem(svGmKey()); }catch(e){} svMark(); svPostQuiet({type:'clientNote',date:svIso(),text:'🌸 Bugün zor bir gün geçiriyorum',at:Date.now()}); if(!svIsPromo()){ try{ pushNotifyAdmin('🌸 bugün zor bir gün geçiriyor'); }catch(e){} } toast('Anlıyorum 🌸 Bugün kendine nazik ol',3500); }
+  ['svHardCard','svGmCard'].forEach(i=>{ const o=document.getElementById(i); if(o) o.remove(); });
   const ring=document.getElementById('svRingCard'); if(ring&&svIsHard()) ring.insertAdjacentHTML('beforebegin',svHardBanner());
 }
 /* ⛅ Havaya göre öneri */
@@ -11498,6 +11498,19 @@ function svGratBook(){ let a=[]; try{ a=JSON.parse(localStorage.getItem('sv_grat
   if(svIsPromo()&&!a.length) a=[{d:svIso(),t:'Su hedefimi tamamladım ve yürüyüşe çıktım'},{d:svIso(new Date(Date.now()-864e5)),t:'Tatlı krizimi nefesle yendim'},{d:svIso(new Date(Date.now()-2*864e5)),t:'Kendime güzel bir kahvaltı hazırladım'}];
   svSheet(svHd('📖','Güzel satırlarım','Kendi cümlelerinden oluşan küçük kitabın')+(a.length?'<div style="display:grid;gap:8px">'+a.slice().reverse().map(x=>'<div style="padding:10px 12px;border-radius:14px;background:#f3f6e6;font-size:14px"><div style="font-size:11px;color:var(--muted)">'+trDate(x.d)+'</div>'+esc(x.t)+'</div>').join('')+'</div>':svEmptyHtml('Henüz satır yok','Akşam kartına bir cümle yazınca burada birikir 🌙'))); }
 /* Araç listesi (Daha fazla) */
+/* 💪😴 Gün modu: harika gidiyorum / yorgunum (zor gün modunun yanına, tek yönlü kodlanmış görünmesin diye) */
+const SV_GUNMOD={good:{e:'💪',t:'Bugün harika gidiyorum',bg:'linear-gradient(135deg,#eaf5d8,#f6fbe9)',head:'Harika gidiyorsun!',body:'Bu enerjiyi koru: su içmeyi ve öğünlerini işaretlemeyi unutma. Kendinle gurur duy 🌟',note:'💪 Bugün çok iyi gidiyorum',toast:'Çok güzel! Böyle devam 💪',push:'💪 bugün çok iyi gidiyor'},
+ tired:{e:'😴',t:'Bugün çok yorgunum',bg:'linear-gradient(135deg,#e9edf9,#f5f6fd)',head:'Yorgun bir gün, çok normal.',body:'Bugün hafif ve doyurucu kal: bir kase çorba, bol su ve erken uyku. Kahve yerine bir bardak su dene 😴',note:'😴 Bugün çok yorgunum',toast:'Anlıyorum 😴 Bugün kendine nazik ol',push:'😴 bugün çok yorgun'}};
+function svGmKey(){ return 'sv_mood_'+svTk(); }
+function svGmNow(){ try{ const o=JSON.parse(localStorage.getItem(svGmKey())||'null'); return o&&o.d===svIso()&&SV_GUNMOD[o.k]?o.k:''; }catch(e){ return ''; } }
+function svGmBanner(){ const k=svGmNow(); if(!k) return ''; const m=SV_GUNMOD[k]; return '<section class="svup-card" id="svGmCard" style="background:'+m.bg+'"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:34px">'+m.e+'</div><div style="font-size:13.5px;line-height:1.55"><b>'+m.head+'</b><br>'+m.body+'</div></div></section>'; }
+function svGmPick(k){
+  const m=SV_GUNMOD[k]; if(!m) return;
+  if(svGmNow()===k){ try{ localStorage.removeItem(svGmKey()); }catch(e){} toast('Tamam, kapattım'); }
+  else{ try{ localStorage.setItem(svGmKey(),JSON.stringify({k:k,d:svIso()})); localStorage.removeItem(svHardKey()); }catch(e){} svMark(); svPostQuiet({type:'clientNote',date:svIso(),text:m.note,at:Date.now()}); if(!svIsPromo()){ try{ pushNotifyAdmin(m.push); }catch(e){} } toast(m.toast,3500); }
+  ['svGmCard','svHardCard'].forEach(i=>{ const o=document.getElementById(i); if(o) o.remove(); });
+  const ring=document.getElementById('svRingCard'); if(ring) ring.insertAdjacentHTML('beforebegin',svGmBanner());
+}
 function svUpTools(){
   return [
    {k:'t-out',e:'🍽',t:'Dışarıda yiyorum',s:'Kebapçıdan düğüne akıllı seçimler',act:()=>svOutOpen()},
@@ -11508,13 +11521,15 @@ function svUpTools(){
    {k:'t-cal',e:'🗓',t:'Takvimim',s:'Günlerin yeşile boyanıyor',act:()=>svCalOpen()},
    {k:'t-al',e:'🖼',t:'Tabak albümüm',s:'Fotoğraflarından kolaj',act:()=>svAlbumOpen()},
    {k:'t-gr',e:'📖',t:'Güzel satırlarım',s:'Şükür defterin',act:()=>svGratBook()},
-   {k:'t-hd',e:'🌸',t:svIsHard()?'Zor gün modunu kapat':'Bugün zor bir gün',s:'Hedefler yumuşasın',act:()=>svHardToggle()}
+   {k:'t-hd',e:'🌸',t:svIsHard()?'Zor gün modunu kapat':'Bugün zor bir gün',s:'Hedefler yumuşasın',act:()=>svHardToggle()},
+   {k:'t-gd',e:'💪',t:'Bugün harika gidiyorum',s:'İyi günü işaretle',act:()=>svGmPick('good')},
+   {k:'t-td',e:'😴',t:'Bugün çok yorgunum',s:'Hafif bir gün planla',act:()=>svGmPick('tired')}
   ];
 }
 function svToolsInit(){
   const td=document.querySelector('#shareView .sv-tab[data-svtab="today"]'); if(!td||document.getElementById('svToolsRow')) return;
   const ring=document.getElementById('svRingCard'); if(!ring) return;
-  const html=svHardBanner()+'<section class="svup-card" id="svWxCard" style="display:none"></section><div id="svToolsRow" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><button type="button" onclick="svCraveOpen()" style="border:0;border-radius:20px;padding:14px 8px;font:inherit;font-weight:800;font-size:13.5px;line-height:1.3;color:#fff;background:linear-gradient(135deg,#c0561e,#e4772f);box-shadow:0 12px 22px -14px rgba(192,86,30,.8);cursor:pointer"><div style="font-size:26px">🆘</div>Canım tatlı çekiyor</button><button type="button" onclick="svHardToggle()" style="border:0;border-radius:20px;padding:14px 8px;font:inherit;font-weight:800;font-size:13.5px;line-height:1.3;color:#6b3a52;background:linear-gradient(135deg,#fde1ea,#fff0f4);box-shadow:0 12px 22px -16px rgba(150,60,90,.6);cursor:pointer"><div style="font-size:26px">🌸</div>Bugün zor bir gün</button></div>'+svTreeHtml()+svGratHtml();
+  const html=svHardBanner()+svGmBanner()+'<section class="svup-card" id="svWxCard" style="display:none"></section><div id="svToolsRow" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><button type="button" onclick="svCraveOpen()" style="border:0;border-radius:20px;padding:14px 8px;font:inherit;font-weight:800;font-size:13.5px;line-height:1.3;color:#fff;background:linear-gradient(135deg,#c0561e,#e4772f);box-shadow:0 12px 22px -14px rgba(192,86,30,.8);cursor:pointer"><div style="font-size:26px">🆘</div>Canım tatlı çekiyor</button><button type="button" onclick="svHardToggle()" style="border:0;border-radius:20px;padding:14px 8px;font:inherit;font-weight:800;font-size:13.5px;line-height:1.3;color:#6b3a52;background:linear-gradient(135deg,#fde1ea,#fff0f4);box-shadow:0 12px 22px -16px rgba(150,60,90,.6);cursor:pointer"><div style="font-size:26px">🌸</div>Bugün zor bir gün</button><button type="button" onclick="svGmPick(\'good\')" style="border:0;border-radius:20px;padding:14px 8px;font:inherit;font-weight:800;font-size:13.5px;line-height:1.3;color:#fff;background:linear-gradient(135deg,#5f7d27,#8fb046);box-shadow:0 12px 22px -14px rgba(85,110,35,.8);cursor:pointer"><div style="font-size:26px">💪</div>Bugün harika gidiyorum</button><button type="button" onclick="svGmPick(\'tired\')" style="border:0;border-radius:20px;padding:14px 8px;font:inherit;font-weight:800;font-size:13.5px;line-height:1.3;color:#3b4a7a;background:linear-gradient(135deg,#dde5fa,#f1f4fd);box-shadow:0 12px 22px -16px rgba(60,80,150,.6);cursor:pointer"><div style="font-size:26px">😴</div>Bugün çok yorgunum</button></div>'+svTreeHtml()+svGratHtml();
   ring.insertAdjacentHTML('afterend',html);
   svWxLoad();
 }
