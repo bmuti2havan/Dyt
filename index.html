@@ -6756,7 +6756,6 @@ function pagePanelDetay(){
       </div>
       <button class="greet-re" data-act="greet-new" title="Yeni mesaj göster" aria-label="Yeni karşılama mesajı">↻</button>
     </div>
-    <div class="meta"><span>Danışan <b>${DB.clients.length}</b></span><span>Aktif program <b>${activePlans}</b></span><span>Besin kaydı <b>${DB.foods.length}</b></span></div>
   </div>`})()}
   ${(()=>{
     const lb=DB.profile&&DB.profile.lastBackup;
@@ -6788,7 +6787,8 @@ function pagePanelDetay(){
   </section>`:''})()}
 
   ${awPanelCard()}
-  <section class="card no-print" style="margin-top:16px">
+  <details class="no-print" style="margin-top:16px"><summary style="cursor:pointer;font-weight:700;padding:12px 4px;list-style:none">🍽️ Tarifler ve kaydettiklerim <span style="color:var(--muted);font-weight:400;font-size:12.5px">(açmak için dokun)</span></summary>
+  <section class="card">
     <div class="card-h"><h3>🍽️ Bugünün fit tarifleri</h3><div class="spacer"></div>
       <button class="btn btn-sm" data-act="recipe-shuffle">↻ Farklı tarifler göster</button></div>
     <div class="card-b"><div class="recipe-grid">
@@ -6801,6 +6801,7 @@ function pagePanelDetay(){
       ${DB.savedRecipes.map(r=>recipeCard(r,true)).join('')}
     </div></div>
   </section>`:''}
+  </details>
   <div class="grid g-2">
     <section class="card">
       <div class="card-h"><h3>Yaklaşan randevular</h3><div class="spacer"></div><button class="btn btn-sm btn-primary" data-modal="appt">${ic('plus',15)} Randevu</button></div>
@@ -6816,7 +6817,8 @@ function pagePanelDetay(){
     <section class="card">
       <div class="card-h"><h3>Hızlı işlemler</h3></div>
       <div class="card-b" style="display:grid;gap:9px">
-        <button class="btn btn-primary" data-modal="client">${ic('plus',16)} Yeni danışan</button>
+        <button class="btn btn-primary" data-act="sp-plan">📋 Program yap</button>
+        <button class="btn" data-modal="client">${ic('plus',16)} Yeni danışan</button>
         <button class="btn" data-go="clients">${ic('clients',16)} Danışan dosyalarını aç</button>
         <button class="btn" data-go="plans">${ic('plans',16)} Beslenme programları</button>
         <button class="btn" data-go="foods">${ic('foods',16)} Besin kütüphanesi</button>
