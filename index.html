@@ -6679,12 +6679,71 @@ async function pmStatsLoad(){
       <table style="width:100%;font-size:13px;margin-top:8px;border-collapse:collapse"><tr style="text-align:left;color:var(--muted)"><th>Kaynak</th><th>Ziyaret</th><th>WhatsApp</th><th>Insta</th></tr>${rows}</table></div></section>`;
   }catch(e){}
 }
+/* ══════════════ ✨ Sade panel: tek ekranda danışanlar, randevular, son aktiviteler ══════════════ */
+const spMode=()=>(DB.profile&&DB.profile.panelMode==='detay')?'detay':'sade';
+function spStrip(h){ return String(h).replace(/<br\s*\/?>/gi,' ').replace(/<img[^>]*>/gi,' 📷 ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim(); }
+function spAgo(at){ const m=Math.round((Date.now()-(+at||0))/60000); if(m<1) return 'şimdi'; if(m<60) return m+' dk'; const h=Math.round(m/60); if(h<24) return h+' sa'; return Math.round(h/24)+' gün'; }
+function spPickClient(){
+  const L=DB.clients.filter(c=>!c.archived);
+  if(!L.length) return modal('Program yap','<p>Önce bir danışan eklemen gerekiyor.</p>','Tamam','close');
+  modal('Danışan seç',`<div class="searchbar" style="margin-bottom:10px">${ic('search',17)}<input id="spq" placeholder="Danışan ara" oninput="var q=this.value.toLocaleLowerCase('tr');document.querySelectorAll('.sp-pick').forEach(function(r){r.style.display=r.dataset.n.indexOf(q)>=0?'':'none'})"></div>
+    <div style="display:grid;gap:8px;max-height:52vh;overflow:auto">${L.map(c=>`<button type="button" class="sp-pick" data-sp-pick="${c.id}" data-n="${esc(String(c.name||'').toLocaleLowerCase('tr'))}" style="display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:#fff;font:inherit;cursor:pointer;text-align:left"><span class="av" style="background:${avColor(c.name)}">${initials(c.name)}</span><span style="flex:1;min-width:0"><b style="display:block">${esc(c.name)}</b><span style="font-size:12px;color:var(--muted)">${esc(c.goal||'')}${plansOf(c.id).filter(x=>x.status==='Aktif').length?' · aktif programı var':''}</span></span><span style="color:var(--muted)">›</span></button>`).join('')}</div>`,'Vazgeç','close','480px');
+  setTimeout(()=>{ const q=document.getElementById('spq'); if(q) q.focus(); },60);
+}
+function pagePanelSade(){
+  const nowMs=Date.now();
+  const upcoming=DB.appts.filter(a=>new Date(a.when)>=new Date(nowMs-36e5)).sort((a,b)=>new Date(a.when)-new Date(b.when));
+  const today=upcoming.filter(a=>new Date(a.when).toDateString()===new Date().toDateString());
+  const act=DB.clients.filter(c=>!c.archived);
+  const activePlans=DB.plans.filter(p=>p.status==='Aktif').length;
+  const al=buildAlerts();
+  const g=greetBlock();
+  const feed=[]; DB.clients.forEach(c=>{ chatItems(c).forEach(it=>{ if(it.at) feed.push({c,it}); }); });
+  feed.sort((a,b)=>(+b.it.at||0)-(+a.it.at||0));
+  const unread=DB.clients.reduce((n,c)=>n+chatUnreadOf(c),0);
+  const mv=c=>{ const ms=(c.measures||[]).filter(m=>m.weight!=null&&m.weight!=='').sort((a,b)=>new Date(a.date)-new Date(b.date)); if(ms.length<2) return ms.length?ms[0].weight+' kg':'—'; const d=+ms[ms.length-1].weight-+ms[0].weight; return (d>0?'+':'')+d.toFixed(1)+' kg'; };
+  const row=(inner,attr)=>`<div ${attr||''} style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-top:1px solid var(--line-2);cursor:pointer">${inner}</div>`;
+  const stat=(e,l,v,sub)=>`<div class="stat" style="padding:14px"><div style="font-size:22px">${e}</div><div class="lbl">${l}</div><div class="val">${v}</div><div class="sub">${sub}</div></div>`;
+  return `<div style="max-width:760px;margin:0 auto">
+  <div class="hero no-print"><span class="greet-when">${esc(g.when)}</span>
+    <h1 class="greet-h" style="margin-top:6px">${g.msg}</h1>
+    <p class="greet-sub">${today.length?`Bugün <b>${today.length}</b> randevun var · ilki ${hhmm(today[0].when)}`:'Bugün randevu yok, sakin bir gün.'}</p></div>
+  <div class="stats" style="margin-top:16px;grid-template-columns:1fr 1fr">
+    ${stat('👥','Aktif danışan',act.length,'Kayıtlı kişi')}
+    ${stat('📅','Yaklaşan randevu',upcoming.length,upcoming[0]?trDT(upcoming[0].when):'Planlanmadı')}
+    ${stat('📋','Aktif program',activePlans,'Yürüyen plan')}
+    ${stat('🔔','Yeni mesaj',unread,unread?'Okunmamış':'Hepsi okundu')}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0" class="no-print">
+    <button class="btn btn-primary" data-act="sp-plan" style="flex-direction:column;padding:14px 6px;gap:4px;height:auto"><span style="font-size:22px">📋</span>Program yap</button>
+    <button class="btn" data-modal="client" style="flex-direction:column;padding:14px 6px;gap:4px;height:auto"><span style="font-size:22px">👤</span>Danışan ekle</button>
+    <button class="btn" data-modal="appt" style="flex-direction:column;padding:14px 6px;gap:4px;height:auto"><span style="font-size:22px">📅</span>Randevu ekle</button>
+  </div>
+  <section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Yaklaşan randevular</h3></div>
+    ${upcoming.length?upcoming.slice(0,5).map(a=>{const c=clientOf(a.clientId);return row(`<span class="av" style="background:${avColor(c?c.name:'')}">${initials(c?c.name:'?')}</span><span style="flex:1;min-width:0"><b style="display:block">${esc(c?c.name:'—')}</b><span style="font-size:12px;color:var(--muted)">${esc(a.type||'Görüşme')}</span></span><span class="num" style="font-size:12.5px;white-space:nowrap">${trDT(a.when)}</span>`,`data-client="${a.clientId}"`);}).join(''):'<div class="empty" style="padding:18px"><p style="margin:0">Randevu yok.</p></div>'}
+  </section>
+  ${al.length?`<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Dikkat gerektirenler</h3><div class="spacer"></div><span class="tag">${al.length}</span></div>
+    ${al.slice(0,4).map(a=>`<div class="alert-row"><span class="alert-dot ${a.sev}"></span><div style="flex:1;min-width:0"><div class="t-name">${a.t}</div><div class="t-sub">${a.s}</div></div><button class="btn btn-sm" ${a.act}>${a.btn}</button></div>`).join('')}</section>`:''}
+  <section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Son aktiviteler</h3></div>
+    ${feed.length?feed.slice(0,6).map(f=>row(`<span class="av" style="background:${avColor(f.c.name)}">${initials(f.c.name)}</span><span style="flex:1;min-width:0"><b style="display:block">${esc(f.c.name)}</b><span style="font-size:12.5px;color:var(--muted);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(spStrip(f.it.html)).slice(0,80)}</span></span><span style="font-size:11.5px;color:var(--muted);white-space:nowrap">${spAgo(f.it.at)}</span>`,`data-client="${f.c.id}" data-tab-go="sohbet"`)).join(''):'<div class="empty" style="padding:18px"><p style="margin:0">Danışanlardan henüz bir hareket yok.</p></div>'}
+  </section>
+  <section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Danışanlarım</h3><div class="spacer"></div><button class="btn btn-sm" data-go="clients">Tümü</button></div>
+    ${act.length?act.slice(0,8).map(c=>row(`<span class="av" style="background:${avColor(c.name)}">${initials(c.name)}</span><span style="flex:1;min-width:0"><b style="display:block">${esc(c.name)}</b><span style="font-size:12px;color:var(--muted)">${esc(c.goal||'')}</span></span><span class="num" style="font-size:12.5px">${mv(c)}</span>`,`data-client="${c.id}"`)).join(''):'<div class="empty" style="padding:18px"><p style="margin:0">Henüz danışan yok.</p></div>'}
+  </section>
+  <div class="no-print" style="text-align:center;margin:8px 0 24px"><button class="btn btn-sm" data-act="panel-mode" data-mode="detay">Detaylı panele geç</button></div>
+  </div>`;
+}
 function pagePanel(){
+  if(spMode()==='sade') return pagePanelSade();
+  return pagePanelDetay();
+}
+function pagePanelDetay(){
   const upcoming=DB.appts.filter(a=>new Date(a.when)>=new Date(Date.now()-36e5)).sort((a,b)=>new Date(a.when)-new Date(b.when));
   const today=upcoming.filter(a=>new Date(a.when).toDateString()===new Date().toDateString());
   const activePlans=DB.plans.filter(p=>p.status==='Aktif').length;
   setTimeout(pmStatsLoad,50);
   return `
+  <div class="no-print" style="text-align:right;margin-bottom:8px"><button class="btn btn-sm" data-act="panel-mode" data-mode="sade">✨ Sade panele dön</button></div>
   <div id="pmStatsBox"></div>
   ${(()=>{const g=greetBlock(); return `
   <div class="hero no-print">
@@ -9450,6 +9509,7 @@ document.addEventListener('click',async e=>{
   const at=t.closest('[data-arch-toggle]'); if(at){
     const c2=clientOf(at.dataset.archToggle); c2.archived=!c2.archived;
     await save(); toast(c2.archived?'Danışan arşivlendi':'Arşivden çıkarıldı'); return render(); }
+  const spp=t.closest('[data-sp-pick]'); if(spp){ S.newPlanClient=spp.dataset.spPick; closeModal(); return openModal('plan-new'); }
   const cl=t.closest('[data-client]'); if(cl){ S.client=cl.dataset.client; S.page='client'; S.tab=cl.dataset.tabGo||'kontrol'; return render(); }
   const tb=t.closest('[data-tab]'); if(tb){ S.tab=tb.dataset.tab; return render(); }
   const np=t.closest('[data-newplan]'); if(np){ S.newPlanClient=np.dataset.newplan||S.client; return openModal('plan-new'); }
@@ -9921,6 +9981,8 @@ document.addEventListener('click',async e=>{
     if(a==='promo-copy'){ try{ await navigator.clipboard.writeText(promoUrl()); toast('Link kopyalandı ✓'); }catch(e){ toast(promoUrl(),8000); } }
     if(a==='promo-preview'){ window.open(promoUrl(),'_blank'); }
     if(a==='greet-new'){ return render(); }
+    if(a==='panel-mode'){ DB.profile.panelMode=act.dataset.mode==='detay'?'detay':'sade'; await save({noCloud:true}); return render(); }
+    if(a==='sp-plan'){ return spPickClient(); }
     if(a==='recipe-shuffle'){ S.recipeShuffle=String(Math.random()); return render(); }
     if(a==='open-gallery'){ return openGallery({type:'browse'}); }
     if(a==='export'){ const b=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
