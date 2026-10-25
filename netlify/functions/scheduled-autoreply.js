@@ -3,7 +3,7 @@
 // Ayarlar panelde: DB.profile.autoReply = { on, delay, quietFrom, quietTo }
 // Guvenlik: saglik/ilac/program degisikligi gibi konularda CEVAP VERMEZ, diyetisyene haber verir.
 const { firebaseSignIn, firebaseGetData, CLOUD_DB } = require('./_firebase-helper');
-const { pushAll, telegramNotify } = require('./push');
+const { pushAll, telegramNotify, setLast } = require('./push');
 
 exports.config = { schedule: '* * * * *' };
 
@@ -142,7 +142,7 @@ exports.handler = async function () {
         await fb(idToken, 'shares/t_' + tok + '/' + id, 'PUT', entry);
         await fb(idToken, 'shares/' + qk + '/_meta', 'PUT', { lastAt: now, day: today, count: cnt + 1, fail: 0, phrase: meta.phrase || '' });
         await clearAll();
-        if (priv) { try { await pushAll('shares/p_' + tok, priv); await pushAll('shares/admin-push', priv); } catch (e) {} }
+        if (priv) { try { await setLast(tok, 'msg', reply); await pushAll('shares/p_' + tok, priv); await pushAll('shares/admin-push', priv); } catch (e) {} }
         await telegramNotify(tok, '🤖 Otomatik cevap gönderildi:\n' + reply);
         out.replied++; out.handled++;
       } catch (e) { console.error('autoreply', qk, String(e.message || e)); }

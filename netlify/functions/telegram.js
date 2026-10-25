@@ -1,7 +1,7 @@
 // Telegram botu: diyetisyen, danisan mesajini Telegram'da "Yanitla" ile cevaplar → danisanin sohbetine duser.
 // Gerekli Netlify ortam degiskenleri: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_WEBHOOK_SECRET
 const { firebaseSignIn, CLOUD_DB } = require('./_firebase-helper');
-const { pushAll, shareExists } = require('./push');
+const { pushAll, shareExists, setLast } = require('./push');
 const res = (c, o) => ({ statusCode: c, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o || {}) });
 const api = (bot, m, b) => fetch('https://api.telegram.org/bot' + bot + '/' + m, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
 const say = (bot, chat, text, replyTo) => api(bot, 'sendMessage', { chat_id: chat, text, reply_to_message_id: replyTo, allow_sending_without_reply: true, disable_web_page_preview: true }).catch(() => {});
@@ -34,7 +34,7 @@ exports.handler = async function (event) {
     const r = await fetch(CLOUD_DB + '/shares/t_' + tok + '/' + id + '.json?auth=' + encodeURIComponent(idToken), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) });
     if (!r.ok) { await say(bot, chat, 'Kaydedilemedi (' + r.status + ')', m.message_id); return res(200); }
     let sent = 0;
-    if (process.env.VAPID_PRIVATE_KEY) { try { sent = (await pushAll('shares/p_' + tok, process.env.VAPID_PRIVATE_KEY)).sent; } catch (e) {} }
+    if (process.env.VAPID_PRIVATE_KEY) { try { await setLast(tok, 'msg', text); sent = (await pushAll('shares/p_' + tok, process.env.VAPID_PRIVATE_KEY)).sent; } catch (e) {} }
     await say(bot, chat, '✓ Danisana iletildi' + (sent ? ' (telefonuna bildirim gitti)' : ''), m.message_id);
   } catch (e) { await say(bot, chat, 'Hata: ' + String(e.message || e).slice(0, 120)); }
   return res(200);

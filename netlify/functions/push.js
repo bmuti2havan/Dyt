@@ -36,6 +36,14 @@ async function isAdmin(authz) {
   const want = (process.env.FIREBASE_EMAIL || '').toLowerCase();
   return !want || (u.email || '').toLowerCase() === want;
 }
+// Bildirimde gorunecek metin: sw.js bunu shares/w_<token>/last'tan okur (kind: 'msg' | 'water')
+async function setLast(tok, kind, msg) {
+  try {
+    if (!msg) return;
+    const { idToken } = await firebaseSignIn();
+    await fetch(CLOUD_DB + '/shares/w_' + tok + '/last.json?auth=' + encodeURIComponent(idToken), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind, at: Date.now(), msg: String(msg).slice(0, 140) }) });
+  } catch (e) {}
+}
 async function pushAll(path, privKey) {
   const r = await fetch(CLOUD_DB + '/' + path + '.json'); if (!r.ok) return { sent: 0, gone: [] };
   const data = await r.json() || {}; let sent = 0; const gone = [];
@@ -80,6 +88,7 @@ exports.handler = async function (event) {
       if (b.to === 'client') {
         if (!(await isAdmin(event.headers.authorization || event.headers.Authorization))) return res(403);
         if (!(await shareExists(b.token))) return res(404);
+        if (b.text) await setLast(b.token, 'msg', b.text);
         return res(200, await pushAll('shares/p_' + b.token, priv));
       }
       if (b.to === 'admin') {
@@ -92,5 +101,5 @@ exports.handler = async function (event) {
     return res(400);
   } catch (e) { return res(500, { error: String(e.message || e) }); }
 };
-exports.pushAll = pushAll; exports.shareExists = shareExists; exports.telegramNotify = telegramNotify;
+exports.pushAll = pushAll; exports.shareExists = shareExists; exports.telegramNotify = telegramNotify; exports.setLast = setLast;
 exports._test = { vapidJwt, sendOne, VAPID_PUBLIC };

@@ -973,6 +973,13 @@ main>*{animation:rise .22s ease both}
 .aw-st{cursor:pointer;font:inherit;font-size:11.5px}
 @media (max-width:640px){.aw-row{grid-template-columns:48px minmax(0,1fr);padding:11px 14px}.aw-act{grid-column:2;justify-content:flex-start}}
 </style>
+<style id="selfFonts">
+@font-face{font-family:'Caveat';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/caveat-latin-ext-600-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Caveat';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/caveat-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Dancing Script';font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/dancing-script-latin-ext-700-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Dancing Script';font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/dancing-script-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+2074,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+</style>
+<link rel="preload" href="/fonts/caveat-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 <body>
 <div class="app">
@@ -10291,6 +10298,23 @@ function svInstallInstructions(){
       <p class="hint" style="margin-top:12px">Bundan sonra telefonunda bu sayfanın kısayolu bir uygulama gibi duracak.</p>`;
   modal('📲 Ana ekrana ekle',body,'Tamam','close','420px');
 }
+/* ── Anında açılış: son görülen veri telefonda saklanır, sayfa açılır açılmaz gösterilir, yenisi arkadan gelir ── */
+function svIdb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('dyt-snap',1); r.onupgradeneeded=()=>r.result.createObjectStore('s'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function svSnapGet(k){ try{ const d=await svIdb(); return await new Promise(res=>{ const q=d.transaction('s').objectStore('s').get(k); q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null); }); }catch(e){ return null; } }
+async function svSnapSet(k,v){ try{ const d=await svIdb(); d.transaction('s','readwrite').objectStore('s').put(v,k); }catch(e){} }
+function svSwRegister(){
+  try{
+    if(!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    if(!window.__svSwMsg){ window.__svSwMsg=1; navigator.serviceWorker.addEventListener('message',e=>{
+      const d=e.data||{};
+      if(d.type==='goto'&&d.tab){ try{ svTabGo(d.tab); }catch(x){} }
+      if(d.type==='shell-updated'&&!document.getElementById('svUpdBar')){
+        const b=document.createElement('div'); b.id='svUpdBar'; b.style.cssText='position:fixed;left:12px;right:12px;top:max(10px,env(safe-area-inset-top));z-index:9500;display:flex;gap:10px;align-items:center;justify-content:center;padding:10px 14px;border-radius:16px;background:#33401A;color:#fff;font-size:13px;box-shadow:0 12px 26px -12px rgba(0,0,0,.5)';
+        b.innerHTML='✨ Yeni sürüm hazır <button type="button" onclick="location.reload()" style="border:0;border-radius:12px;padding:6px 12px;background:#fff;color:#33401A;font-weight:800;font:inherit;cursor:pointer">Yenile</button>'; document.body.appendChild(b); }
+    }); }
+  }catch(e){}
+}
 async function bootShareView(token){
   window.__shareTok=token;
   document.querySelector('.app').style.display='none';
@@ -10300,17 +10324,27 @@ async function bootShareView(token){
   const root=document.getElementById('shareView'); root.hidden=false;
   try{ svUpCssEnsure(); }catch(e){}
   root.innerHTML=svSplashHtml();
+  try{ const tp=new URLSearchParams(location.search).get('tab'); if(tp&&/^(today|plan|prog|chat|more)$/.test(tp)) sessionStorage.setItem('sv_tab_'+token,tp); }catch(e){}
+  try{ if(navigator.clearAppBadge) navigator.clearAppBadge(); }catch(e){}
+  svSwRegister();
+  const cached=await Promise.race([svSnapGet(token),new Promise(r=>setTimeout(()=>r(null),700))]);
+  let shown=null;
+  if(cached&&cached.snap){ try{ svInjectManifest(cached.snap,token); renderShareView(cached.snap); shown=JSON.stringify(cached.snap); }catch(e){ console.error('[önbellek]',e); shown=null; } }
   let snap;
   try{
     const r=await fetch(CLOUD_DB+'/shares/'+encodeURIComponent(token)+'.json?_ts='+Date.now(),{cache:'no-store'});
     if(!r.ok) throw new Error('İstek başarısız ('+r.status+')');
     const raw=await r.json();
     snap=typeof raw==='string'?JSON.parse(raw):raw;
-  }catch(e){ console.error('[danışan linki] veri çekilemedi:',e); return shareViewMsg('Sayfa yüklenemedi — internet bağlantınızı kontrol edip sayfayı yenileyin.'); }
-  if(!snap) return shareViewMsg('Bu bağlantı artık geçerli değil veya iptal edilmiş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.');
+  }catch(e){
+    console.error('[danışan linki] veri çekilemedi:',e);
+    if(shown){ toast('Çevrimdışı görünüm · internet gelince yenilenir',4500); return; }
+    return shareViewMsg('Sayfa yüklenemedi — internet bağlantınızı kontrol edip sayfayı yenileyin.');
+  }
+  if(!snap){ svSnapSet(token,null); return shareViewMsg('Bu bağlantı artık geçerli değil veya iptal edilmiş. Diyetisyeninizden yeni bir bağlantı isteyebilirsiniz.'); }
+  svSnapSet(token,{at:Date.now(),snap});
   try{
-    svInjectManifest(snap,token);
-    renderShareView(snap);
+    if(shown!==JSON.stringify(snap)){ svInjectManifest(snap,token); renderShareView(snap); }
     // Diyetisyenine "bugün linke kaç kez girdi" bilgisi düşsün diye sessizce kaydet (sayfa açılışını engellemez)
     svIntakePost({type:'visit',date:todayISO(),at:Date.now()}).catch(()=>{});
   }catch(e){
@@ -10711,8 +10745,7 @@ async function bootPromoView(){
   document.querySelector('.app').style.display='none';
   const lockEl=document.getElementById('lock'); lockEl.hidden=true; lockEl.style.display='none';
   document.title='Beslenme Danışmanlığı';
-  { const l=document.createElement('link'); l.rel='stylesheet';
-    l.href='https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Dancing+Script:wght@700&display=swap'; document.head.appendChild(l); }
+  try{ svSwRegister(); }catch(e){}
   const root=document.getElementById('shareView'); root.hidden=false;
   window.__shareTok='promo-landing';
   try{ svUpCssEnsure(); root.innerHTML=svSplashHtml(); await new Promise(r=>setTimeout(r,800)); }catch(e){}
@@ -10814,8 +10847,9 @@ function svTabsDot(){
     if((!unseen||b.classList.contains('on'))&&has) has.remove();
   }catch(e){}
 }
-function svTabGo(k,scrollTo){
+function svTabGo(k,scrollTo,fromPop){
   const w=document.querySelector('#shareView .sv-wrap'); if(!w) return;
+  try{ if(!fromPop&&window.__svHistOn&&window.__svTabCur!==k){ history.pushState({svtab:k},''); } window.__svTabCur=k; }catch(e){}
   w.querySelectorAll('.sv-tab').forEach(t=>t.classList.toggle('on',t.dataset.svtab===k));
   document.querySelectorAll('#svTabBar button').forEach(b=>b.classList.toggle('on',b.dataset.svtab===k));
   try{ sessionStorage.setItem('sv_tab_'+(window.__shareTok||''),k); }catch(e){}
@@ -11022,6 +11056,7 @@ function svTabBarBuild(first){
   document.body.appendChild(bar);
   bar.addEventListener('click',e=>{ const b=e.target.closest('button[data-svtab]'); if(!b) return; if(b.dataset.svtab==='more') svDrawerOpen(); else { svDrawerClose(); svTabGo(b.dataset.svtab); } });
   svTabGo(first||'today'); window.scrollTo(0,0);
+  try{ if(!window.__svHistOn){ window.__svHistOn=true; history.replaceState({svtab:first||'today'},''); window.addEventListener('popstate',e=>{ const t=e.state&&e.state.svtab; if(t){ try{ svDrawerClose(); }catch(x){} svTabGo(t,null,true); } }); } }catch(e){}
 }
 /* Tanıtım (örnek) sayfası da aynı alt menü + sağdan açılan "Daha fazla" ile gezilir */
 function svPromoGelisim(){
@@ -11615,7 +11650,6 @@ function renderShareView(snap){
 }
 function renderShareViewCore(snap){
   window.__shareSnap=snap;
-  if(!document.getElementById('svFonts')){ const l=document.createElement('link'); l.id='svFonts'; l.rel='stylesheet'; l.href='https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap'; document.head.appendChild(l); }
   setTimeout(()=>{ try{ pmDailyInit(); }catch(e){} },0);
   try{ svThemeApply(); }catch(e){}
   setTimeout(()=>{ try{ svPopups(snap); }catch(e){} },0);
@@ -12641,11 +12675,12 @@ function pushNotifyAdmin(text){
   try{ const k='sv_pushthr_'+window.__shareTok; if(text){ localStorage.removeItem(k); } const last=+(localStorage.getItem(k)||0); if(Date.now()-last<8000) return; localStorage.setItem(k,String(Date.now())); }catch(e){}
   try{ fetch('/.netlify/functions/push',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'notify',to:'admin',token:window.__shareTok,text:String(text||'').slice(0,500)})}).catch(()=>{}); }catch(e){}
 }
+function svLastReplyText(c){ try{ const l=repliesOf(c).filter(x=>x&&(x.text||x.emoji||x.heart)); const r=l[l.length-1]; if(!r) return ''; return String((r.heart?'❤️ ':'')+(r.emoji?r.emoji+' ':'')+(r.text||'')).trim().slice(0,110); }catch(e){ return ''; } }
 async function pushNotifyClient(c){
   try{
     if(!c||!c.shareToken) return;
     const t=await cloudToken();
-    const r=await fetch('/.netlify/functions/push',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({action:'notify',to:'client',token:c.shareToken})});
+    const r=await fetch('/.netlify/functions/push',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},body:JSON.stringify({action:'notify',to:'client',token:c.shareToken,text:svLastReplyText(c)})});
     const j=await r.json().catch(()=>({}));
     if(!r.ok) toast('Bildirim gönderilemedi ('+(j.error||('sunucu '+r.status))+')',6000);
     else if(j.sent) toast('📲 Danışanın telefonuna bildirim gitti',3500);
@@ -12774,7 +12809,9 @@ function svChatPollStart(){
       let cm=snap.clientMsgs||[];
       try{ const r2=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(window.__shareTok)}/clientMsgs.json`); if(r2.ok){ const a2=await r2.json(); cm=Array.isArray(a2)?a2.filter(Boolean):(a2?Object.values(a2):[]); } }catch(e){}
       if(JSON.stringify(list)===JSON.stringify(snap.mealReplies||[])&&JSON.stringify(cm)===JSON.stringify(snap.clientMsgs||[])&&JSON.stringify(tg)===JSON.stringify(snap.tgIn||[])) return;
+      const prevN=(snap.mealReplies||[]).length+(snap.tgIn||[]).length;
       snap.mealReplies=list; snap.clientMsgs=cm; snap.tgIn=tg;
+      if(list.length+tg.length>prevN&&prevN>0){ try{ toast('💌 Diyetisyeninden yeni mesaj',3500); if(navigator.vibrate) navigator.vibrate(30); }catch(e){} }
       const el=document.getElementById('sv-yorum'); const h=svReplyHtml(snap);
       if(el) el.outerHTML=h; else { const nav=document.querySelector('.sv-qn'); if(nav) nav.insertAdjacentHTML('afterend',h); }
       if(!document.getElementById('svMsgFab')) document.body.insertAdjacentHTML('beforeend',svMsgFabHtml(snap));
@@ -12782,7 +12819,12 @@ function svChatPollStart(){
       svChatScroll();
     }catch(e){}
   };
-  setInterval(tick,20000); setTimeout(tick,1500);
+  setInterval(tick,60000); setTimeout(tick,1500);
+  // Canlı akış: mesaj yazıldığı anda haber gelir (WhatsApp gibi); kopsa 60 sn'lik kontrol devreye girer
+  try{
+    let kt=null; const kick=()=>{ clearTimeout(kt); kt=setTimeout(tick,150); }; const tk=encodeURIComponent(window.__shareTok);
+    ['/shares/'+tk+'/mealReplies','/shares/t_'+tk,'/shares/'+tk+'/clientMsgs'].forEach(path=>{ const es=new EventSource(CLOUD_DB+path+'.json'); es.addEventListener('put',kick); es.addEventListener('patch',kick); });
+  }catch(e){}
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tick(); });
 }
 /* ══════════════ Tartı / vücut analizi (PDF) ══════════════
