@@ -10416,7 +10416,7 @@ function svPromoHtml(profile,plan){
     <p class="pm-proud">Buraya kadar gelmen bile kendin için bir başarı ✨</p>
     <a class="pm-morelink" href="#pm-ornek">Örnek programı gör <span>↓</span></a>
   </section>
-  <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Bugün rengimiz ne olsun?</button>
+  <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Görünümü ve rengi seç</button>
   <section class="pm-daily" aria-label="Günün motivasyonu ve su takibi">
     <div class="pm-quote"><span class="pm-qh">✨ Günün sözü</span><p id="pmQuote"></p></div>
     <div class="pm-water">
@@ -10865,7 +10865,7 @@ function svMoreItems(){
   const sec=(pre)=>find(e=>e.tagName==='SECTION'&&(e.textContent||'').trim().startsWith(pre));
   const L=[];
   const asst=find(e=>e.classList.contains('sv-assistant')); if(asst) L.push({k:'asst',e:'🌸',t:'Diyet Asistanım',s:'Aklına takılanları sor',el:asst});
-  L.push({k:'theme',e:'🎨',t:'Renk teması',s:'Sayfanın rengini değiştir',act:()=>svThemeOpen()});
+  L.push({k:'theme',e:'🎨',t:'Görünüm ve renk',s:'Klasik, sade, yumuşak veya renkli',act:()=>svThemeOpen()});
   const ib=document.getElementById('svInstallBtn'); if(ib) L.push({k:'inst',e:'📲',t:'Ana ekrana ekle',s:'Tek dokunuşla ulaş',act:()=>svInstallClick()});
   try{ if(svPushCardHtml().includes('svPushCard')) L.push({k:'push',e:'🔔',t:'Bildirimleri aç',s:'Mesaj gelince telefonuna haber ver',act:()=>svPushEnable()}); }catch(e){}
   const al=sec('🚫'); if(al) L.push({k:'al',e:'🥜',t:'Alerji ve sevmediklerim',s:'Programına yansısın',el:al});
@@ -11091,7 +11091,7 @@ function svPromoTabs(){
 }
 function svPromoMoreItems(){
   const h=document.querySelector('#shareView .sv-tab[data-svtab="more"]'); if(!h) return [];
-  const L=[{k:'theme',e:'🎨',t:'Renk teması',s:'Sayfanın rengini değiştir',act:()=>svThemeOpen()}];
+  const L=[{k:'theme',e:'🎨',t:'Görünüm ve renk',s:'Klasik, sade, yumuşak veya renkli',act:()=>svThemeOpen()}];
   const map=[['kimdir','👩‍⚕️','Diyetisyen kimdir?','Benimle tanışın'],['Nasıl başlıyoruz','🚀','Nasıl başlıyoruz?','Adım adım süreç'],['Neler sunuyorum','🎁','Neler sunuyorum?','Programa dahil olanlar'],['Programım nasıl işliyor','🌸','Programım nasıl işliyor?','Haftalık düzen'],['Beslenme rehberinden','📖','Rehberden örnekler','Kısa ve sade bilgiler'],['Beslenme Rehberi','📚','Beslenme rehberi','63 konuda ücretsiz bilgi'],['Hastalıklara göre beslenme','🩺','Hastalıklara göre beslenme','Merak ettiğiniz konu'],['Ücretsiz hesaplayıcı','🧮','Ücretsiz hesaplayıcı','VKİ ve günlük su ihtiyacı'],['Hamile misiniz','🤰','Hamilelik','Gebeliğe özel program'],['Sık sorulan sorular','❓','Sık sorulan sorular','İlk görüşmede neler olur'],['Konum','📍','Konum','Muratpaşa, Antalya']];
   [...h.children].forEach(e=>{
     if(e.tagName!=='SECTION'||e.classList.contains('pm-cta')) return;
@@ -11731,7 +11731,7 @@ function renderShareViewCore(snap){
       </div>`:''}
       <button class="btn btn-sm" id="svInstallBtn" type="button" style="margin-top:8px;width:100%;justify-content:center">📲 Ana ekrana ekle</button>
     </div>
-    <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Bugün rengimiz ne olsun?</button>
+    <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Görünümü ve rengi seç</button>
     ${svPushCardHtml()}
     <section class="pm-daily" aria-label="Günün motivasyonu ve su takibi">
       <div class="pm-quote"><span class="pm-qh">✨ Günün sözü</span><p id="pmQuote"></p></div>
@@ -12453,6 +12453,88 @@ const SV_THEMES={
   gunbatimi:{n:'Gün batımı',em:'🌅',sw:'#E4772F',v:['#7A2E12','#C0561E','#E4772F','#F2AE7B','#FBE0CC','#FEF0E5','#FEF6EF'],h:['#C0561E','#F08A3C','#F7C86B']},
   gece:{n:'Gece mavisi',em:'🌙',sw:'#5560B0',v:['#1E2140','#3A4080','#5560B0','#98A0DC','#DDE0F5','#EEF0FA','#F3F4FB'],h:['#2B3068','#5560B0','#C27BC0']}
 };
+
+const SV_UIS={
+  renkli:{n:'Renkli',em:'🎨',d:'Canlı renkler, zeytin yaprakları'},
+  klasik:{n:'Klasik',em:'🤍',d:'Sakin, beyaz ve düz'},
+  sade:{n:'Sade',em:'🕊',d:'Çok az renk, ferah'},
+  yumusak:{n:'Yumuşak',em:'☁️',d:'Pastel ve hafif'}
+};
+const SV_UI_CSS={
+klasik:`
+html[data-svui="klasik"]{--canvas:#f5f5f2;--line:#e3e3de;--line-2:#f0f0ee}
+html[data-svui="klasik"] #shareView a[href="#sv-tarti"]{background:#fff!important;color:#222!important;border:1px solid #e3e3de;box-shadow:none!important;border-radius:10px!important}
+html[data-svui="klasik"] .sv-banner{transform:none!important;box-shadow:none!important;border-radius:10px!important;background:#fff}
+html[data-svui="klasik"] body,html[data-svui="klasik"] #shareView{background:#f5f5f2!important}
+html[data-svui="klasik"] .sv-wrap .sv-card::after,html[data-svui="klasik"] .sv-wrap .pm-card::after,html[data-svui="klasik"] .svup-card::after,html[data-svui="klasik"] .sv-hero::after,html[data-svui="klasik"] .sv-hero::before{display:none!important}
+html[data-svui="klasik"] .sv-hero{background:#fff!important;border:1px solid #e2e2dc;border-radius:12px!important;box-shadow:none!important}
+html[data-svui="klasik"] .sv-hero,html[data-svui="klasik"] .sv-hero *{color:#222!important;text-shadow:none!important}
+html[data-svui="klasik"] .sv-hero .sv-avatar{background:#efefea;border-color:#ddd}
+html[data-svui="klasik"] .sv-hero .sv-appt{border-top-color:#e5e5e0}
+html[data-svui="klasik"] .sv-hero h1{font-family:Georgia,'Times New Roman',serif!important;font-size:24px!important;font-weight:700}
+html[data-svui="klasik"] .sv-wrap .sv-card,html[data-svui="klasik"] .svup-card,html[data-svui="klasik"] .sv-wrap .pm-card,html[data-svui="klasik"] .pm-water,html[data-svui="klasik"] .pm-quote,html[data-svui="klasik"] .sv-kpi-c{background:#fff!important;border:1px solid #e3e3de!important;border-radius:10px!important;box-shadow:none!important}
+html[data-svui="klasik"] .sv-card-h h3,html[data-svui="klasik"] .svup-h{font-family:Georgia,'Times New Roman',serif!important;font-size:17px!important;font-weight:700!important;color:#222!important}
+html[data-svui="klasik"] #shareView [style*="Caveat"],html[data-svui="klasik"] .sv-wrap h1,html[data-svui="klasik"] .sv-wrap h2{font-family:Georgia,'Times New Roman',serif!important}
+html[data-svui="klasik"] #shareView [style*="gradient"]:not([style*="color:#fff"]){background:#fff!important}
+html[data-svui="klasik"] .sv-wrap>*{animation:none!important}
+html[data-svui="klasik"] #svTabBar{left:0;right:0;bottom:0;max-width:none;border-radius:0;padding:6px 6px calc(6px + env(safe-area-inset-bottom));background:#fff!important;border-top:1px solid #e2e2dc;box-shadow:none}
+html[data-svui="klasik"] #svTabBar button{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:11px;font-weight:600;color:#7a7a72;border-radius:8px}
+html[data-svui="klasik"] #svTabBar .ti{filter:none;font-size:20px;opacity:.8}
+html[data-svui="klasik"] #svTabBar button.on{background:#f0f0ec!important;transform:none!important;box-shadow:none!important;color:#222}
+html[data-svui="klasik"] #svTabBar .dot{box-shadow:0 0 0 2px #fff}
+`,
+sade:`
+html[data-svui="sade"]{--canvas:#fff;--line:#ececec;--line-2:#f0f0ee}
+html[data-svui="sade"] #shareView a[href="#sv-tarti"]{background:#fff!important;color:#222!important;border:1px solid #ececec;box-shadow:none!important;border-radius:10px!important}
+html[data-svui="sade"] .sv-banner{transform:none!important;box-shadow:none!important;border-radius:10px!important;background:#fff}
+html[data-svui="sade"] body,html[data-svui="sade"] #shareView{background:#fff!important}
+html[data-svui="sade"] .sv-wrap .sv-card::after,html[data-svui="sade"] .sv-wrap .pm-card::after,html[data-svui="sade"] .svup-card::after,html[data-svui="sade"] .sv-hero::after,html[data-svui="sade"] .sv-hero::before{display:none!important}
+html[data-svui="sade"] .sv-hero{background:#fff!important;border:0;border-bottom:1px solid #ececec;border-radius:0!important;box-shadow:none!important;padding:8px 0 18px!important}
+html[data-svui="sade"] .sv-hero,html[data-svui="sade"] .sv-hero *{color:#111!important;text-shadow:none!important}
+html[data-svui="sade"] .sv-hero .sv-avatar{background:#f3f3f3;border-color:#e5e5e5}
+html[data-svui="sade"] .sv-hero .sv-appt{border-top-color:#eee}
+html[data-svui="sade"] .sv-hero h1{font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:22px!important;font-weight:700}
+html[data-svui="sade"] .sv-wrap .sv-card,html[data-svui="sade"] .svup-card,html[data-svui="sade"] .sv-wrap .pm-card,html[data-svui="sade"] .pm-water,html[data-svui="sade"] .pm-quote,html[data-svui="sade"] .sv-kpi-c{background:transparent!important;border:0!important;border-bottom:1px solid #ececec!important;border-radius:0!important;box-shadow:none!important}
+html[data-svui="sade"] .sv-card-h h3,html[data-svui="sade"] .svup-h{font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:15px!important;font-weight:700!important;color:#111!important;letter-spacing:0}
+html[data-svui="sade"] #shareView [style*="Caveat"],html[data-svui="sade"] .sv-wrap h1,html[data-svui="sade"] .sv-wrap h2{font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important}
+html[data-svui="sade"] #shareView [style*="gradient"]:not([style*="color:#fff"]){background:#fafafa!important}
+html[data-svui="sade"] .sv-wrap>*{animation:none!important}
+html[data-svui="sade"] #svTabBar{left:0;right:0;bottom:0;max-width:none;border-radius:0;padding:4px 6px calc(6px + env(safe-area-inset-bottom));background:#fff!important;border-top:1px solid #ececec;box-shadow:none}
+html[data-svui="sade"] #svTabBar button{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:10.5px;font-weight:600;color:#9a9a9a;border-radius:0}
+html[data-svui="sade"] #svTabBar .ti{filter:grayscale(1);font-size:19px;opacity:.7}
+html[data-svui="sade"] #svTabBar button.on{background:none!important;transform:none!important;box-shadow:inset 0 2px 0 #111!important;color:#111}
+html[data-svui="sade"] #svTabBar button.on .ti{opacity:1}
+html[data-svui="sade"] #svTabBar .dot{box-shadow:0 0 0 2px #fff}
+`,
+yumusak:`
+html[data-svui="yumusak"] .sv-hero{background:linear-gradient(160deg,var(--blue-50),#fff)!important;border:1px solid var(--blue-100);box-shadow:none!important}
+html[data-svui="yumusak"] .sv-hero::after{opacity:.12!important}
+html[data-svui="yumusak"] #shareView a[href="#sv-tarti"]{background:var(--blue-50)!important;color:var(--blue-900)!important;border:1px solid var(--blue-100);box-shadow:none!important}
+html[data-svui="yumusak"] .sv-hero,html[data-svui="yumusak"] .sv-hero *{color:var(--blue-900)!important;text-shadow:none!important}
+html[data-svui="yumusak"] .sv-hero .sv-avatar{background:var(--blue-100);border-color:var(--blue-100)}
+html[data-svui="yumusak"] .sv-hero .sv-appt{border-top-color:var(--blue-100)}
+html[data-svui="yumusak"] .pm-quote,html[data-svui="yumusak"] .pm-water,html[data-svui="yumusak"] .sv-kpi-c{background:var(--blue-50)!important;border-color:var(--blue-100)!important}
+html[data-svui="yumusak"] #shareView [style*="gradient"]:not([style*="color:#fff"]){background:var(--blue-50)!important}
+html[data-svui="yumusak"] #svTabBar{background:#fff!important;border:1px solid var(--blue-100);box-shadow:0 12px 30px -14px rgba(0,0,0,.28)}
+html[data-svui="yumusak"] #svTabBar button{color:var(--blue-700)}
+html[data-svui="yumusak"] #svTabBar button.on{background:var(--blue-50)!important;color:var(--blue-900);box-shadow:none!important}
+html[data-svui="yumusak"] #svTabBar .ti{filter:none}
+html[data-svui="yumusak"] #svTabBar .dot{box-shadow:0 0 0 2px #fff}
+`};
+function svUiKey(){ return 'sv_ui_'+(window.__shareTok||''); }
+function svUiGet(){ try{ const v=localStorage.getItem(svUiKey()); return SV_UIS[v]?v:'renkli'; }catch(e){ return 'renkli'; } }
+function svUiApply(name){
+  if(name===undefined) name=svUiGet();
+  if(!SV_UIS[name]) name='renkli';
+  document.documentElement.setAttribute('data-svui',name);
+  let st=document.getElementById('svUiStyle'); if(st) st.remove();
+  const css=SV_UI_CSS[name]; if(!css) return;
+  st=document.createElement('style'); st.id='svUiStyle'; st.textContent=css; document.head.appendChild(st);   // en sona eklenir, diğer stilleri ezer
+}
+function svUiPick(k){
+  try{ localStorage.setItem(svUiKey(),k); }catch(e){}
+  svUiApply(k); svThemeOpen(); toast('Görünüm değişti '+(SV_UIS[k]||{}).em,2200);
+}
 function svThemeKey(){ return 'sv_theme_'+(window.__shareTok||''); }
 function svThemeApply(name){
   if(name===undefined){ try{ name=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){ name='pembe'; } }
@@ -12463,6 +12545,7 @@ function svThemeApply(name){
   if(!T.h){ if(st) st.remove(); }
   else{ if(!st){ st=document.createElement('style'); st.id='svThemeStyle'; document.head.appendChild(st); }
     st.textContent=`.sv-hero{background:radial-gradient(90% 70% at 85% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(165deg,${T.h[0]} 0%,${T.h[1]} 55%,${T.h[2]} 100%)!important}.pm-cheer{background:linear-gradient(135deg,${T.v[5]},#fff)!important;border-color:${T.v[4]}!important}`; }
+  try{ svUiApply(); }catch(e){}
 }
 function svSheet(html){
   let o=document.getElementById('svSheet'); if(o) o.remove();
@@ -12475,8 +12558,12 @@ function svSheet(html){
 }
 function svThemeOpen(){
   let cur='pembe'; try{ cur=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){}
-  svSheet(`<div style="text-align:center"><div style="font-size:34px">🎨</div><h3 style="margin:4px 0 2px;font-family:'Caveat',cursive,var(--sans);font-size:28px;color:var(--blue-900)">Bugün rengimiz ne olsun?</h3>
-    <p style="margin:0 0 14px;font-size:13px;color:var(--muted)">Sayfan sana göre renklensin, ruh haline uyanı seç 💛</p>
+  const ui=svUiGet();
+  svSheet(`<div style="text-align:center"><div style="font-size:34px">🎨</div><h3 style="margin:4px 0 2px;font-family:'Caveat',cursive,var(--sans);font-size:28px;color:var(--blue-900)">Sayfan nasıl görünsün?</h3>
+    <p style="margin:0 0 12px;font-size:13px;color:var(--muted)">İstediğin gibi değiştir, istediğin zaman geri dön 💛</p>
+    <div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:0 0 6px;letter-spacing:.04em">GÖRÜNÜM</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">${Object.keys(SV_UIS).map(k=>{const U=SV_UIS[k];return `<button type="button" onclick="svUiPick('${k}')" style="border:2px solid ${ui===k?'var(--blue-600)':'#e6e6e6'};background:${ui===k?'var(--blue-50)':'#fff'};border-radius:16px;padding:10px 8px;cursor:pointer;font:inherit;text-align:center"><div style="font-size:22px">${U.em}</div><div style="font-size:13px;font-weight:800;color:#333">${U.n}</div><div style="font-size:11px;color:#777;line-height:1.3">${U.d}</div></button>`;}).join('')}</div>
+    <div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:0 0 6px;letter-spacing:.04em">RENK</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${Object.keys(SV_THEMES).map(k=>{const T=SV_THEMES[k];return `<button type="button" onclick="svThemePick('${k}')" style="border:2px solid ${cur===k?T.sw:'#eee'};background:${cur===k?'#fff8fb':'#fff'};border-radius:18px;padding:12px 6px;cursor:pointer;font:inherit">
       <div style="width:46px;height:46px;border-radius:50%;margin:0 auto 6px;background:${T.sw};display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 16px -8px ${T.sw}">${T.em}</div><div style="font-size:12px;font-weight:700;color:#4a2c3a">${T.n}</div></button>`;}).join('')}</div></div>`);
 }
