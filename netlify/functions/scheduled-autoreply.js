@@ -5,7 +5,8 @@
 const { firebaseSignIn, firebaseGetData, CLOUD_DB } = require('./_firebase-helper');
 const { pushAll, telegramNotify, setLast } = require('./push');
 
-exports.config = { schedule: '* * * * *' };
+// OTOMATIK CEVAP KAPATILDI: zamanlama kaldirildi (netlify.toml'da da yorum satirinda).
+// Tekrar acmak icin: bu satiri `exports.config = { schedule: '* * * * *' };` yap ve asagidaki erken donusu sil.
 
 const TR = 3 * 3600e3;
 const trHour = (ms) => new Date(ms + TR).getUTCHours();
@@ -48,6 +49,7 @@ async function claude(apiKey, content, system, maxTokens) {
 }
 
 exports.handler = async function () {
+  return { statusCode: 200, body: 'autoreply kapali' };
   const out = { handled: 0, replied: 0, skipped: 0 };
   try {
     const { idToken } = await firebaseSignIn();

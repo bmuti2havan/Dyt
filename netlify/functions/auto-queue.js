@@ -7,6 +7,7 @@ const res = (c, o) => ({ statusCode: c, headers: { 'Content-Type': 'application/
 
 exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return res(405);
+  return res(200, { queued: 0, off: true }); // otomatik cevap kapali: kuyruga yazma
   let b;
   try { b = JSON.parse(event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString('utf8') : (event.body || '{}')); }
   catch (e) { return res(400); }

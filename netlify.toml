@@ -34,8 +34,9 @@
   schedule = "0 9,15 * * *"
 
 # Otomatik cevap: her dakika bekleyen danisan mesajlarini kontrol eder.
+# KAPATILDI (otomatik cevap iptal) - tekrar acmak icin schedule satirini ac:
 [functions."scheduled-autoreply"]
-  schedule = "* * * * *"
+#  schedule = "* * * * *"
   timeout = 26
 
 # Su hatirlaticisi: 15 dakikada bir, acik olan danisanlara bildirim.
