@@ -5377,8 +5377,14 @@ function ensurePdfLibs(){
   if(_pdfLibsPromise) return _pdfLibsPromise;
   _pdfLibsPromise=Promise.race([
     (async()=>{
-      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-      await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      /* Önce kendi sunucumuzdan (vendor/pdf), olmazsa CDN'den */
+      try{
+        await loadScriptOnce('/vendor/pdf/html2canvas.min.js');
+        await loadScriptOnce('/vendor/pdf/jspdf.umd.min.js');
+      }catch(e1){
+        await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+        await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+      }
     })(),
     new Promise((_,rej)=>setTimeout(()=>rej(new Error('PDF kütüphanesi yüklenemedi (zaman aşımı) — internet bağlantınızı kontrol edin')),20000))
   ]).catch(err=>{ _pdfLibsPromise=null; throw err; });
