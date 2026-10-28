@@ -1092,8 +1092,8 @@ window.__svInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); window.__svInstallPrompt=e; });
 
 /* ═══════ WhatsApp gonderim yardimcisi (Meta Cloud API - dogrudan tarayicidan) ═══════ */
-const WA_TOKEN = 'EAAgl62FdbdMBSb2P4RG4X6INmzk0TFlq1O8AGW1ZADbdGL52Qx1m5Jp2bthYeS6r0YGOmoecRvNI8kOer71cHK94A8XZCi7Vtp3AuY8VHZBO0gpUYQJkjhSlDKhRV6S73sRc7k6O6ZBsJUXBsCjYnNyAb1UZBeKKxZASH6oX80XUw9ZAN7p6J784ZA0yiip47z0BdAZDZD';
-const WA_PHONE_ID = '1112592015280831';
+/* GÜVENLİK: WhatsApp erişim anahtarı artık sayfada DEĞİL; Netlify ortam değişkenlerinde (WA_TOKEN, WA_PHONE_ID) durur,
+   gönderim netlify/functions/send-whatsapp.js üzerinden, sadece giriş yapmış diyetisyen için yapılır. */
 
 function waNormalizePhone(raw){
   let n = String(raw||'').replace(/[^\d]/g,'');
@@ -1113,14 +1113,14 @@ function waLogPush(entry){
 /* Meta'nın hata kodlarını anlaşılır Türkçeye çevirir */
 function waExplain(err){
   const c=err&&err.code;
-  if(c===190) return 'Erişim anahtarı (token) süresi dolmuş ya da geçersiz. Meta hesabından yeni bir kalıcı anahtar alıp dosyadaki WA_TOKEN değiştirilmeli.';
+  if(c===190) return 'Erişim anahtarı (token) süresi dolmuş ya da geçersiz. Meta hesabından yeni bir kalıcı anahtar alıp Netlify’daki WA_TOKEN ortam değişkeni güncellenmeli.';
   if(c===131047) return 'Danışan son 24 saatte sana yazmadığı için serbest metin gönderilemez; onaylı mesaj şablonu gerekir.';
   if(c===131030) return 'Bu numara, test numarasının izinli alıcı listesinde değil. Meta panelinde alıcı olarak ekle.';
   if(c===131026) return 'Bu numaraya mesaj iletilemiyor (numara WhatsApp kullanmıyor olabilir).';
   if(c===131042) return 'Meta hesabında ödeme yöntemi eksik ya da hesap uygun değil.';
   if(c===131056||c===130429||c===80007) return 'Çok hızlı gönderim yapıldı; biraz bekleyip tekrar dene.';
   if(c===133010) return 'Gönderen numara WhatsApp Cloud API’de kayıtlı değil.';
-  if(c===100) return 'İstek reddedildi: numara kimliği (WA_PHONE_ID) ya da telefon numarası biçimi hatalı olabilir.';
+  if(c===100) return 'İstek reddedildi: numara kimliği (Netlify’daki WA_PHONE_ID) ya da telefon numarası biçimi hatalı olabilir.';
   if(c===10||c===200) return 'Bu anahtarın bu numara için WhatsApp izni yok.';
   return '';
 }
@@ -1136,13 +1136,16 @@ function waFail(err,label){
 async function waApiCall(payload){
   const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),20000);
   try{
-    const r=await fetch('https://graph.facebook.com/v21.0/'+WA_PHONE_ID+'/messages', {
+    let tok=''; try{ tok=await cloudToken(); }catch(e){}
+    if(!tok) return { ok:false, data:{error:{code:0,message:'WhatsApp için önce Ayarlar → Bulut senkronizasyonuna bağlanmalısın (güvenli gönderim sunucu üzerinden yapılır).'}} };
+    const r=await fetch('/.netlify/functions/send-whatsapp', {
       method:'POST', signal:ctl.signal,
-      headers: { 'Authorization':'Bearer '+WA_TOKEN, 'Content-Type':'application/json' },
-      body: JSON.stringify(payload)
+      headers: { 'Authorization':'Bearer '+tok, 'Content-Type':'application/json' },
+      body: JSON.stringify({ payload })
     });
-    const data=await r.json().catch(()=>({}));
-    return { ok:r.ok, data };
+    const j=await r.json().catch(()=>({}));
+    if(j&&typeof j.ok==='boolean'&&j.data!==undefined) return { ok:j.ok, data:j.data||{} };
+    return { ok:false, data:{error:{code:r.status,message:(j&&j.error)||('Sunucu hatası ('+r.status+')')}} };
   }catch(e){
     if(e && e.name==='AbortError') return { ok:false, timeout:true, data:{} };
     return { ok:false, networkErr:e, data:{} };
@@ -1217,7 +1220,7 @@ window.addEventListener('load', ()=>{ setTimeout(()=>{ autoBackupCheck(); }, 400
                         message:'...', groups:['yeni','kadin',...], image:'data:...'|'',
                         lastSentDate:null, sentLog:{ '2026-10-09':[contactId,...] } } ]
    "groups" WA_GROUPS içindeki sabit 4 gruptan (Yeni/Kadın/Erkek/Özel danışan) biri ya da birkaçı olabilir.
-   Gerçek gönderim, saatinde ve panel kapalıyken bile, Netlify'daki
+   Gerçek gönderim, saatinde ve panel kapalıyken bile, Netlify’daki
    zamanlanmış fonksiyon tarafından yapılır (netlify/functions/scheduled-weekly.js).
    Bu dosyada sadece PROGRAMI YAZIP KAYDEDİYORUZ. O fonksiyon her başarılı
    gönderimden hemen sonra "bu kişiye bugün gönderildi" bilgisini kaydeder
@@ -2988,15 +2991,17 @@ function shareToken(){
 }
 const shareUrl=tok=>location.origin+location.pathname+'?v='+tok;
 function libSizeFmt(n){ n=+n||0; return n<1024*1024? Math.round(n/1024)+' KB' : (n/1024/1024).toFixed(1)+' MB'; }
+/* Danışana giden her program kopyasından diyetisyenin özel notu (privNote / eski adlar) ayıklanır */
+function stripPrivPlan(p){ if(p){ delete p.privnote; delete p.privNote; delete p.desc; } return p; }
 function buildShareSnapshot(c){
   const all=plansOf(c.id);
   const byStart=(x,y)=>(new Date(y.start)-new Date(x.start))||0;
   const act=[...all].filter(p=>p.status==='Aktif').sort(byStart)[0]||[...all].sort(byStart)[0]||null;   // birden fazla "Aktif" varsa en yeni başlayan
   let plan=null;
-  if(act){ migratePlan(act); plan=JSON.parse(JSON.stringify(act)); delete plan.privnote; } // 🔒 özel not asla paylaşılmaz
+  if(act){ migratePlan(act); plan=stripPrivPlan(JSON.parse(JSON.stringify(act))); } // 🔒 özel not asla paylaşılmaz
   // Danışan aynı linkten eski programlarını da görebilsin diye — en fazla son 8 tanesi (veri boyutu için)
   const pastPlans=all.filter(p=>p.id!==(act&&act.id)).sort((a,b)=>new Date(b.start)-new Date(a.start)).slice(0,40)
-    .map((p,i)=>{ migratePlan(p); const cl=JSON.parse(JSON.stringify(p)); delete cl.privnote; delete cl.privNote; if(i>=3&&cl.days) cl.days.forEach(d=>{ if(d&&d.photo) delete d.photo; }); return cl; });
+    .map((p,i)=>{ migratePlan(p); const cl=stripPrivPlan(JSON.parse(JSON.stringify(p))); if(i>=3&&cl.days) cl.days.forEach(d=>{ if(d&&d.photo) delete d.photo; }); return cl; });
   const nx=nextApptOf(c.id);
   const notes=(c.notes||[]).filter(n=>n.visible).sort((a,b)=>new Date(b.date)-new Date(a.date))
     .map(n=>({date:n.date,type:n.type,text:n.text}));
@@ -3082,7 +3087,7 @@ async function promoPublish(){
     let plan=null;
     if(planId){
       const pSrc=DB.plans.find(x=>x.id===planId);
-      if(pSrc){ migratePlan(pSrc); plan=JSON.parse(JSON.stringify(pSrc)); delete plan.privnote; }
+      if(pSrc){ migratePlan(pSrc); plan=stripPrivPlan(JSON.parse(JSON.stringify(pSrc))); }
     }
     DB.profile.promoPlanId=planId;
     const snap={profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail},plan,updatedAt:Date.now()};

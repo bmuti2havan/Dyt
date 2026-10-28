@@ -101,5 +101,5 @@ exports.handler = async function (event) {
     return res(400);
   } catch (e) { return res(500, { error: String(e.message || e) }); }
 };
-exports.pushAll = pushAll; exports.shareExists = shareExists; exports.telegramNotify = telegramNotify; exports.setLast = setLast;
+exports.isAdmin = isAdmin; exports.pushAll = pushAll; exports.shareExists = shareExists; exports.telegramNotify = telegramNotify; exports.setLast = setLast;
 exports._test = { vapidJwt, sendOne, VAPID_PUBLIC };
