@@ -11676,7 +11676,7 @@ function svUpInit(){
     const td=document.querySelector('#shareView .sv-tab[data-svtab="today"]'); if(!td) return;
     const hero=td.querySelector('.sv-hero');
     const snap=window.__shareSnap||{}, pl=svSafePlan(snap.plan);
-    let day=null; if(pl&&pl.days&&pl.days.length){ const wd=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'][new Date().getDay()]; const norm=x=>String(x||'').toLocaleLowerCase('tr'); day=pl.days.find(d=>norm(d.name).includes(norm(wd)))||(pl.days.length>1?null:pl.days[0]); }
+    let day=null; if(pl&&pl.days&&pl.days.length){ const hitT=pl.start?svPlanOn(svIso(),svPlansAll()):undefined; if(hitT!==undefined){ day=hitT?hitT.day:null; } else { const wd=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'][new Date().getDay()]; const norm=x=>String(x||'').toLocaleLowerCase('tr'); day=pl.days.find(d=>norm(d.name).includes(norm(wd)))||(pl.days.length>1?null:pl.days[0]);  } }
     if(hero&&!document.getElementById('svRingCard')){
       const anchor=document.getElementById('svNowCard')||hero;
       hero.insertAdjacentHTML('afterend',svNowMealHtml(day)+svRingCardHtml());
@@ -12016,7 +12016,8 @@ function svPlanOn(iso,plans){
   for(let i=0;i<plans.length;i++){ const p=plans[i], nx=plans[i+1]; if(String(p.start)<=iso&&(!nx||iso<String(nx.start))){ hit=p; ci=i; } }
   if(!hit) return null;
   const a=new Date(String(hit.start).slice(0,10)+'T12:00:00'), b=new Date(iso+'T12:00:00'), diff=Math.round((b-a)/864e5), n=hit.days.length;
-  return {plan:hit,ci,day:hit.days[((diff%n)+n)%n]};
+  if(diff<0||diff>=n) return null;   // program bitti: baştan sarma yok, takvimde olmayan güne liste koyma
+  return {plan:hit,ci,day:hit.days[diff]};
 }
 let __svPcOff=0, __svPcSel=null;
 function svPCalOpen(){ __svPcOff=0; __svPcSel=svIso(); svSheet('<div id="svPcBox"></div>'); svPCalDraw(); }
@@ -12055,7 +12056,9 @@ function svTabsInit(){
     if(pl&&pl.days&&pl.days.length&&hero){
       const wd=['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'][new Date().getDay()];
       const norm=x=>String(x||'').toLocaleLowerCase('tr');
-      const day=pl.days.find(d=>norm(d.name).includes(norm(wd)))||(pl.days.length>1?null:pl.days[0]);
+      const hitT=pl.start?svPlanOn(svIso(),svPlansAll()):undefined;
+      const day=hitT!==undefined?(hitT?hitT.day:null):(pl.days.find(d=>norm(d.name).includes(norm(wd)))||(pl.days.length>1?null:pl.days[0]));
+      if(!day&&hitT===null) hero.insertAdjacentHTML('afterend','<section class="sv-card" id="svMealsCard" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><p style="padding:6px 16px 14px;margin:0;color:var(--muted);font-size:13.5px;line-height:1.55">Programın tamamlandı 🎉 Yeni listen hazırlandığında burada görünecek. Eski listelerine "Program takvimim"den bakabilirsin.</p></section>');
       if(day&&day.meals&&day.meals.length){
         hero.insertAdjacentHTML('afterend',`<section class="sv-card" id="svMealsCard" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><div style="padding:6px 16px 4px">${day.meals.map(m=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)"><div style="font-size:22px">${esc(m.emoji||'🍽')}</div><div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc(m.name||'')}</b><div style="font-size:12.5px;color:var(--muted);line-height:1.5">${(m.lines||[]).slice(0,4).map(esc).join(' · ')}</div></div></div>`).join('')}</div><div style="padding:6px 16px 14px"><a href="#sv-program" style="font-size:13px;font-weight:700;color:var(--blue-700);text-decoration:none">Tüm programı gör →</a></div></section>`);
       }
