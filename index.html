@@ -5296,6 +5296,7 @@ async function exportDocx(share){
       const st={emoji:base.emoji||m.emoji||'🍽',color:th[0],fill:th[1]};
       let txt=wP(`${st.emoji}  ${String(m.name).toLocaleUpperCase('tr')}`,{b:true,size:25,color:st.color,font:TF,after:70});
       if(m.title) txt+=wP(m.title,{b:true,size:21,color:TB,after:80});
+      if(chHeadOn(m)&&m.lines.length) txt+=wP('🔘 Birini seç',{b:true,size:18,color:'B45309',after:50});
       m.lines.forEach(l=>{txt+=wP(l,{bullet:true,size:19,color:TC,after:45});});
       if(m.tip) txt+=wP(m.tip,{i:true,size:18,color:T.not2,before:60,after:40});
       const rid=addImg(m.photo);
@@ -5481,17 +5482,18 @@ async function pdfDayHtml(p,i){
       ${d.sub?`<span style="opacity:.85;font-size:11.5px">— ${esc(d.sub)}</span>`:''}
     </div>
   </div>`;
-  if(d.photo){ const dp=await pdfCoverCrop(d.photo,1456,420); h+=`<div style="margin:0 46px"><img src="${dp}" style="width:100%;height:210px;border-radius:0 0 10px 10px;display:block"></div>`; }
+  if(d.photo&&!window.__pdfLite){ const dp=await pdfCoverCrop(d.photo,1456,420); h+=`<div style="margin:0 46px"><img src="${dp}" style="width:100%;height:210px;border-radius:0 0 10px 10px;display:block"></div>`; }
   for(const m of d.meals){
     if(!m.lines.length&&!m.title) continue;
     const st=MEAL_STYLE[m.name]||{web:'#4C9A73',webbg:'#F5F7F6'};
-    const mp=m.photo? await pdfCoverCrop(m.photo,208,208) : '';
+    const mp=(m.photo&&!window.__pdfLite)? await pdfCoverCrop(m.photo,208,208) : '';
     h+=`<div style="margin:9px 46px 0;border:1px solid #E2E6EA;border-left:4px solid ${st.web};border-radius:8px;overflow:hidden">
       <div style="background:${st.webbg};padding:7px 14px;font-weight:700;color:${st.web};font-size:12px;letter-spacing:.03em">${m.emoji} ${esc(m.name).toLocaleUpperCase('tr')}</div>
       <div style="padding:9px 14px;display:flex;gap:12px">
         <div style="flex:1;min-width:0">
           ${m.title?`<div style="font-weight:700;color:#222;font-size:12.5px;margin-bottom:4px">${esc(m.title)}</div>`:''}
-          ${m.lines.length?`<ul style="margin:0;padding-left:15px;color:#444;font-size:11.5px;line-height:1.55">${m.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
+          ${m.choice&&m.lines.length?`${chHeadOn(m)?'<div style="font-size:10.5px;font-weight:800;color:#b45309;margin-bottom:2px">Birini seç</div>':''}<div style="color:#444;font-size:11.5px;line-height:1.6">${m.lines.map(l=>`<div>○ ${esc(l)}</div>`).join('')}</div>`
+          :m.lines.length?`<ul style="margin:0;padding-left:15px;color:#444;font-size:11.5px;line-height:1.55">${m.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
           ${m.tip?`<div style="margin-top:5px;color:#777;font-size:10.5px;font-style:italic">${esc(m.tip)}</div>`:''}
         </div>
         ${mp?`<img src="${mp}" style="width:104px;height:104px;border-radius:8px;flex:0 0 auto;display:block">`:''}
@@ -5511,7 +5513,10 @@ async function pdfRenderChunk(html){
   document.body.appendChild(host);
   try{
     await pdfWaitImgs(host);
-    return await window.html2canvas(host,{scale:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:820});
+    return await Promise.race([
+      window.html2canvas(host,{scale:window.__pdfLite?1:2,backgroundColor:'#ffffff',useCORS:true,windowWidth:820,imageTimeout:8000,logging:false}),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('Sayfa çizimi zaman aşımına uğradı')),40000))
+    ]);
   } finally{ host.remove(); }
 }
 function pdfAddCanvas(doc,canvas,startNewPage){
@@ -5526,24 +5531,42 @@ function pdfAddCanvas(doc,canvas,startNewPage){
   }
 }
 async function exportPdf(){
+  try{ return await exportPdfOnce(); }
+  catch(err1){
+    console.error('PDF ilk deneme başarısız',err1);
+    /* Hafif mod: fotoğrafsız ve düşük çözünürlükle bir kez daha dene */
+    window.__pdfLite=true; toast('PDF hafif modda yeniden deneniyor…',8000);
+    try{ return await exportPdfOnce(); }
+    catch(err2){ console.error(err2); throw err2; }
+    finally{ window.__pdfLite=false; }
+  }
+}
+function pdfSaveBlob(doc,fname){
+  const blob=doc.output('blob');
+  const url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=fname; a.style.display='none'; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ try{ a.remove(); URL.revokeObjectURL(url); }catch(e){} },8000);
+}
+async function exportPdfOnce(){
   const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
   migratePlan(p);
   const c=clientOf(p.clientId);
   const dolu=p.days.some(d=>d.meals.some(m=>m.lines.length||m.title));
   if(!dolu) return toast('Önce en az bir öğün doldurmalısın');
-  toast('PDF hazırlanıyor…',8000);
+  toast('PDF hazırlanıyor…',60000);
   await ensurePdfLibs();
   const chunks=[pdfCoverHtml(p,c)];
   for(let i=0;i<p.days.length;i++){ const h=await pdfDayHtml(p,i); if(h) chunks.push(h); }
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF('p','mm','a4');
   for(let i=0;i<chunks.length;i++){
+    toast('PDF hazırlanıyor… ('+(i+1)+'/'+chunks.length+')',60000);
     const canvas=await pdfRenderChunk(chunks[i]);
     pdfAddCanvas(doc,canvas,i>0);
   }
   const fname=((c?c.name+' - ':'')+p.name).replace(/[\\/:*?"<>|]/g,'').slice(0,80)+'.pdf';
-  doc.save(fname);
-  toast('PDF indirildi ✓');
+  pdfSaveBlob(doc,fname);
+  toast('PDF indirildi ✓ (İndirilenler klasörüne bak)',5000);
 }
 
 /* ══════════════ Öğün analizi — yalnızca panelde görünür ══════════════ */
@@ -5728,6 +5751,7 @@ function mealNutri(meal){
     NUTRI_KEYS.forEach(k=>{ tot[k]+= (+f[k]||0)*r; });
   });
   const ign=rows.filter(x=>x.ignored).length;
+  if(meal.choice&&rows.length>1){ NUTRI_KEYS.forEach(k=>tot[k]=tot[k]/rows.length); }   /* seçmeli listede danışan yalnız birini yer: ortalama al */
   return {tot,rows,miss,matched:rows.length-miss.length-ign};
 }
 function dayNutri(day){
@@ -5883,7 +5907,8 @@ function planText(p){
       if(!m.lines.length&&!m.title) return;
       L.push('');
       L.push(m.emoji+' '+m.name.toLocaleUpperCase('tr')+(m.title?' — '+m.title:''));
-      m.lines.forEach(x=>{ if(String(x).trim()) L.push('• '+x); });
+      if(chHeadOn(m)&&m.lines.length) L.push('  (Birini seç)');
+      m.lines.forEach(x=>{ if(String(x).trim()) L.push((m.choice?'○ ':'• ')+x); });
       if(m.tip) L.push('  '+m.tip);
     });
     L.push('');
@@ -7327,6 +7352,7 @@ function pagePlanEdit(){
   </div>
 
   <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <button class="btn btn-sm btn-primary" data-act="day-swap">🔁 Günü başka güne taşı / değiştir</button>
     <button class="btn btn-sm" data-act="copy-day">${ic('plans',15)} Bu günü kopyala</button>
     <button class="btn btn-sm" data-act="paste-day" ${S.clip?'':'disabled style="opacity:.45"'}>Yapıştır${S.clip?' ('+(S.clip.from+1)+'. gün)':''}</button>
     <button class="btn btn-sm" data-act="clear-day">Günü temizle</button>
@@ -7369,7 +7395,8 @@ function pagePlanEdit(){
   ${day.meals.map((m,mi)=>{const st=MEAL_STYLE[m.name]||{web:'#4C9A73',webbg:'#F5F7F6'};return `
     <section class="card meal-card" style="border-left:4px solid ${st.web}">
       <div class="meal-h" style="background:${st.webbg}"><h4 style="color:${st.web}">${m.emoji} ${esc(m.name).toLocaleUpperCase('tr')}</h4><div class="spacer"></div>
-        <span class="tag ${m.lines.length?'tag-ok':''}">${m.lines.length? m.lines.length+' madde':'boş'}</span>
+        <span class="tag ${m.lines.length?'tag-ok':''}">${m.lines.length? m.lines.length+(m.choice?' seçenek':' madde'):'boş'}</span>${m.choice?'<span class="tag tag-blue">🔘 Seçmeli</span>':''}
+        <button class="btn btn-sm no-print" data-ch-open="${mi}" title="Danışan birini seçsin: balık / et / tavuk gibi">🔘 Seçmeli liste</button>
         <button class="btn btn-sm no-print" data-fav-open="${mi}" title="Sık kullanılanlardan ekle">⭐ Favoriler</button>
         ${(m.lines.length||m.title)?`<button class="btn btn-sm no-print" data-alt-run="${mi}" title="Gemini ile alternatif öğün üret">🔄 Alternatif</button>`:''}
         ${(m.lines.length||m.title)?`<button class="btn btn-sm no-print" data-fav-add="${mi}" title="Bu öğünü favorilere kaydet">＋ Kaydet</button>`:''}</div>
@@ -7442,6 +7469,40 @@ function reorderGridHtml(p){
   return `<p class="hint" style="margin:0 0 10px">Bir öğüne tıkla, sonra yerini değiştirmek istediğin öğüne tıkla — ikisi birbiriyle yer değiştirir. Öğün başlıkları (Kahvaltı, Öğle…) sabit kalır, sadece içindeki yemek taşınır.</p>
     <div style="overflow:auto"><table class="swap-table"><thead><tr><th></th>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
+const chHeadOn=m=>!!(m&&m.choice)&&!/^birini seç/i.test(String(m.title||'').trim());
+const CH_QUICK=['Izgara balık','Izgara tavuk','Izgara et / köfte','Sebze yemeği','Baklagil yemeği','Omlet','Ton balıklı salata','Zeytinyağlı sebze','Yoğurt + salata'];
+function openChoice(mi){
+  const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
+  const m=p.days[S.day].meals[mi]; if(!m) return; S.chMi=mi;
+  modal('🔘 Seçmeli liste — '+esc(m.name),
+    `<p class="hint" style="margin:0 0 10px">Danışan aşağıdaki seçeneklerden <b>birini</b> seçip yer. Örn. öğle yemeğinde Balık, Et, Tavuk. Her satıra bir seçenek yaz; aşağıdaki hazır seçeneklere dokunarak da ekleyebilirsin.</p>
+    <div class="field"><label>Başlık</label><input id="ch-title" value="${esc(m.title||'Birini seç')}" placeholder="Örn. Restoranda seç"></div>
+    <div class="field" style="margin-top:10px"><label>Seçenekler — her satıra bir tane</label><textarea id="ch-lines" rows="7" placeholder="Izgara balık + salata&#10;Izgara tavuk + sebze&#10;Izgara köfte + közlenmiş sebze">${esc((m.lines||[]).join('\n'))}</textarea></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${CH_QUICK.map(x=>`<button type="button" class="chip" data-ch-chip="${esc(x)}">+ ${esc(x)}</button>`).join('')}</div>
+    <label style="display:flex;gap:8px;margin-top:14px;align-items:center;font-size:13.5px"><input type="checkbox" id="ch-on" style="width:auto" ${(m.choice||!(m.lines||[]).length)?'checked':''}> Seçmeli liste olarak göster <span style="color:var(--muted)">(danışan birini seçer)</span></label>`,
+    'Kaydet','ch-save','520px');
+}
+async function saveChoice(){
+  const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
+  const m=p.days[S.day].meals[S.chMi]; if(!m) return;
+  const lines=(document.getElementById('ch-lines').value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+  m.title=(document.getElementById('ch-title').value||'').trim(); m.lines=lines;
+  m.choice=!!document.getElementById('ch-on').checked&&lines.length>0;
+  closeModal(); await save(); render(); toast(m.choice?'Seçmeli liste eklendi ✓':'Kaydedildi');
+}
+function openDaySwap(){
+  const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
+  const a=S.day, cnt=d=>(d.meals||[]).filter(m=>(m.lines||[]).length||m.title).length;
+  modal('🔁 '+dFull(p,a)+' gününü kime taşıyalım?',
+    `<p class="hint" style="margin:0 0 10px"><b>${dFull(p,a)}</b> (${a+1}. gün) listesi, seçtiğin günle <b>yer değiştirir</b>. Örn. Salı ↔ Cuma. Seçtiğin günün listesi de bu güne gelir.</p>
+    <div style="display:grid;gap:8px">${p.days.map((d,i)=>i===a?'':`<button type="button" class="btn" data-day-swap="${i}" style="justify-content:space-between;padding:12px 14px"><b>${dFull(p,i)}</b><span style="color:var(--muted);font-weight:400">${i+1}. gün · ${cnt(d)} öğün dolu</span></button>`).join('')}</div>`,
+    'Vazgeç','close','440px');
+}
+async function doDaySwap(b){
+  const p=DB.plans.find(x=>x.id===S.plan); if(!p||!p.days[b]) return;
+  const a=S.day; const t=p.days[a]; p.days[a]=p.days[b]; p.days[b]=t;
+  S.day=b; closeModal(); await save(); render(); toast(dFull(p,a)+' ↔ '+dFull(p,b)+' yer değiştirdi ✓');
+}
 function openReorder(){
   S.swapSel=null;
   modal('🔀 Öğün yerlerini değiştir',reorderGridHtml(DB.plans.find(x=>x.id===S.plan)),'Kapat','close','1180px');
@@ -7452,9 +7513,9 @@ async function reorderPick(di,mi){
   const a=S.swapSel;
   if(a.d===di&&a.m===mi){ S.swapSel=null; return modal('🔀 Öğün yerlerini değiştir',reorderGridHtml(p),'Kapat','close','1180px'); }
   const ma=p.days[a.d].meals[a.m], mb=p.days[di].meals[mi];
-  const ka={title:ma.title,lines:ma.lines,tip:ma.tip,photo:ma.photo};
-  ma.title=mb.title; ma.lines=mb.lines; ma.tip=mb.tip; ma.photo=mb.photo;
-  mb.title=ka.title; mb.lines=ka.lines; mb.tip=ka.tip; mb.photo=ka.photo;
+  const ka={title:ma.title,lines:ma.lines,tip:ma.tip,photo:ma.photo,choice:ma.choice};
+  ma.title=mb.title; ma.lines=mb.lines; ma.tip=mb.tip; ma.photo=mb.photo; ma.choice=mb.choice;
+  mb.title=ka.title; mb.lines=ka.lines; mb.tip=ka.tip; mb.photo=ka.photo; mb.choice=ka.choice;
   S.swapSel=null;
   await save();
   render();                                     // arkadaki sayfa (öğün kartları) da güncellensin
@@ -8314,6 +8375,7 @@ function openModal(kind){
 /* ══════════════ Kaydetme işlemleri ══════════════ */
 async function handleOk(act){
   if(act==='close') return closeModal();
+  if(act==='ch-save') return saveChoice();
   if(act==='tarti-save') return tartiSave();
   if(act.startsWith('tarti-note-')){ const c=clientOf(S.client), sc=(c.bodyScans||[]).find(x=>x.id===act.slice(11)); if(sc){ sc.note=(document.getElementById('tt-note')||{}).value||''; await save(); closeModal(); toast('Not kaydedildi ✓'); if(c.shareToken) tartiPublish(c); } return; }
   if(act==='aw-open'){ closeModal(); S.page='aware'; render(); return; }
@@ -9873,6 +9935,9 @@ document.addEventListener('click',async e=>{
     catch(e){ el.select(); toast('Metni seçtim, kopyalayabilirsin'); }
     return; }
   const gnR=t.closest('[data-gen-run]'); if(gnR){ return runGen(); }
+  const dsw=t.closest('[data-day-swap]'); if(dsw){ return doDaySwap(+dsw.dataset.daySwap); }
+  const chO=t.closest('[data-ch-open]'); if(chO){ return openChoice(+chO.dataset.chOpen); }
+  const chC=t.closest('[data-ch-chip]'); if(chC){ const ta=document.getElementById('ch-lines'); if(ta){ ta.value=(ta.value.trim()?ta.value.replace(/\s+$/,'')+'\n':'')+chC.dataset.chChip; ta.focus(); } return; }
   const altR=t.closest('[data-alt-run]'); if(altR){ return runAlt(+altR.dataset.altRun); }
   const altA=t.closest('[data-alt-apply]'); if(altA){ return applyAlt(); }
   const covR=t.closest('[data-cov-run]'); if(covR){ return runCover(); }
@@ -10045,6 +10110,7 @@ document.addEventListener('click',async e=>{
       if(!confirm('Bu cihazda bulut bağlantısı kesilsin mi? Veriler cihazda kalır.')) return;
       DB.cloud={autoSkip:true}; await save({noCloud:true}); paintSync('Bulut kapalı','var(--muted)'); render(); return;
     }
+    if(a==='day-swap'){ return openDaySwap(); }
     if(a==='copy-day'){
       const pl=DB.plans.find(x=>x.id===S.plan);
       S.clip={from:S.day,data:JSON.parse(JSON.stringify(pl.days[S.day]))};
@@ -10104,7 +10170,7 @@ document.addEventListener('click',async e=>{
     if(a==='form-docx'){ try{ exportFormDocx(false); }catch(err){ console.error(err); toast('Word dosyası oluşturulamadı'); } return; }
     if(a==='form-docx-blank'){ try{ exportFormDocx(true); }catch(err){ toast('Word dosyası oluşturulamadı'); } return; }
     if(a==='docx'){ try{ await exportDocx(); }catch(err){ console.error(err); toast('Word dosyası oluşturulamadı'); } return; }
-    if(a==='pdf'){ try{ await exportPdf(); }catch(err){ console.error(err); toast('PDF oluşturulamadı: '+(err.message||'bilinmeyen hata')); } return; }
+    if(a==='pdf'){ try{ await exportPdf(); }catch(err){ console.error(err); toast('PDF oluşturulamadı: '+(err.message||'bilinmeyen hata'),9000); } return; }
     if(a==='share-open'){ openClientShare(act.dataset.cid); return; }
     if(a==='share-gen'){ await shareGenerate(); return; }
     if(a==='share-copy'){ shareCopy(); return; }
@@ -11485,7 +11551,7 @@ function svNowMealHtml(day){
   const n=day.meals.length, h=new Date().getHours()+new Date().getMinutes()/60;
   const idx=Math.max(0,Math.min(n-1,Math.floor((Math.max(7,Math.min(22.99,h))-7)/(16/n))));
   const m=day.meals[idx];
-  return '<section class="svup-card" id="svNowCard"><div class="svnow"><div class="ne">'+esc(m.emoji||'🍽')+'</div><div style="min-width:0"><div class="nt">Şimdi sıra</div><b>'+esc(m.name||'Öğün')+'</b><div class="nl">'+(m.lines||[]).slice(0,4).map(esc).join(' · ')+'</div></div></div><div id="svNowFeel">'+svFeelHtml(idx,m.name)+'</div></section>';
+  return '<section class="svup-card" id="svNowCard"><div class="svnow"><div class="ne">'+esc(m.emoji||'🍽')+'</div><div style="min-width:0"><div class="nt">Şimdi sıra</div><b>'+esc(m.name||'Öğün')+'</b><div class="nl">'+(m.lines||[]).slice(0,4).map(esc).join(m.choice?' veya ':' · ')+'</div></div></div><div id="svNowFeel">'+svFeelHtml(idx,m.name)+'</div></section>';
 }
 /* ── Su hatırlatıcı (sunucudan telefona bildirim) ── */
 function svWrKey(){ return 'sv_wr_'+(window.__shareTok||''); }
@@ -14311,7 +14377,8 @@ function svShowDay(i){
       <div style="padding:10px 14px;display:flex;gap:12px">
         <div style="flex:1;min-width:0">
           ${m.title?`<div style="font-weight:700;margin-bottom:5px">${esc(m.title)}</div>`:''}
-          ${m.lines.length?`<ul style="margin:0;padding-left:16px;font-size:13px;line-height:1.6">${m.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
+          ${m.choice&&m.lines.length?`${chHeadOn(m)?'<div style="font-size:11.5px;font-weight:800;color:#b45309;margin-bottom:3px">🔘 Birini seç</div>':''}<div style="font-size:13px;line-height:1.6">${m.lines.map(l=>`<div style="padding:3px 0">○ ${esc(l)}</div>`).join('')}</div>`
+          :m.lines.length?`<ul style="margin:0;padding-left:16px;font-size:13px;line-height:1.6">${m.lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}
           ${m.tip?`<div style="margin-top:6px;color:var(--muted);font-size:12px;font-style:italic">${esc(m.tip)}</div>`:''}
         </div>
         ${m.photo?`<img src="${m.photo}" style="width:92px;height:92px;object-fit:cover;border-radius:12px;flex:0 0 auto;box-shadow:0 4px 10px -4px rgba(92,34,56,.35)">`:''}
