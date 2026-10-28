@@ -2175,17 +2175,22 @@ async function docxToTemplate(file){
     }
   };
   handleBlocks(blocks);
+  if(!days.length&&!matrixDays.length){   // gün başlığı yok: tüm içeriği 1. güne al (öğün başlığı varsa öğünlere dağılır)
+    day=null; meal=null; stop=false; intro.mode=''; startDay({sig:'g1',num:1});
+    warns.push('Gün başlığı bulunamadı — içerik 1. güne yüklendi, günleri elle düzenleyebilirsin');
+    handleBlocks(blocks);
+  }
   const seqDays=days;
 
   const score=ds=>ds.reduce((a,d)=>a+d.meals.reduce((b,m)=>b+(m._items||[]).length,0),0);
   let chosen=seqDays, source='metin';
   if(matrixDays.length&&score(matrixDays)>score(seqDays)*1.15){ chosen=matrixDays; source='tablo'; }
-  if(!chosen.length) throw new Error('Gün başlığı bulunamadı — dosyada "1. GÜN", "2. GÜN" (ya da Pazartesi, Salı…) başlıkları ve Kahvaltı / Öğle / Akşam öğün başlıkları olmalı');
+  if(!chosen.length) chosen=[docxNewDay()];
 
   /* içerik olmayan günleri ayıkla; sayılı günleri numarasına göre yerleştir */
   const hasContent=d=>d.meals.some(m=>(m._items||[]).length)||d.photo||(pend.some(x=>x.day===d));
   let list=chosen.filter(hasContent);
-  if(!list.length) throw new Error('Günler bulundu ama öğün içeriği okunamadı');
+  if(!list.length){ list=chosen.slice(0,8); warns.push('Öğün içeriği okunamadı — boş şablon yüklendi, içeriği elle doldurabilirsin'); }
   if(list.every(d=>d._num)&&new Set(list.map(d=>d._num)).size===list.length&&Math.max(...list.map(d=>d._num))<=8){
     const mx=Math.max(7,...list.map(d=>d._range||d._num)); const arr=Array.from({length:mx},()=>docxNewDay());
     list.forEach(d=>{ arr[d._num-1]=d; if(d._range) for(let k=d._num+1;k<=d._range&&k<=8;k++){ if(arr.length<k) arr.push(docxNewDay()); arr[k-1]=JSON.parse(JSON.stringify(d)); } }); list=arr;
