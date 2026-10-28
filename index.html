@@ -9825,6 +9825,7 @@ document.addEventListener('click',async e=>{
   const cr=t.closest('[data-chat-reply]'); if(cr){ const [k,...r]=cr.dataset.chatReply.split(':'); S.chatRef={kind:k,id:r.join(':'),label:cr.dataset.lbl}; render(); setTimeout(()=>{ const i=document.getElementById('chatInput'); if(i) i.focus(); },80); return; }
   if(t.closest('[data-chat-clear]')){ S.chatRef=null; return render(); }
   const ce2=t.closest('[data-chat-emoji]'); if(ce2){ const i=document.getElementById('chatInput'); if(i){ i.value+=ce2.dataset.chatEmoji; i.focus(); } return; }
+  const cdel=t.closest('[data-chat-del]'); if(cdel) return chatDelete(cdel.dataset.chatDel);
   if(t.closest('[data-chat-send]')) return chatSend();
   const co=t.closest('[data-coach-open]'); if(co){ co.style.display='none'; const bar=co.parentNode.querySelector('.coach-bar'); bar.style.display=''; const inp=bar.querySelector('[data-coach-text]'); if(inp) inp.focus(); return; }
   const ch=t.closest('[data-coach-heart]'); if(ch){ const on=ch.getAttribute('aria-pressed')!=='true'; ch.setAttribute('aria-pressed',on); ch.textContent=on?'❤️ Beğendin':'🤍 Beğen'; ch.style.background=on?'#ffe0ea':''; return; }
@@ -13101,7 +13102,7 @@ function pageClientChat(c){
     return head+`<div style="display:flex;justify-content:flex-end;margin:4px 0"><div style="max-width:78%;background:#e3f7d0;border-radius:14px 4px 14px 14px;padding:8px 11px;font-size:13.5px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.05)">
       ${r.label?`<div style="border-left:3px solid #7bc96f;padding-left:7px;margin-bottom:5px;font-size:11.5px;color:#4a6a44">${esc(r.label)}</div>`:''}
       ${(r.heart||r.emoji)?`<div style="font-size:22px;line-height:1.2">${r.heart?'❤️':''}${esc(r.emoji||'')}</div>`:''}${r.text?esc(r.text).replace(/\n/g,'<br>'):''}
-      <div style="font-size:10.5px;color:#6a8a64;text-align:right;margin-top:3px">${r.via==='auto'?'🤖 otomatik · ':''}${tm} ✓✓</div></div></div>`;
+      <div style="font-size:10.5px;color:#6a8a64;text-align:right;margin-top:3px">${r.via==='auto'?'🤖 otomatik · ':''}${tm} ✓✓${r.id?` <button type="button" data-chat-del="${esc(r.id)}" title="Hem senden hem danışandan sil" style="border:0;background:none;color:#b3261e;font-size:11px;cursor:pointer;margin-left:8px;padding:0">🗑 Herkesten sil</button>`:''}</div></div></div>`;
   }).join('');
   const ref=S.chatRef;
   setTimeout(()=>{ const e=document.getElementById('chatBox'); if(e) e.scrollTop=e.scrollHeight; },60);
@@ -13112,6 +13113,22 @@ function pageClientChat(c){
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${['❤️','👏','🔥','😍','💪','🥗','🌟','😋','🤗','💛'].map(e=>`<button type="button" class="btn btn-sm" data-chat-emoji="${e}" style="padding:3px 8px">${e}</button>`).join('')}</div>
       <div style="display:flex;gap:8px"><textarea id="chatInput" rows="2" placeholder="Mesajını yaz… (Enter ile gönder)" style="flex:1;min-width:0"></textarea><button type="button" class="btn btn-primary" data-chat-send>💌 Gönder</button></div>
     </div></section>`;
+}
+/* Gönderilen mesajı geri al: panelden ve danışanın ekranından (herkesten) siler */
+async function chatDelete(id){
+  const c=clientOf(S.client); if(!c||!id) return;
+  if(!confirm('Bu mesaj hem senin sohbetinden hem danışanın ekranından silinsin mi?')) return;
+  c.msgs=(c.msgs||[]).filter(x=>x.id!==id);
+  c.mealReplies=(c.mealReplies||[]).filter(x=>x.id!==id);
+  await save();
+  if(c.shareToken){
+    try{   /* Telegram'dan gönderilen cevapların bulut kopyası da silinsin, yoksa geri gelir */
+      const t=await cloudToken();
+      await fetch(`${CL().dbUrl}/shares/t_${c.shareToken}/${encodeURIComponent(id)}.json?auth=${encodeURIComponent(t)}`,{method:'DELETE'});
+    }catch(e){}
+    await replyPush(c,true);
+  }
+  render(); toast('Mesaj herkesten silindi ✓');
 }
 async function chatSend(){
   const c=clientOf(S.client); const inp=document.getElementById('chatInput'); if(!c||!inp) return;
