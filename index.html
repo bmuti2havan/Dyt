@@ -13329,11 +13329,34 @@ async function svMsgSend(){
   }catch(e){ btn.disabled=false; toast('Gönderilemedi, tekrar dene'); }
 }
 document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='svDmInput'&&e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); svMsgSend(); } });
+/* Sayfa açıkken diyetisyen yeni program yüklerse kendiliğinden yenilensin (seçili program/gün korunur) */
+let _svPlanBusy=false;
+async function svPlanRefresh(){
+  const snap=window.__shareSnap; if(_svPlanBusy||!snap||snap.demo||!window.__shareTok) return; _svPlanBusy=true;
+  try{
+    const base=`${CLOUD_DB}/shares/${encodeURIComponent(window.__shareTok)}`;
+    const [r1,r2]=await Promise.all([fetch(base+'/plan.json?_ts='+Date.now(),{cache:'no-store'}),fetch(base+'/pastPlans.json?_ts='+Date.now(),{cache:'no-store'})]);
+    if(!r1.ok||!r2.ok) return;
+    const plan=await r1.json(); let past=await r2.json();
+    if(past&&!Array.isArray(past)) past=Object.values(past);
+    past=past||[];
+    if(!plan) return;
+    if(JSON.stringify(plan)===JSON.stringify(snap.plan||null)&&JSON.stringify(past)===JSON.stringify(snap.pastPlans||[])) return;
+    const idx=window.__svPlanIdx||0, activeDay=document.querySelector('[data-sv-day][aria-pressed="true"]');
+    const day=activeDay?+activeDay.dataset.svDay:0, newCur=!snap.plan||snap.plan.id!==plan.id;
+    snap.plan=plan; snap.pastPlans=past;
+    try{ svSnapSet(window.__shareTok,{at:Date.now(),snap}); }catch(e){}
+    renderShareView(snap);
+    if(!newCur){ if(idx>0&&window.__svPlans&&window.__svPlans[idx]) svSelectPlan(idx); const b=document.querySelector('[data-sv-day="'+day+'"]'); if(b) b.click(); }
+    toast('📋 Yeni programın yüklendi',3500);
+  }catch(e){}finally{ _svPlanBusy=false; }
+}
 /* Danışan sayfası açıkken yeni cevap gelirse yenilemeden görünsün */
 function svChatPollStart(){
   if(window.__svPoll||!window.__shareTok) return; window.__svPoll=true;
   const tick=async()=>{
     if(document.hidden) return;
+    svPlanRefresh();
     try{
       const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(window.__shareTok)}/mealReplies.json`); if(!r.ok) return;
       const arr=await r.json(); const list=Array.isArray(arr)?arr.filter(Boolean):(arr?Object.values(arr):[]);
