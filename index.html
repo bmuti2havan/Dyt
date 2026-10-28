@@ -972,6 +972,51 @@ main>*{animation:rise .22s ease both}
 .aw-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .aw-st{cursor:pointer;font:inherit;font-size:11.5px}
 @media (max-width:640px){.aw-row{grid-template-columns:48px minmax(0,1fr);padding:11px 14px}.aw-act{grid-column:2;justify-content:flex-start}}
+
+/* Randevular – Outlook tarzı takvim */
+.oc-card{overflow:hidden}
+.oc-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line-2)}
+.oc-title{margin:0 0 0 6px;font-size:16px;text-transform:capitalize}
+.oc-views{display:flex;gap:6px;flex-wrap:wrap}
+.oc-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.oc-head,.oc-body{display:grid}
+.oc-head{position:sticky;top:0;background:var(--card,#fff);border-bottom:1px solid var(--line-2);z-index:3}
+.oc-dh{border:0;background:none;font:inherit;cursor:pointer;padding:8px 4px;text-align:center;border-left:1px solid var(--line-2);color:var(--ink-2)}
+.oc-dh small{display:block;font-size:11.5px;color:var(--muted)}
+.oc-dh b{font-size:21px;font-weight:600}
+.oc-dh.today b{color:var(--blue-600,#2563eb)} .oc-dh.today{box-shadow:inset 0 3px 0 var(--blue-600,#2563eb)}
+.oc-body{position:relative}
+.oc-hours{position:relative}
+.oc-hours span{position:absolute;right:6px;transform:translateY(-8px);font-size:11px;color:var(--muted)}
+.oc-col{position:relative;border-left:1px solid var(--line-2);cursor:copy;
+  background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 63px,var(--line-2) 63px,var(--line-2) 64px)}
+.oc-col.today{background-color:rgba(37,99,235,.045)}
+.oc-ev{position:absolute;border:0;border-left:4px solid var(--c);border-radius:6px;padding:3px 6px;text-align:left;overflow:hidden;cursor:pointer;font:inherit;
+  background:color-mix(in srgb,var(--c) 16%,#fff);color:#1f2937;display:flex;flex-direction:column;line-height:1.2;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.oc-ev b{font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oc-ev span{font-size:11px;color:#4b5563}
+.oc-ev.oc-ok{background:color-mix(in srgb,#16a34a 18%,#fff);border-left-color:#16a34a}
+.oc-ev.oc-no{background:color-mix(in srgb,#dc2626 14%,#fff);border-left-color:#dc2626;opacity:.75}
+.oc-ev.oc-no b{text-decoration:line-through}
+.oc-now{position:absolute;left:0;right:0;height:2px;background:#ef4444;z-index:2;pointer-events:none}
+.oc-now:before{content:"";position:absolute;left:-4px;top:-3px;width:8px;height:8px;border-radius:50%;background:#ef4444}
+.oc-month{padding:6px 10px 12px}
+.oc-mh,.oc-mg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.oc-mh span{text-align:center;font-size:12px;color:var(--muted);padding:6px 0}
+.oc-mc{min-height:92px;border:1px solid var(--line-2);margin:-1px 0 0 -1px;padding:4px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
+.oc-mc b{font-size:12.5px;font-weight:600} .oc-mc.out{opacity:.45} .oc-mc.today b{color:#fff;background:var(--blue-600,#2563eb);border-radius:50%;width:22px;height:22px;display:grid;place-items:center}
+.oc-mc small{font-size:11px;color:var(--muted)}
+.oc-chip{border:0;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 14%,#fff);font:inherit;font-size:11px;text-align:left;padding:1px 4px;border-radius:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:720px){.oc-title{font-size:14px;flex-basis:100%;order:5}.oc-mc{min-height:64px}.oc-chip{font-size:10px}}
+/* 15 dk kala hatırlatma + sabah özeti */
+#apptBell{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(440px,calc(100vw - 24px))}
+.ab-card{background:#1e3a8a;color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.3);display:flex;gap:10px;align-items:center;animation:abIn .25s ease}
+.ab-card b{display:block;font-size:14.5px}.ab-card span{font-size:12.5px;opacity:.9}
+.ab-card button{margin-left:auto;border:0;background:rgba(255,255,255,.18);color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit}
+@keyframes abIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+.ms-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;margin-bottom:8px;border-left:5px solid var(--c);background:color-mix(in srgb,var(--c) 12%,#fff)}
+.ms-row .t{font-weight:700;font-size:17px;min-width:56px;color:var(--c)}
+.ms-row .n{font-weight:600}.ms-row .s{font-size:12px;color:var(--muted)}
 </style>
 <style id="selfFonts">
 @font-face{font-family:'Caveat';font-style:normal;font-weight:600;font-display:swap;src:url(/fonts/caveat-latin-ext-600-normal.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF}
@@ -7476,23 +7521,125 @@ async function apptSendReminder(id){
   const ok=await sendWA(c.phone, msg, {name:c.name, type:'randevu-hatırlatma'});
   if(ok){ a.reminded=true; a.remindedAt=new Date().toISOString(); await save(); render(); }
 }
-function pageAppts(){
+function apptListHtml(){
   const as=[...DB.appts].sort((a,b)=>new Date(a.when)-new Date(b.when));
   const future=as.filter(a=>new Date(a.when)>=new Date(Date.now()-36e5));
   const past=as.filter(a=>new Date(a.when)<new Date(Date.now()-36e5)).reverse();
   const row=a=>{const c=clientOf(a.clientId);return `<tr><td class="num">${trDT(a.when)}</td><td class="t-name">${esc(c?c.name:'—')}</td>
     <td><span class="tag ${a.type==='Online'?'tag-blue':''}">${esc(a.type)}</span></td><td style="color:var(--muted)">${esc(a.note||'')}</td>
     <td class="t-right">${a.status?`<span class="tag ${a.status==='geldi'?'tag-ok':'tag-danger'}" style="margin-right:6px"><i class="dot"></i>${a.status==='geldi'?'Geldi':'Gelmedi'}</span>`:`<button class="btn btn-sm btn-primary" data-close-appt="${a.id}" style="margin-right:6px">Bitti</button>`}${c&&c.phone?`<button class="btn btn-sm" data-appt-remind="${a.id}" title="${a.reminded?'Daha önce hatırlatıldı, yine de gönder':'WhatsApp hatırlatması gönder'}" style="margin-right:6px">${a.reminded?'🔔 Tekrar gönder':'🔔 Hatırlat'}</button>`:''}<button class="x" data-del-appt="${a.id}">✕</button></td></tr>`;};
-  return `<div class="page-head"><div><h1>Randevular</h1><p>Yüz yüze ve online görüşmeler tek takvimde. Takvim dosyasını telefonunuza aktarıp hatırlatma kurabilirsiniz.</p></div><div class="spacer"></div>
-  <button class="btn" data-act="ics">${ic('down',15)} Takvime aktar (.ics)</button>
-  <button class="btn btn-primary" data-modal="appt">${ic('plus',15)} Randevu</button></div>
-  <section class="card"><div class="card-h"><h3>Yaklaşan</h3></div>
+  return `<section class="card"><div class="card-h"><h3>Yaklaşan</h3></div>
     ${future.length?`<table><thead><tr><th>Tarih</th><th>Danışan</th><th>Tür</th><th>Not</th><th></th></tr></thead><tbody>${future.map(row).join('')}</tbody></table>`
     :`<div class="empty"><div class="eic">${ic('plus',24)}</div><h4>Yaklaşan randevu yok</h4><p>Görüşme planlayın; panelde ve danışan dosyasında görünür.</p><button class="btn btn-primary" data-modal="appt">+ Randevu ekle</button></div>`}</section>
   ${past.length?`<section class="card" style="margin-top:16px"><div class="card-h"><h3>Geçmiş</h3></div>
     <table><tbody>${past.slice(0,20).map(row).join('')}</tbody></table></section>`:''}`;
 }
 
+/* ═══════ Randevular: Outlook tarzı takvim (Gün / Çalışma haftası / Hafta / Ay) ═══════ */
+const OC_RH=64;                      // bir saatin piksel yüksekliği
+const OC_DUR=30;                     // randevu süresi (dk) – blok yüksekliği için
+const OC_DAYS=['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'];
+function ocParts(w){
+  const s=String(w||'');
+  if(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return {d:s.slice(0,10),m:(+s.slice(11,13))*60+(+s.slice(14,16))};
+  const dt=new Date(s); if(isNaN(dt.getTime())) return null;
+  return {d:localISODate(dt),m:dt.getHours()*60+dt.getMinutes()};
+}
+const ocDate=iso=>{ const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d); };
+const ocAdd=(iso,n)=>{ const d=ocDate(iso); d.setDate(d.getDate()+n); return localISODate(d); };
+const ocMon=iso=>{ const d=ocDate(iso); return ocAdd(iso,-((d.getDay()+6)%7)); };
+const ocHM=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+function ocView(){ return S.ocView||(window.innerWidth<720?'day':'work'); }
+function ocDays(v,anchor){
+  if(v==='day') return [anchor];
+  const mon=ocMon(anchor); const n=v==='work'?5:7;
+  return Array.from({length:n},(_,i)=>ocAdd(mon,i));
+}
+function ocTitle(v,anchor,days){
+  const f=(iso,o)=>ocDate(iso).toLocaleDateString('tr-TR',o);
+  if(v==='day') return f(anchor,{day:'numeric',month:'long',year:'numeric',weekday:'long'});
+  if(v==='month') return f(anchor,{month:'long',year:'numeric'});
+  const a=days[0], b=days[days.length-1];
+  return ocDate(a).getMonth()===ocDate(b).getMonth()
+    ? (+a.slice(8))+'–'+(+b.slice(8))+' '+f(b,{month:'long',year:'numeric'})
+    : f(a,{day:'numeric',month:'short'})+' – '+f(b,{day:'numeric',month:'short',year:'numeric'});
+}
+function ocApptsOn(iso){
+  return DB.appts.map(a=>({a,p:ocParts(a.when)})).filter(x=>x.p&&x.p.d===iso).sort((x,y)=>x.p.m-y.p.m);
+}
+function ocLayout(evs){            // yan yana düşen randevuları sütunlara ayır
+  const out=[]; let cluster=[], end=-1;
+  const flush=()=>{ const cols=Math.max(1,...cluster.map(c=>c.col+1)); cluster.forEach(c=>{c.cols=cols;out.push(c);}); cluster=[]; end=-1; };
+  evs.forEach(e=>{
+    const st=e.p.m, en=st+OC_DUR;
+    if(cluster.length&&st>=end) flush();
+    const used=cluster.filter(c=>c.en>st).map(c=>c.col); let col=0; while(used.includes(col)) col++;
+    cluster.push({...e,st,en,col}); end=Math.max(end,en);
+  });
+  if(cluster.length) flush();
+  return out;
+}
+function ocEvHtml(e){
+  const c=clientOf(e.a.clientId), nm=c?c.name:'—', col=avColor(nm);
+  const h=Math.max(30,OC_DUR/60*OC_RH-3);
+  const st=e.a.status==='geldi'?' oc-ok':e.a.status==='gelmedi'?' oc-no':'';
+  return `<button type="button" class="oc-ev${st}" data-close-appt="${e.a.id}" title="${esc(nm)} · ${ocHM(e.st)} · ${esc(e.a.type||'')}${e.a.note?' · '+esc(e.a.note):''}"
+    style="--c:${col};top:${(e.st/60-S._ocH0)*OC_RH}px;height:${h}px;left:calc(${e.col}*100%/${e.cols} + 2px);width:calc(100%/${e.cols} - 4px)">
+    <b>${esc(nm)}</b><span>${ocHM(e.st)}${e.a.type&&e.a.type!=='Yüz yüze'?' · '+esc(e.a.type):''}</span></button>`;
+}
+function ocGridHtml(v,anchor){
+  const days=ocDays(v,anchor), today=todayISO();
+  const all=days.map(d=>ocApptsOn(d));
+  let h0=8,h1=19;
+  all.forEach(l=>l.forEach(x=>{ h0=Math.min(h0,Math.floor(x.p.m/60)); h1=Math.max(h1,Math.ceil((x.p.m+OC_DUR)/60)); }));
+  S._ocH0=h0; const H=(h1-h0)*OC_RH, n=days.length;
+  const gt=`grid-template-columns:50px repeat(${n},minmax(${n>3?118:200}px,1fr))`;
+  const nowM=new Date().getHours()*60+new Date().getMinutes();
+  return `<div class="oc-scroll"><div class="oc-inner" style="min-width:${50+n*(n>3?118:200)}px">
+    <div class="oc-head" style="${gt}"><div></div>${days.map(d=>{const dt=ocDate(d); const isT=d===today;
+      return `<button type="button" class="oc-dh${isT?' today':''}" data-act="oc-day" data-d="${d}"><small>${OC_DAYS[(dt.getDay()+6)%7]}</small><b>${dt.getDate()}</b></button>`;}).join('')}</div>
+    <div class="oc-body" style="${gt};height:${H}px">
+      <div class="oc-hours">${Array.from({length:h1-h0},(_,i)=>`<span style="top:${i*OC_RH}px">${String(h0+i).padStart(2,'0')}:00</span>`).join('')}</div>
+      ${days.map((d,i)=>`<div class="oc-col${d===today?' today':''}" data-ocday="${d}" data-h0="${h0}">
+        ${ocLayout(all[i]).map(ocEvHtml).join('')}
+        ${d===today&&nowM/60>=h0&&nowM/60<=h1?`<i class="oc-now" style="top:${(nowM/60-h0)*OC_RH}px"></i>`:''}
+      </div>`).join('')}
+    </div></div></div>`;
+}
+function ocMonthHtml(anchor){
+  const d0=ocDate(anchor), first=new Date(d0.getFullYear(),d0.getMonth(),1);
+  const start=localISODate(new Date(first.getFullYear(),first.getMonth(),1-((first.getDay()+6)%7)));
+  const today=todayISO(); const cells=[];
+  for(let i=0;i<42;i++){ const iso=ocAdd(start,i); if(i>=35&&ocDate(iso).getMonth()!==d0.getMonth()) break; cells.push(iso); }
+  return `<div class="oc-month"><div class="oc-mh">${OC_DAYS.map(x=>`<span>${x}</span>`).join('')}</div>
+   <div class="oc-mg">${cells.map(iso=>{ const l=ocApptsOn(iso), out=ocDate(iso).getMonth()!==d0.getMonth();
+     return `<div class="oc-mc${out?' out':''}${iso===today?' today':''}" data-act="oc-day" data-d="${iso}"><b>${ocDate(iso).getDate()}</b>
+       ${l.slice(0,3).map(x=>{const c=clientOf(x.a.clientId);return `<button type="button" class="oc-chip" data-close-appt="${x.a.id}" style="--c:${avColor(c?c.name:'')}">${ocHM(x.p.m)} ${esc(c?c.name:'—')}</button>`;}).join('')}
+       ${l.length>3?`<small>+${l.length-3} daha</small>`:''}</div>`;}).join('')}</div></div>`;
+}
+function pageAppts(){
+  const v=ocView(), anchor=S.ocDate||todayISO(), days=ocDays(v,anchor);
+  const VB=[['day','Gün'],['work','Çalışma haftası'],['week','Hafta'],['month','Ay']];
+  return `<div class="page-head"><div><h1>Randevular</h1><p>Saat saat randevu takvimin. Boş bir saate dokunarak yeni randevu ekle, randevuya dokunarak seansı kapat.</p></div><div class="spacer"></div>
+    <button class="btn" data-act="ics">${ic('down',15)} .ics</button>
+    <button class="btn btn-primary" data-modal="appt">${ic('plus',15)} Yeni randevu</button></div>
+  <section class="card oc-card">
+    <div class="oc-bar">
+      <button class="btn btn-sm" data-act="oc-today">Bugün</button>
+      <button class="btn btn-sm" data-act="oc-nav" data-n="-1" aria-label="Önceki">‹</button>
+      <button class="btn btn-sm" data-act="oc-nav" data-n="1" aria-label="Sonraki">›</button>
+      <h3 class="oc-title">${esc(ocTitle(v,anchor,days))}</h3><div class="spacer"></div>
+      <div class="oc-views">${VB.map(([k,t])=>`<button class="chip" data-act="oc-view" data-v="${k}" aria-pressed="${v===k}">${t}</button>`).join('')}</div>
+    </div>
+    ${v==='month'?ocMonthHtml(anchor):ocGridHtml(v,anchor)}
+  </section>
+  <details class="no-print" style="margin-top:16px"><summary style="cursor:pointer;font-weight:700;padding:10px 4px">📋 Liste görünümü (hatırlatma mesajı, durum)</summary>${apptListHtml()}</details>`;
+}
+function ocNav(n){
+  const v=ocView(), a=S.ocDate||todayISO();
+  if(v==='month'){ const d=ocDate(a); d.setMonth(d.getMonth()+n,1); S.ocDate=localISODate(d); }
+  else S.ocDate=ocAdd(a,n*(v==='day'?1:7));
+}
 function pageSettings(){
   const p=DB.profile; p.cloudOn=!!(DB.cloud&&DB.cloud.uid&&DB.cloud.enabled);
   return `<div class="page-head"><div><h1>Ayarlar</h1><p>Yazdırılan programın üstünde görünen bilgiler ve veri yönetimi.</p></div>
@@ -7642,7 +7789,7 @@ function modal(title,bodyHTML,okLabel,okAct,size){
   </div></div>`;
   const f=document.querySelector('.modal-b input,.modal-b select,.modal-b textarea'); if(f) f.focus();
 }
-const closeModal=()=>{ S.waAutoStop=true; document.getElementById('modalRoot').innerHTML=''; };
+const closeModal=()=>{ S.apptPrefill=null; S.waAutoStop=true; document.getElementById('modalRoot').innerHTML=''; };
 function openSupportModal(){
   modal('🆘 Yardım / Bir Sorun mu Var?',
     `<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Sorun yaşarsan buradan bildir, hallederiz.</p>
@@ -7734,6 +7881,61 @@ function downloadBackupNow(){
   DB.profile.lastBackup=todayISO();
 }
 /* Her gün saat 17:00'den sonra, uygulama açıkken günde bir kez bilgisayara yedek indirmeyi sorar */
+
+/* ═══════ Randevu hatırlatması (15 dk kala) ve sabah özeti ═══════ */
+function apptBeep(){
+  try{
+    const C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+    const ctx=window.__abCtx||(window.__abCtx=new C()); if(ctx.state==='suspended') ctx.resume();
+    [0,0.22].forEach(t=>{ const o=ctx.createOscillator(), g=ctx.createGain(); o.type='sine'; o.frequency.value=t?1175:880;
+      g.gain.setValueAtTime(0.0001,ctx.currentTime+t); g.gain.exponentialRampToValueAtTime(0.25,ctx.currentTime+t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+t+0.2);
+      o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime+t); o.stop(ctx.currentTime+t+0.22); });
+  }catch(e){}
+}
+function apptBellShow(a,mins){
+  const c=clientOf(a.clientId), p=ocParts(a.when); if(!p) return;
+  let root=document.getElementById('apptBell'); if(!root){ root=document.createElement('div'); root.id='apptBell'; document.body.appendChild(root); }
+  const el=document.createElement('div'); el.className='ab-card';
+  el.innerHTML=`<div style="font-size:24px">🔔</div><div><b>${mins<=1?'Şimdi':mins+' dakika sonra'} randevu var</b><span>${esc(c?c.name:'Danışan')} · ${ocHM(p.m)}${a.type?' · '+esc(a.type):''}</span></div><button type="button">Tamam</button>`;
+  el.querySelector('button').onclick=()=>el.remove();
+  root.appendChild(el); setTimeout(()=>{ try{ el.remove(); }catch(e){} },30000);
+  apptBeep();
+  try{ if('Notification' in window&&Notification.permission==='granted'&&document.hidden) new Notification('🔔 '+mins+' dk sonra randevu',{body:(c?c.name:'Danışan')+' · '+ocHM(p.m),tag:'appt-'+a.id}); }catch(e){}
+}
+function apptBellCheck(){
+  try{
+    const lockEl=document.getElementById('lock'); if(lockEl&&!lockEl.hidden) return;
+    const now=Date.now(); window.__abSeen=window.__abSeen||{};
+    (DB.appts||[]).forEach(a=>{
+      if(a.status) return;
+      const p=ocParts(a.when); if(!p) return;
+      const d=ocDate(p.d); d.setHours(0,p.m,0,0);
+      const mins=(d.getTime()-now)/60000;
+      const key=a.id+'|'+a.when;
+      if(mins<=15&&mins>-2&&!window.__abSeen[key]){
+        let done=false; try{ done=localStorage.getItem('abseen_'+key)==='1'; }catch(e){}
+        window.__abSeen[key]=1; if(done) return;
+        try{ localStorage.setItem('abseen_'+key,'1'); }catch(e){}
+        apptBellShow(a,Math.max(1,Math.ceil(mins)));
+      }
+    });
+  }catch(e){}
+}
+function apptMorningCheck(){
+  try{
+    const today=todayISO();
+    if(localStorage.getItem('appt-morning')===today) return;
+    const lockEl=document.getElementById('lock'); if(!lockEl||!lockEl.hidden) return;
+    if(document.querySelector('.modal-bg')) return;
+    const list=ocApptsOn(today); if(!list.length) return;
+    localStorage.setItem('appt-morning',today);
+    const band=m=>m<720?'#d97706':m<900?'#16a34a':m<1080?'#2563eb':'#7c3aed';
+    modal('☀️ Bugünün randevuları',
+      `<p class="hint" style="margin:0 0 12px">Bugün <b>${list.length}</b> randevun var.</p>`+
+      list.map(x=>{ const c=clientOf(x.a.clientId); return `<div class="ms-row" style="--c:${band(x.p.m)}"><div class="t">${ocHM(x.p.m)}</div><div><div class="n">${esc(c?c.name:'—')}</div><div class="s">${esc(x.a.type||'')}${x.a.note?' · '+esc(x.a.note):''}</div></div></div>`; }).join(''),
+      'Tamam','close','440px');
+  }catch(e){}
+}
 function dailyBackupCheck(){
   try{
     if(new Date().getHours()<17) return;
@@ -8007,7 +8209,7 @@ function openModal(kind){
     const now=new Date(Date.now()+864e5); now.setMinutes(0);
     return modal('Randevu ekle',`<div class="form-grid">
       <div class="field full"><label>Danışan *</label><select id="a-client">${DB.clients.map(x=>`<option value="${x.id}" ${S.client===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
-      <div class="field"><label>Tarih ve saat *</label><input id="a-when" type="datetime-local" value="${new Date(now.getTime()-now.getTimezoneOffset()*6e4).toISOString().slice(0,16)}"></div>
+      <div class="field"><label>Tarih ve saat *</label><input id="a-when" type="datetime-local" value="${S.apptPrefill||new Date(now.getTime()-now.getTimezoneOffset()*6e4).toISOString().slice(0,16)}"></div>
       <div class="field"><label>Tür</label><select id="a-type"><option>Yüz yüze</option><option>Online</option><option>Kontrol</option><option>İlk görüşme</option></select></div>
       <div class="field full"><label>Not</label><input id="a-note" placeholder="Örn. ölçüm ve program revizyonu"></div>
       <div class="field full"><label><input type="checkbox" id="a-first" style="width:auto;margin-right:8px">Bu bir ilk görüşme (yeni başlangıç)</label></div>
@@ -8168,7 +8370,7 @@ async function handleOk(act){
     if(!val('a-when')) return toast('Tarih zorunlu');
     DB.appts.push({id:uid('a'),clientId:val('a-client'),when:val('a-when'),type:val('a-type'),note:val('a-note'),
       status:'',first:!!(document.getElementById('a-first')&&document.getElementById('a-first').checked)});
-    toast('Randevu eklendi 🌷');
+    S.apptPrefill=null; toast('Randevu eklendi 🌷');
   }
   if(act==='fix-meal'){
     DB.foodMap=DB.foodMap||{};
@@ -8426,7 +8628,7 @@ const avColor=n=>{
   return AV[Math.abs(h)%AV.length];
 };
 
-const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevu listesi'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
+const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevular'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
   {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},{id:'aware',ic:'appts',t:'İçerik takvimi'},
   {s:'Sistem'},{id:'myphotos',ic:'camera',t:'Cilvenazımla Fotiler'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
 const TITLES={aware:'İçerik takvimi',wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Cilvenazımla Fotiler'};
@@ -9509,6 +9711,11 @@ document.addEventListener('click',async e=>{
   const at=t.closest('[data-arch-toggle]'); if(at){
     const c2=clientOf(at.dataset.archToggle); c2.archived=!c2.archived;
     await save(); toast(c2.archived?'Danışan arşivlendi':'Arşivden çıkarıldı'); return render(); }
+  const occ=t.closest('.oc-col'); if(occ&&!t.closest('.oc-ev')){
+    const r=occ.getBoundingClientRect(); const mins=Math.floor(((e.clientY-r.top)/OC_RH+(+occ.dataset.h0))*2)*30;
+    S.apptPrefill=occ.dataset.ocday+'T'+ocHM(Math.max(0,Math.min(1410,mins)));
+    return openModal('appt');
+  }
   const spp=t.closest('[data-sp-pick]'); if(spp){ S.newPlanClient=spp.dataset.spPick; closeModal(); return openModal('plan-new'); }
   const cl=t.closest('[data-client]'); if(cl){ S.client=cl.dataset.client; S.page='client'; S.tab=cl.dataset.tabGo||'kontrol'; return render(); }
   const tb=t.closest('[data-tab]'); if(tb){ S.tab=tb.dataset.tab; return render(); }
@@ -9981,6 +10188,10 @@ document.addEventListener('click',async e=>{
     if(a==='promo-copy'){ try{ await navigator.clipboard.writeText(promoUrl()); toast('Link kopyalandı ✓'); }catch(e){ toast(promoUrl(),8000); } }
     if(a==='promo-preview'){ window.open(promoUrl(),'_blank'); }
     if(a==='greet-new'){ return render(); }
+    if(a==='oc-today'){ S.ocDate=todayISO(); return render(); }
+    if(a==='oc-nav'){ ocNav(+act.dataset.n); return render(); }
+    if(a==='oc-view'){ S.ocView=act.dataset.v; return render(); }
+    if(a==='oc-day'){ S.ocDate=act.dataset.d; S.ocView='day'; return render(); }
     if(a==='panel-mode'){ DB.profile.panelMode=act.dataset.mode==='detay'?'detay':'sade'; await save({noCloud:true}); return render(); }
     if(a==='sp-plan'){ return spPickClient(); }
     if(a==='recipe-shuffle'){ S.recipeShuffle=String(Math.random()); return render(); }
@@ -10218,7 +10429,8 @@ function unlock(){
          document.addEventListener('visibilitychange',()=>{ if(!document.hidden) livePoll(); });
        }
        if(trashPurge()>0) save({noCloud:true});
-       setTimeout(dailyBackupCheck,1500); setTimeout(awRemindCheck,900); }
+       setTimeout(apptMorningCheck,700); setTimeout(dailyBackupCheck,2500); setTimeout(awRemindCheck,1800);
+       apptBellCheck(); if(!window.__abTimer) window.__abTimer=setInterval(apptBellCheck,30000); }
   catch(err){
     console.error(err);
     document.getElementById('view').innerHTML='<div class="page"><section class="card"><div class="card-b">'
