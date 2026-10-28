@@ -1946,6 +1946,8 @@ function docxHead(t){
   const n=docxMealName(t); if(n) return {name:n,rest:''};
   const m2=String(t).match(/^(.{3,26}?)\s*(?::|[-–—])\s+(.+)$/);
   if(m2){ const n2=docxMealName(m2[1]); if(n2) return {name:n2,rest:m2[2]}; }
+  const m3=String(t).match(/^([^\p{L}\p{N}]*[\p{Lu}İ]{3,}(?: [\p{Lu}İ]{3,})?)\s+(\S.*)$/u);   // "☀️ KAHVALTI  Yemek adı" (başlık ile yemek adı aynı satırda)
+  if(m3){ const n3=docxMealName(m3[1]); if(n3) return {name:n3,rest:m3[2]}; }
   return null;
 }
 const docxOn=el=>{ if(!el) return false; const v=el.getAttribute('w:val'); return !(v==='0'||v==='false'||v==='off'); };
