@@ -1928,12 +1928,14 @@ function docxDayInfo(raw){
   if(!c||c.length>60) return null;
   const f=FOLD(c);
   const restOk=r=>!r||new RegExp('^('+DOCX_WD+'|menu|menusu|program|programi|listesi|diyet listesi|\\d{1,2}( [a-z]+)?( \\d{4})?)$').test(r.trim());
-  let m=f.match(/^menu (\d{1,2})(?: haftada (\d{1,2})(?: ?ser)? gun)?$/);
+  let m=f.match(/^(\d{1,2}) (\d{1,2}) gun(?: .*)?$/);   // "1–4. GÜN - PERŞEMBE – PAZAR - DUBAİ" (aynı liste birkaç gün)
+  if(m&&+m[2]>+m[1]&&+m[2]<=8) return {sig:'g'+(+m[1])+'_'+(+m[2]),num:+m[1],range:+m[2]};
+  m=f.match(/^menu (\d{1,2})(?: haftada (\d{1,2})(?: ?ser)? gun)?$/);
   if(m) return {sig:'menu'+(+m[1]),num:null,reps:m[2]?+m[2]:1,label:'Menü '+(+m[1])};
   m=f.match(/^tek ogun (?:secenegi |gunu )?alternatif (\d{1,2})$/);
   if(m) return {sig:'tek'+(+m[1]),num:null,reps:1,single:true,label:'Tek öğün · Alternatif '+(+m[1])};
   m=f.match(/^(\d{1,2}) ?gun(?: (.*))?$/);
-  if(m&&restOk(m[2])) return {sig:'g'+(+m[1]),num:+m[1]};
+  if(m&&(restOk(m[2])||/^[^\p{L}\p{N}]*\d{1,2}\s*\.?\s*g[üu]n\s*[-–—:]\s*\S/iu.test(c))) return {sig:'g'+(+m[1]),num:+m[1]};
   m=f.match(/^gun (\d{1,2})(?: (.*))?$/);
   if(m&&restOk(m[2])) return {sig:'g'+(+m[1]),num:+m[1]};
   m=f.match(new RegExp('^('+DOCX_WD+')(?: (.*))?$'));
@@ -2089,9 +2091,9 @@ async function docxToTemplate(file){
   const pend=[];   // {path, day, meal}
   let trail=[];    // son metin satırından beri eklenen resimler
   const pre=[];    // ilk gün başlığından önceki resimler (logo vb.)
-  const intro={mode:'',head:[],purpose:[],closing:'',su:[],tek:[],tekK:0};
+  const tlo2=x=>FOLD(String(x).replace(/^[^\p{L}\p{N}]+/u,'')); const intro={rulesOn:false,rulesT:'',rules:[],mode:'',head:[],purpose:[],closing:'',su:[],tek:[],tekK:0};
   const startDay=di=>{
-    const d=docxNewDay(); d._sig=di.sig; d._num=di.num; d._reps=di.reps||1; d._label=di.label||''; d._single=!!di.single; days.push(d); day=d; meal=null; d._last=-1; intro.mode='';
+    const d=docxNewDay(); d._sig=di.sig; d._num=di.num; d._range=di.range||0; d._reps=di.reps||1; d._label=di.label||''; d._single=!!di.single; days.push(d); day=d; meal=null; d._last=-1; intro.mode=''; intro.rulesOn=false;
     /* gün başlığından hemen önce duran resim (başlık görseli/logo) önceki öğüne değil yeni güne aittir */
     trail.forEach(e=>{ if(e.fixed) return; e.day=d; e.meal=null; }); trail=[];
   };
@@ -2116,7 +2118,10 @@ async function docxToTemplate(file){
       if(intro.head.length<4&&!p.bullet) intro.head.push(c0);
       return;
     }
+    if(day&&t.length<40&&/^(tatil |genel |onemli )?(kurallar|kurallari|notlar|notlari|uyarilar|onemli notlar|ipuclari)$/.test(tlo2(t))){ intro.rulesOn=true; intro.rulesT=docxCleanLine(t.replace(/^[^\p{L}\p{N}]+/u,'')); meal=null; return; }
     const hd=docxHead(t);
+    if(intro.rulesOn&&!hd){ const c1=docxCleanLine(t); if(c1) intro.rules.push(c1); return; }
+    if(hd) intro.rulesOn=false;
     if(hd){
       useMeal(hd.name);
       if(hd.rest) meal._items.push({c:docxCleanLine(hd.rest),bu:p.bullet,b:false,i:ln.i});
@@ -2180,8 +2185,8 @@ async function docxToTemplate(file){
   let list=chosen.filter(hasContent);
   if(!list.length) throw new Error('Günler bulundu ama öğün içeriği okunamadı');
   if(list.every(d=>d._num)&&new Set(list.map(d=>d._num)).size===list.length&&Math.max(...list.map(d=>d._num))<=8){
-    const mx=Math.max(7,...list.map(d=>d._num)); const arr=Array.from({length:mx},()=>docxNewDay());
-    list.forEach(d=>{ arr[d._num-1]=d; }); list=arr;
+    const mx=Math.max(7,...list.map(d=>d._range||d._num)); const arr=Array.from({length:mx},()=>docxNewDay());
+    list.forEach(d=>{ arr[d._num-1]=d; if(d._range) for(let k=d._num+1;k<=d._range&&k<=8;k++){ if(arr.length<k) arr.push(docxNewDay()); arr[k-1]=JSON.parse(JSON.stringify(d)); } }); list=arr;
   }
   const secmeli=list.some(d=>d._single||d._reps>1||/^menu/.test(d._sig||''));
   if(!secmeli){
@@ -2231,7 +2236,7 @@ async function docxToTemplate(file){
   }
   if(skippedDeco) warns.push(skippedDeco+' küçük/tekrarlayan süs resmi atlandı');
   if(skippedFmt) warns.push(skippedFmt+' resim biçimi (EMF/WMF vb.) desteklenmiyor, atlandı');
-  list.forEach(d=>{ ['_sig','_num','_last','_seenMeal','_reps','_label','_single'].forEach(k=>delete d[k]); d.meals.forEach(m=>{ delete m._sel; delete m._items; delete m._imgs; delete m._headDone; }); });
+  list.forEach(d=>{ ['_sig','_num','_range','_last','_seenMeal','_reps','_label','_single'].forEach(k=>delete d[k]); d.meals.forEach(m=>{ delete m._sel; delete m._items; delete m._imgs; delete m._headDone; }); });
   /* Seçmeli algılama: başlıkta "seç / seçenek / birini" geçen veya gün başlığında "her öğünde bir seçenek seç" yazan öğünler */
   const CH_RE=/(\bseç\b|seçin|seçiniz|seçenek|birini|alternatif|SEÇMEL[İIiı])/i;
   list.forEach(d=>{
@@ -2248,6 +2253,7 @@ async function docxToTemplate(file){
   const purpose=intro.purpose.slice();
   if(intro.su.length){ const t0=intro.su.find(x=>!x.bu), items=intro.su.filter(x=>x.bu).map(x=>x.c), tips=intro.su.filter(x=>!x.bu&&x!==t0).map(x=>x.c);
     purpose.push('💧 Günlük aromalı su'+(t0?' ('+t0.c+')':'')+': '+items.join(', ')+'.'+(tips.length?' '+tips.join(' '):'')); }
+  if(intro.rules.length) purpose.push('📌 '+(intro.rulesT?intro.rulesT.charAt(0)+intro.rulesT.slice(1).toLocaleLowerCase('tr'):'Notlar')+': '+intro.rules.join(' · '));
   if(intro.tek.length) purpose.push('⏳ Tek öğün günleri: '+intro.tek.join(' '));
   const sub=secmeli&&intro.head[1]&&intro.head[1].length<80?intro.head[1]:'';
   return {days:list,photos:used,filled,mealCount,lineCount,orphans:orphans.slice(0,30),orphanCount:orphans.length,warns,source,purpose,closing:intro.closing,sub,note};
