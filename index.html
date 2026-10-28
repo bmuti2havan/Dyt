@@ -2607,7 +2607,7 @@ async function save(opts){
   try{ await window.storage.set(KEY,raw); ok=true; }catch(e){}
   try{ localStorage.setItem(KEY,raw); ok=true; }catch(e){}
   paintSave(ok?'Kaydedildi':'Tarayıcı kaydetmiyor — yedek alın', ok?'var(--ok)':'var(--danger)');
-  if(!(opts&&opts.noCloud)) cloudPushSoon();
+  if(!(opts&&opts.noCloud)){ cloudPushSoon(); try{ shareAutoSoon(); }catch(e){} }
 }
 
 /* ══════════════ Çöp kutusu (10 gün) ══════════════ */
@@ -2977,7 +2977,8 @@ const shareUrl=tok=>location.origin+location.pathname+'?v='+tok;
 function libSizeFmt(n){ n=+n||0; return n<1024*1024? Math.round(n/1024)+' KB' : (n/1024/1024).toFixed(1)+' MB'; }
 function buildShareSnapshot(c){
   const all=plansOf(c.id);
-  const act=all.find(p=>p.status==='Aktif')||[...all].sort((a,b)=>new Date(b.start)-new Date(a.start))[0]||null;
+  const byStart=(x,y)=>(new Date(y.start)-new Date(x.start))||0;
+  const act=[...all].filter(p=>p.status==='Aktif').sort(byStart)[0]||[...all].sort(byStart)[0]||null;   // birden fazla "Aktif" varsa en yeni başlayan
   let plan=null;
   if(act){ migratePlan(act); plan=JSON.parse(JSON.stringify(act)); delete plan.privnote; } // 🔒 özel not asla paylaşılmaz
   // Danışan aynı linkten eski programlarını da görebilsin diye — en fazla son 8 tanesi (veri boyutu için)
@@ -3006,6 +3007,28 @@ function buildShareSnapshot(c){
     profile:{name:DB.profile.name,clinic:DB.profile.clinic,logo:DB.profile.logo,phone:DB.profile.phone,mail:DB.profile.mail}
   };
 }
+/* Program eklenince / değişince danışanın linkindeki güncel + eski programlar otomatik yenilenir (sadece plan düğümleri; mesajlara dokunmaz) */
+let _shAutoT=null, _shAutoBusy=false;
+function shareAutoSoon(){ clearTimeout(_shAutoT); _shAutoT=setTimeout(shareAutoSync,2500); }
+async function shareAutoSync(){
+  if(_shAutoBusy||typeof cloudReady!=='function'||!cloudReady()||!CL().enabled) return;
+  const hash=str=>{ let h=5381; for(let i=0;i<str.length;i++) h=((h<<5)+h+str.charCodeAt(i))|0; return String(h)+'.'+str.length; };
+  _shAutoBusy=true; let dirty=false;
+  try{
+    for(const c of DB.clients){
+      if(!c.shareToken) continue;
+      const snap=buildShareSnapshot(c);
+      const sig=hash(JSON.stringify([snap.plan,snap.pastPlans]));
+      if(sig===c.sharePlanSig) continue;
+      const t=await cloudToken();
+      const put=(node,val)=>fetch(`${CL().dbUrl}/shares/${c.shareToken}/${node}.json?auth=${encodeURIComponent(t)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});
+      const [r1,r2]=await Promise.all([put('plan',snap.plan),put('pastPlans',snap.pastPlans)]);
+      if(r1.ok&&r2.ok){ c.sharePlanSig=sig; c.shareUpdatedAt=Date.now(); dirty=true; }
+    }
+  }catch(e){}
+  _shAutoBusy=false;
+  if(dirty){ await save(); toast('Danışanın linki güncellendi ✓',2500); }
+}
 async function shareGenerate(cid){
   const c=clientOf(cid||S.shareClient||S.client); if(!c) return;
   if(!cloudReady()||!CL().enabled){
@@ -3025,6 +3048,7 @@ async function shareGenerate(cid){
       {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
     if(!r.ok) throw new Error(cloudErr(r.status));
     c.shareToken=token; c.shareCreatedAt=snap.createdAt; c.shareUpdatedAt=Date.now();
+    c.sharePlanSig=undefined;   // bir sonraki kontrolde eşitlenir
     await save();
     toast(isNew?'Link oluşturuldu ✓':'Link güncellendi ✓');
     modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
