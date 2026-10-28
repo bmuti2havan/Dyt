@@ -2013,7 +2013,8 @@ function docxNewDay(){ return {sub:'',photo:'',meals:MEAL_PRESET.map(m=>({name:m
 const docxCleanLine=t=>t.replace(/^[\s·•▪●◦○■□▫☐☑✓✔➢➤→►▶\-–—*]+/,'').replace(/^\(?\d{1,2}[.)]\s+/,'').trim();
 /* Bir öğünün toplanan satırlarını başlık / madde / not olarak yerleştirir */
 function docxFinalizeMeal(m){
-  const it=m._items||[]; m.title=''; m.lines=[]; m.tip='';
+  let it=m._items||[]; m.title=''; m.lines=[]; m.tip='';
+  if(it.some(x=>/^(?:🔘|[\s·])*SEÇMEL[İIiı]/i.test(x.c))){ m.choice=true; it=it.filter(x=>!/^(?:🔘|[\s·])*SEÇMEL[İIiı]/i.test(x.c)); }
   if(!it.length) return;
   let start=0;
   if(!it[0].bu&&it[0].c.length<=80&&(it[0].b||it.slice(1).some(x=>x.bu))){ m.title=it[0].c; start=1; }
@@ -2231,6 +2232,16 @@ async function docxToTemplate(file){
   if(skippedDeco) warns.push(skippedDeco+' küçük/tekrarlayan süs resmi atlandı');
   if(skippedFmt) warns.push(skippedFmt+' resim biçimi (EMF/WMF vb.) desteklenmiyor, atlandı');
   list.forEach(d=>{ ['_sig','_num','_last','_seenMeal','_reps','_label','_single'].forEach(k=>delete d[k]); d.meals.forEach(m=>{ delete m._sel; delete m._items; delete m._imgs; delete m._headDone; }); });
+  /* Seçmeli algılama: başlıkta "seç / seçenek / birini" geçen veya gün başlığında "her öğünde bir seçenek seç" yazan öğünler */
+  const CH_RE=/(\bseç\b|seçin|seçiniz|seçenek|birini|alternatif|SEÇMEL[İIiı])/i;
+  list.forEach(d=>{
+    const dayCh=!!d.choice||(/(her\s+öğün|bir\s+seçenek|SEÇMEL[İIiı])/i.test(d.sub||'')&&/seç/i.test(d.sub||''));
+    if(dayCh) d.choice=true;
+    d.meals.forEach(m=>{
+      if(!m.lines.length) { if(m.choice) delete m.choice; return; }
+      if(m.choice||(m.lines.length>=2&&(dayCh||CH_RE.test(m.title||'')))) m.choice=true;
+    });
+  });
   const filled=list.filter(d=>d.meals.some(m=>m.lines.length||m.title)).length;
   const mealCount=list.reduce((a,d)=>a+d.meals.filter(m=>m.lines.length||m.title).length,0);
   const lineCount=list.reduce((a,d)=>a+d.meals.reduce((b,m)=>b+m.lines.length,0),0);
@@ -5259,9 +5270,11 @@ async function exportDocx(share){
           let inner;
           if(!mm) inner=wP('—',{align:'center',size:14,color:T.not2,after:0});
           else{
-            inner=mm.title?wP(mm.title,{b:true,size:14,color:T.brand,after:30}):'';
-            (mm.lines||[]).slice(0,3).forEach(l=>{inner+=wP('· '+l,{size:13,color:TC,after:20});});
-            if((mm.lines||[]).length>3) inner+=wP('· +'+((mm.lines.length)-3)+' madde',{size:12,color:T.not2,after:0});
+            const ch=!!mm.choice&&(mm.lines||[]).length>0;
+            inner=ch?wP('🔘 SEÇMELİ',{b:true,size:12,color:'B45309',after:20}):'';
+            if(mm.title&&!(ch&&/^birini seç/i.test(mm.title.trim()))) inner+=wP(mm.title,{b:true,size:14,color:T.brand,after:30});
+            (mm.lines||[]).slice(0,ch?6:3).forEach(l=>{inner+=wP((ch?'○ ':'· ')+l,{size:13,color:TC,after:20});});
+            if((mm.lines||[]).length>(ch?6:3)) inner+=wP('· +'+((mm.lines.length)-(ch?6:3))+' madde',{size:12,color:T.not2,after:0});
           }
           cells+=wCell(cw2,inner,T.gunFill[i%T.gunFill.length],'top');
         });
@@ -5284,6 +5297,7 @@ async function exportDocx(share){
     else if(idx>0) body+=wP('',{size:6,after:0,before:160});
     let head=wP(`${DAY_EMOJI[i%DAY_EMOJI.length]}  ${i+1}. GÜN  ·  ${dFull(p,i).toLocaleUpperCase('tr')}`,{b:true,size:30,color:T.gunRenk[i%T.gunRenk.length],font:TF,after:d.sub?40:0});
     if(d.sub) head+=wP(d.sub,{i:true,size:19,color:TC,after:0});
+    if(d.choice) head+=wP('🔘 SEÇMELİ GÜN — her öğünde bir seçenek seç',{b:true,size:19,color:'B45309',before:40,after:0});
     body+=wTable([W],wCell(W,head,T.gunFill[i%T.gunFill.length]), T.kapak==='rule'?T.cizgi:'');
     if(d.photo){ const r=addImg(d.photo);
       if(r){ const [cw,ch]=fitEMU(DIM[d.photo]||{w:16,h:9},DAYPH_MAXW,DAYPH_MAXH);
@@ -5294,10 +5308,11 @@ async function exportDocx(share){
       const base=MEAL_STYLE[m.name]||{emoji:m.emoji};
       const th=T.ogun[m.name]||[TB,T.kutu.fill];
       const st={emoji:base.emoji||m.emoji||'🍽',color:th[0],fill:th[1]};
-      let txt=wP(`${st.emoji}  ${String(m.name).toLocaleUpperCase('tr')}`,{b:true,size:25,color:st.color,font:TF,after:70});
-      if(m.title) txt+=wP(m.title,{b:true,size:21,color:TB,after:80});
-      if(chHeadOn(m)&&m.lines.length) txt+=wP('🔘 Birini seç',{b:true,size:18,color:'B45309',after:50});
-      m.lines.forEach(l=>{txt+=wP(l,{bullet:true,size:19,color:TC,after:45});});
+      const isCh=!!m.choice&&m.lines.length>0;
+      let txt=wP(`${st.emoji}  ${String(m.name).toLocaleUpperCase('tr')}`+(isCh?'   ·   🔘 SEÇMELİ':''),{b:true,size:25,color:st.color,font:TF,after:70});
+      if(m.title&&!(isCh&&/^birini seç/i.test(m.title.trim()))) txt+=wP(m.title,{b:true,size:21,color:TB,after:80});
+      if(isCh) txt+=wP('🔘 SEÇMELİ — aşağıdakilerden BİRİNİ seç',{b:true,size:18,color:'B45309',after:50});
+      m.lines.forEach(l=>{txt+=isCh?wP('○  '+l,{size:19,color:TC,after:45}):wP(l,{bullet:true,size:19,color:TC,after:45});});
       if(m.tip) txt+=wP(m.tip,{i:true,size:18,color:T.not2,before:60,after:40});
       const rid=addImg(m.photo);
       if(rid){
@@ -7380,6 +7395,8 @@ function pagePlanEdit(){
     <button class="btn btn-sm" data-act="copy-day">${ic('plans',15)} Bu günü kopyala</button>
     <button class="btn btn-sm" data-act="paste-day" ${S.clip?'':'disabled style="opacity:.45"'}>Yapıştır${S.clip?' ('+(S.clip.from+1)+'. gün)':''}</button>
     <button class="btn btn-sm" data-act="clear-day">Günü temizle</button>
+    <button class="btn btn-sm" data-act="day-choice" title="Bu günün tüm öğünlerini seçmeli yap">🔘 Günü seçmeli yap${(p.days[S.day]||{}).choice?' ✓':''}</button>
+    <button class="btn btn-sm" data-act="all-choice" title="Tüm günlerin tüm öğünlerini seçmeli yap">🔘 Tüm günler seçmeli</button>
     <button class="btn btn-sm btn-primary" data-act="ai-plan">🧠 Sıfırdan üret</button>
     <button class="btn btn-sm" data-act="ai-check">🛡 Çakışma denetimi</button>
     <button class="btn btn-sm" data-act="reorder">🔀 Öğün yerlerini değiştir</button>
@@ -7513,6 +7530,13 @@ async function saveChoice(){
   m.title=(document.getElementById('ch-title').value||'').trim(); m.lines=lines;
   m.choice=!!document.getElementById('ch-on').checked&&lines.length>0;
   closeModal(); await save(); render(); toast(m.choice?'Seçmeli liste eklendi ✓':'Kaydedildi');
+}
+async function setChoiceDays(all){
+  const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
+  const days=all?p.days:[p.days[S.day]];
+  const on=!days.every(d=>d.choice);   // hepsi açıksa kapat, değilse aç
+  days.forEach(d=>{ d.choice=on; d.meals.forEach(m=>{ if(m.lines&&m.lines.length){ m.choice=on; if(on&&!m.title) m.title='Birini seç'; } }); });
+  await save(); render(); toast(on?(all?'Tüm günler seçmeli yapıldı ✓':'Gün seçmeli yapıldı ✓'):'Seçmeli kapatıldı');
 }
 function openDaySwap(){
   const p=DB.plans.find(x=>x.id===S.plan); if(!p) return;
@@ -10137,6 +10161,7 @@ document.addEventListener('click',async e=>{
       DB.cloud={autoSkip:true}; await save({noCloud:true}); paintSync('Bulut kapalı','var(--muted)'); render(); return;
     }
     if(a==='day-swap'){ return openDaySwap(); }
+    if(a==='day-choice'||a==='all-choice'){ return setChoiceDays(a==='all-choice'); }
     if(a==='copy-day'){
       const pl=DB.plans.find(x=>x.id===S.plan);
       S.clip={from:S.day,data:JSON.parse(JSON.stringify(pl.days[S.day]))};
