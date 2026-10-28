@@ -5541,8 +5541,32 @@ async function exportPdf(){
     finally{ window.__pdfLite=false; }
   }
 }
+const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+/* iPhone/iPad: uzun işlemden sonra kendiliğinden indirme engelleniyor. PDF hazır olunca bir düğme gösterip,
+   kullanıcının kendi dokunuşuyla Paylaş/Kaydet (Dosyalar'a kaydet, WhatsApp vb.) açıyoruz. */
+function pdfOpenSaved(){
+  const b=window.__pdfBlob, n=window.__pdfName||'program.pdf'; if(!b) return closeModal();
+  try{
+    const f=new File([b],n,{type:'application/pdf'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){
+      navigator.share({files:[f],title:n}).catch(e=>{ if(e&&e.name!=='AbortError') pdfOpenTab(b); });
+      return;
+    }
+  }catch(e){}
+  pdfOpenTab(b);
+}
+function pdfOpenTab(b){
+  const u=URL.createObjectURL(b);
+  const w=window.open(u,'_blank');
+  if(!w){ location.href=u; }
+}
 function pdfSaveBlob(doc,fname){
   const blob=doc.output('blob');
+  if(IS_IOS){
+    window.__pdfBlob=blob; window.__pdfName=fname;
+    modal('✅ PDF hazır',`<p style="margin:0 0 8px;font-size:14px"><b>${esc(fname)}</b></p><p class="hint" style="margin:0">Aşağıdaki düğmeye dokun. Açılan menüden <b>“Dosyalara Kaydet”</b> ile telefona kaydedebilir ya da WhatsApp'tan doğrudan gönderebilirsin.</p>`,'📥 Kaydet / Paylaş','pdf-open','420px');
+    return;
+  }
   const url=URL.createObjectURL(blob), a=document.createElement('a');
   a.href=url; a.download=fname; a.style.display='none'; document.body.appendChild(a); a.click();
   setTimeout(()=>{ try{ a.remove(); URL.revokeObjectURL(url); }catch(e){} },8000);
@@ -5566,7 +5590,7 @@ async function exportPdfOnce(){
   }
   const fname=((c?c.name+' - ':'')+p.name).replace(/[\\/:*?"<>|]/g,'').slice(0,80)+'.pdf';
   pdfSaveBlob(doc,fname);
-  toast('PDF indirildi ✓ (İndirilenler klasörüne bak)',5000);
+  if(!IS_IOS) toast('PDF indirildi ✓ (İndirilenler klasörüne bak)',5000); else toast('PDF hazır ✓',2500);
 }
 
 /* ══════════════ Öğün analizi — yalnızca panelde görünür ══════════════ */
@@ -8375,6 +8399,7 @@ function openModal(kind){
 /* ══════════════ Kaydetme işlemleri ══════════════ */
 async function handleOk(act){
   if(act==='close') return closeModal();
+  if(act==='pdf-open') return pdfOpenSaved();
   if(act==='ch-save') return saveChoice();
   if(act==='tarti-save') return tartiSave();
   if(act.startsWith('tarti-note-')){ const c=clientOf(S.client), sc=(c.bodyScans||[]).find(x=>x.id===act.slice(11)); if(sc){ sc.note=(document.getElementById('tt-note')||{}).value||''; await save(); closeModal(); toast('Not kaydedildi ✓'); if(c.shareToken) tartiPublish(c); } return; }
