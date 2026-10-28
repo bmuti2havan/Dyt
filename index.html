@@ -2459,7 +2459,9 @@ const DAY_SUB=['Kan şekeri dengesi ile başlangıç','Protein ve C vitamini des
 function newDays(){return Array.from({length:7},(_,i)=>({sub:DAY_SUB[i],photo:'',
   meals:MEAL_PRESET.map(m=>({name:m[0],emoji:m[1],title:'',lines:[],photo:''}))}));}
 function migratePlan(p){
-  if(!p.days) p.days=newDays();
+  if(!Array.isArray(p.days)||!p.days.length) p.days=newDays();   // günü olmayan/bozuk program çökmesin
+  p.days=p.days.filter(Boolean);
+  if(!p.days.length) p.days=newDays();
   p.days.forEach(d=>{
     if(!d.meals) d.meals=MEAL_PRESET.map(m=>({name:m[0],emoji:m[1],title:'',lines:[],photo:''}));
     while(d.meals.length<MEAL_PRESET.length){                         // eski planlarda eksik olan yeni öğün slotlarını (ör. akşam sonrası ara öğün) ekle
@@ -3037,7 +3039,7 @@ function buildShareSnapshot(c){
 }
 /* Program eklenince / değişince danışanın linkindeki güncel + eski programlar otomatik yenilenir (sadece plan düğümleri; mesajlara dokunmaz) */
 let _shAutoT=null, _shAutoBusy=false;
-function shareAutoSoon(){ clearTimeout(_shAutoT); _shAutoT=setTimeout(shareAutoSync,2500); }
+function shareAutoSoon(){ clearTimeout(_shAutoT); _shAutoT=setTimeout(shareAutoSync,6000); }
 async function shareAutoSync(){
   if(_shAutoBusy||typeof cloudReady!=='function'||!cloudReady()||!CL().enabled) return;
   const hash=str=>{ let h=5381; for(let i=0;i<str.length;i++) h=((h<<5)+h+str.charCodeAt(i))|0; return String(h)+'.'+str.length; };
