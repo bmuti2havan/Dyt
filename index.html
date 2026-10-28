@@ -2662,6 +2662,7 @@ async function trashRestore(id){
       DB.clients.push(d.client);
       (d.plans||[]).forEach(x=>{ if(!DB.plans.some(y=>y.id===x.id)) DB.plans.push(x); });
       (d.appts||[]).forEach(x=>{ if(!DB.appts.some(y=>y.id===x.id)) DB.appts.push(x); });
+      if(d.client.shareToken){ d.client.sharePlanSig=undefined; setTimeout(()=>{ try{ shareRepublish(d.client); }catch(e){} },400); }
     }
     else if(it.type==='plan'){
       if(!DB.clients.some(x=>x.id===d.clientId)) return toast('Danışanı silinmiş — önce danışanı geri al');
@@ -3058,6 +3059,23 @@ async function shareAutoSync(){
   }catch(e){}
   _shAutoBusy=false;
   if(dirty){ await save(); toast('Danışanın linki güncellendi ✓',2500); }
+}
+/* Danışan silinince linkinin bulut verisi de silinir; geri alınırsa aynı adresle yeniden yayınlanır */
+async function sharePurge(tok){
+  try{
+    if(!tok||!cloudReady()||!CL().enabled) return;
+    const t=await cloudToken(), q='.json?auth='+encodeURIComponent(t);
+    await Promise.all(['shares/'+tok,'shares/t_'+tok,'shares/p_'+tok,'shares/w_'+tok,'shares/waterq/'+tok].map(p=>fetch(CL().dbUrl+'/'+p+q,{method:'DELETE'}).catch(()=>{})));
+  }catch(e){}
+}
+async function shareRepublish(c){
+  if(!c||!c.shareToken||!cloudReady()||!CL().enabled) return;
+  try{
+    const snap=buildShareSnapshot(c); snap.createdAt=c.shareCreatedAt||Date.now();
+    const t=await cloudToken();
+    const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
+    if(r.ok){ c.shareUpdatedAt=Date.now(); await save(); }
+  }catch(e){}
 }
 async function shareGenerate(cid){
   const c=clientOf(cid||S.shareClient||S.client); if(!c) return;
@@ -10184,6 +10202,7 @@ document.addEventListener('click',async e=>{
     if(!confirm('Danışan ve tüm kayıtları çöp kutusuna taşınsın mı? '+TRASH_DAYS+' gün içinde geri alabilirsiniz.')) return;
     const pls=DB.plans.filter(x=>x.clientId===cid), aps=DB.appts.filter(x=>x.clientId===cid);
     if(cc) trashPush('client',cc.name+' ('+pls.length+' program, '+aps.length+' randevu)',{client:cc,plans:pls,appts:aps});
+    if(cc&&cc.shareToken) sharePurge(cc.shareToken);   // silinen danışanın herkese açık linki de kapansın (geri alınırsa yeniden yayınlanır)
     DB.clients=DB.clients.filter(x=>x.id!==cid);
     DB.plans=DB.plans.filter(x=>x.clientId!==cid);
     DB.appts=DB.appts.filter(x=>x.clientId!==cid);
