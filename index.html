@@ -6573,26 +6573,26 @@ function buildAlerts(){
     ps.forEach(p=>{
       const end=new Date(p.start); end.setDate(end.getDate()+7);
       const over=Math.floor((now-end)/day);
-      if(over>=0) out.push({sev:over>=3?'danger':'warn',t:`${c.name} · programı ${over===0?'bugün bitti':over+' gün önce bitti'}`,
+      if(over>=0) out.push({sev:over>=3?'danger':'warn',t:`${esc(c.name)} · programı ${over===0?'bugün bitti':over+' gün önce bitti'}`,
         s:esc(p.name),btn:'Yenile',act:`data-plan="${p.id}"`});
     });
-    if(!ps.length) out.push({sev:'warn',t:`${c.name} · aktif programı yok`,s:'Yeni program hazırlanabilir',btn:'Program aç',act:`data-newplan="${c.id}"`});
+    if(!ps.length) out.push({sev:'warn',t:`${esc(c.name)} · aktif programı yok`,s:'Yeni program hazırlanabilir',btn:'Program aç',act:`data-newplan="${c.id}"`});
     const mny=clientMoney(c.id);
     if(mny.price && mny.due>0 && mny.done>0)
-      out.push({sev:mny.done>=mny.total&&mny.total?'danger':'warn',t:`${c.name} · ${mny.due.toLocaleString('tr-TR')} ₺ tahsil edilmedi`,
+      out.push({sev:mny.done>=mny.total&&mny.total?'danger':'warn',t:`${esc(c.name)} · ${mny.due.toLocaleString('tr-TR')} ₺ tahsil edilmedi`,
         s:`${mny.done}${mny.total?'/'+mny.total:''} seans yapıldı`,btn:'Seanslar',act:`data-client="${c.id}" data-tab-go="odeme"`});
     const ms=(c.measures||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
     if(ms.length){
       const gap=Math.floor((now-new Date(ms[0].date))/day);
-      if(gap>=14) out.push({sev:gap>=30?'danger':'warn',t:`${c.name} · ${gap} gündür ölçüm girilmedi`,s:'Son ölçüm '+trDate(ms[0].date),btn:'Dosyayı aç',act:`data-client="${c.id}"`});
+      if(gap>=14) out.push({sev:gap>=30?'danger':'warn',t:`${esc(c.name)} · ${gap} gündür ölçüm girilmedi`,s:'Son ölçüm '+trDate(ms[0].date),btn:'Dosyayı aç',act:`data-client="${c.id}"`});
     }
   });
   DB.appts.filter(a=>{const d=new Date(a.when); return d>=now && d-now<=2*day;})
     .sort((a,b)=>new Date(a.when)-new Date(b.when))
     .forEach(a=>{const c=clientOf(a.clientId);
-      out.push({sev:'info',t:`${c?c.name:'—'} · ${trDT(a.when)}`,s:esc(a.type||'Görüşme'),btn:'Dosyayı aç',act:`data-client="${a.clientId}"`});});
+      out.push({sev:'info',t:`${esc(c?c.name:'—')} · ${trDT(a.when)}`,s:esc(a.type||'Görüşme'),btn:'Dosyayı aç',act:`data-client="${a.clientId}"`});});
   DB.plans.filter(p=>p.status==='Taslak').forEach(p=>{const c=clientOf(p.clientId);
-    out.push({sev:'info',t:`${esc(p.name)} · taslak`,s:c?c.name:'Danışan atanmadı',btn:'Aç',act:`data-plan="${p.id}"`});});
+    out.push({sev:'info',t:`${esc(p.name)} · taslak`,s:c?esc(c.name):'Danışan atanmadı',btn:'Aç',act:`data-plan="${p.id}"`});});
   const rank={danger:0,warn:1,info:2};
   return out.sort((a,b)=>rank[a.sev]-rank[b.sev]).slice(0,8);
 }
@@ -12088,7 +12088,7 @@ function svTabsInit(){
       const norm=x=>String(x||'').toLocaleLowerCase('tr');
       const hitT=pl.start?svPlanOn(svIso(),svPlansAll()):undefined;
       const day=hitT!==undefined?(hitT?hitT.day:null):(pl.days.find(d=>norm(d.name).includes(norm(wd)))||(pl.days.length>1?null:pl.days[0]));
-      if(!day&&hitT===null) hero.insertAdjacentHTML('afterend','<section class="sv-card" id="svMealsCard" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><p style="padding:6px 16px 14px;margin:0;color:var(--muted);font-size:13.5px;line-height:1.55">Programın tamamlandı 🎉 Yeni listen hazırlandığında burada görünecek. Eski listelerine "Program takvimim"den bakabilirsin.</p></section>');
+      if(!day&&hitT===null){ const fut=String(pl.start||'').slice(0,10)>svIso(); hero.insertAdjacentHTML('afterend','<section class="sv-card" id="svMealsCard" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><p style="padding:6px 16px 14px;margin:0;color:var(--muted);font-size:13.5px;line-height:1.55">'+(fut?('Yeni programın <b>'+esc(trDate(String(pl.start).slice(0,10)))+'</b> tarihinde başlıyor 🌿 Listeni "Program" sekmesinden önceden görebilirsin.'):'Programın tamamlandı 🎉 Yeni listen hazırlandığında burada görünecek. Eski listelerine "Program takvimim"den bakabilirsin.')+'</p></section>'); }
       if(day&&day.meals&&day.meals.length){
         hero.insertAdjacentHTML('afterend',`<section class="sv-card" id="svMealsCard" style="margin-top:14px"><div class="sv-card-h"><h3>🍽 Bugünün öğünleri</h3></div><div style="padding:6px 16px 4px">${day.meals.map(m=>`<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)"><div style="font-size:22px">${esc(m.emoji||'🍽')}</div><div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc(m.name||'')}</b><div style="font-size:12.5px;color:var(--muted);line-height:1.5">${(m.lines||[]).slice(0,4).map(esc).join(' · ')}</div></div></div>`).join('')}</div><div style="padding:6px 16px 14px"><a href="#sv-program" style="font-size:13px;font-weight:700;color:var(--blue-700);text-decoration:none">Tüm programı gör →</a></div></section>`);
       }
