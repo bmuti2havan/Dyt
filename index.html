@@ -9906,7 +9906,7 @@ document.addEventListener('click',async e=>{
   const fm=t.closest('[data-former]'); if(fm){
     const c2=clientOf(fm.dataset.former); if(!c2) return;
     const open=DB.appts.filter(a=>a.clientId===c2.id&&!a.status);
-    if(!confirm('"'+c2.name+'" seansa gelmeyecek olarak işaretlensin mi?\n\nTüm dosyası (programlar, ölçümler, notlar) "Eski danışanlar" klasörüne taşınır'+(open.length?', bekleyen '+open.length+' randevusu iptal edilir':'')+'. İstediğin zaman geri alabilirsin.')) return;
+    /* onay yok: tek tık, geri alma = Aktife al */
     try{
       c2.archived=true; c2.former=true; c2.formerAt=todayISO();
       open.forEach(a=>{ a.status='iptal'; });
