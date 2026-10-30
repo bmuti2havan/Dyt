@@ -7294,29 +7294,37 @@ function pagePlans(){
   const view=S.planView||'all';
   const keyOf=x=>seasonOf(x.season)?x.season:'none';
   const inF=x=>!flt||keyOf(x)===flt;
-  const cnt=k=>ps.filter(x=>keyOf(x)===k).length;
+  /* Danışana atanmış listeler ayrı klasörde ("assigned"); genel listede sadece şablonlar ve kimseye atanmamış programlar kalır */
+  const isAsg=p=>!!(p.clientId&&clientOf(p.clientId));
+  const asgPs=ps.filter(isAsg).sort((a,b)=>String((clientOf(a.clientId)||{}).name||'').localeCompare(String((clientOf(b.clientId)||{}).name||''),'tr')||(new Date(b.start)-new Date(a.start)));
+  const genPs=ps.filter(p=>!isAsg(p));
+  const cur=view==='assigned'?asgPs:view==='all'?genPs:ps;
+  const cnt=k=>cur.filter(x=>keyOf(x)===k).length;
   const allT=tplAll(), tpls=allT.filter(inF);
   const oldPs=ps.filter(p=>p.status==='Tamamlandı');
   const recentPs=[...ps].sort((a,b)=>new Date(b.start)-new Date(a.start));
-  const base = view==='old'? oldPs : view==='recent'? recentPs : view==='hidden'? hiddenPs : ps;
+  const base = view==='old'? oldPs : view==='recent'? recentPs : view==='hidden'? hiddenPs : view==='assigned'? asgPs : genPs;
   const shown = (view==='tpl')? [] : base.filter(inF);
   const showTplSection = (view==='all'||view==='tpl') && tpls.length;
-  const showTable = view!=='tpl';
+  const showTable = view!=='tpl' && !(view==='all'&&!genPs.length&&(tpls.length||asgPs.length));
   const isHiddenView = view==='hidden';
   const sw=t=>{ const th=DOC_THEMES[t.theme]; return th? th.strip.slice(0,7).map(c=>`<i style="background:#${c}"></i>`).join('') : '<i style="background:#E4EAF0"></i>'; };
   return `<div class="page-head"><div><h1>Beslenme programları</h1><p>Danışana özel hazırlanan 7 günlük programlar. Yazdırıp PDF olarak paylaşabilirsiniz.</p></div>
   <div class="spacer"></div><label class="btn" style="cursor:pointer">📥 Word'den şablon yükle<input type="file" id="tplDocx" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden></label>${DB.clients.length?`<button class="btn btn-primary" data-newplan="">${ic('plus',15)} Yeni program</button>`:''}</div>
   ${(ps.length||allT.length||hiddenPs.length)?`<div class="chip-row" style="margin-bottom:8px">
-    <button class="chip" data-plan-view="all" aria-pressed="${view==='all'}">Tümü (${ps.length})</button>
+    <button class="chip" data-plan-view="all" aria-pressed="${view==='all'}">Genel programlar (${genPs.length+allT.length})</button>
     <button class="chip" data-plan-view="tpl" aria-pressed="${view==='tpl'}">📑 Şablon liste (${allT.length})</button>
+    <button class="chip" data-plan-view="assigned" aria-pressed="${view==='assigned'}">👥 Danışanlara atanmış listeler (${asgPs.length})</button>
     <button class="chip" data-plan-view="old" aria-pressed="${view==='old'}">🗄 Eski liste (${oldPs.length})</button>
     <button class="chip" data-plan-view="recent" aria-pressed="${view==='recent'}">🕐 Son listeler</button>
     ${hiddenPs.length?`<button class="chip" data-plan-view="hidden" aria-pressed="${view==='hidden'}">🙈 Gizlenenler (${hiddenPs.length})</button>`:''}
   </div>`:''}
   ${(ps.length||allT.length)&&!isHiddenView?`<div class="chip-row">
-    <button class="chip" data-season-f="" aria-pressed="${!flt}">Tümü (${ps.length})</button>
+    <button class="chip" data-season-f="" aria-pressed="${!flt}">Tümü (${cur.length})</button>
     ${SEASONS.map(x=>`<button class="chip" data-season-f="${x.k}" aria-pressed="${flt===x.k}">${x.em} ${x.ad} (${cnt(x.k)})</button>`).join('')}
     <button class="chip" data-season-f="none" aria-pressed="${flt==='none'}">Mevsimsiz (${cnt('none')})</button></div>`:''}
+  ${view==='assigned'?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 10px">Bir danışana atanmış tüm listeler burada, danışan adına göre sıralı. Genel program listesinde görünmezler.</p>`:''}
+  ${view==='all'&&asgPs.length?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 10px">👥 Danışanlara atanmış <b>${asgPs.length}</b> liste ayrı klasörde. <button type="button" class="btn btn-sm" data-plan-view="assigned">Klasörü aç →</button></p>`:''}
   ${isHiddenView?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 10px">Bu programlar genel listeden gizlendi ama ait oldukları danışanın kendi dosyasında görünmeye devam ediyor. "Göster"e basarsan genel listeye geri döner.</p>`:''}
   ${showTplSection?`<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Şablonlarım</h3>
     <div class="spacer"></div><span class="tag">${tpls.length}</span></div>
