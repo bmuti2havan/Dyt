@@ -7023,7 +7023,7 @@ function pageClients(){
   <div class="filters"><div class="searchbar">${ic('search',17)}<input id="q" value="${esc(S.q)}" placeholder="İsme göre ara"></div>
     <div class="chips">
       <button class="chip" data-arch="aktif" aria-pressed="${!arc}">Aktif (${DB.clients.length-nArc})</button>
-      <button class="chip" data-arch="arsiv" aria-pressed="${arc}">Arşiv (${nArc})</button>
+      <button class="chip" data-arch="arsiv" aria-pressed="${arc}">📁 Eski danışanlar (${nArc})</button>
     </div></div>
   ${list.length? `<section class="card"><div class="tw"><table>
     <thead><tr><th>Danışan</th><th>Hedef</th><th class="t-right">Boy / Kilo</th><th class="t-right">BKİ</th><th class="t-right">Günlük enerji</th><th>Program</th><th></th></tr></thead>
@@ -7039,7 +7039,7 @@ function pageClients(){
         <td class="t-right"><span class="num">${b?b.toFixed(1):'—'}</span> ${b?`<div class="t-sub"><span class="tag ${lbl[1]}" style="font-size:10.5px">${lbl[0]}</span></div>`:''}</td>
         <td class="t-right num">${c.kcalTarget? c.kcalTarget+' kcal':'—'}</td>
         <td>${p? `<span class="tag tag-ok"><i class="dot"></i>${esc(p.name)}</span>`:'<span class="tag">Program yok</span>'}</td>
-        <td class="t-right">${oa?`<button class="btn btn-sm btn-primary" data-close-appt="${oa.id}" style="margin-right:6px">Bitti</button>`:`<button class="btn btn-sm btn-primary" data-close-client="${c.id}" style="margin-right:6px">Bitti</button>`}<button class="btn btn-sm" data-client="${c.id}">Dosyayı aç</button></td></tr>`}).join('')}
+        <td class="t-right">${oa?`<button class="btn btn-sm btn-primary" data-close-appt="${oa.id}" style="margin-right:6px">Bitti</button>`:`<button class="btn btn-sm btn-primary" data-close-client="${c.id}" style="margin-right:6px">Bitti</button>`}${c.archived?`<button class="btn btn-sm" data-arch-toggle="${c.id}" style="margin-right:6px" title="Tekrar aktif danışanlara al">↩ Aktife al</button>`:`<button class="btn btn-sm" data-former="${c.id}" style="margin-right:6px" title="Seansı bitti / artık gelmeyecek: Eski danışanlar klasörüne taşı">🚪 Gelmeyecek</button>`}<button class="btn btn-sm" data-client="${c.id}">Dosyayı aç</button></td></tr>`}).join('')}
     </tbody></table></div></section>`
   : `<section class="card"><div class="empty"><div class="eic">${ic('plus',24)}</div><h4>${S.q?'Eşleşen danışan yok':'Henüz danışan eklenmedi'}</h4><p>${S.q?'Farklı bir isim deneyin.':'Danışan eklediğinizde ölçüm takibi, program hazırlama ve randevu yönetimi bu dosyadan yürür.'}</p><button class="btn btn-primary" data-modal="client">${ic('plus',15)} Yeni danışan ekle</button></div></section>`}`;
 }
@@ -7232,7 +7232,7 @@ function pageClient(){
         ${as.map(a=>`<tr>
           <td class="num">${trDT(a.when)}</td>
           <td>${esc(a.type||'—')}${a.first?' <span class="tag tag-blue">ilk</span>':''}</td>
-          <td><span class="tag ${a.status==='geldi'?'tag-ok':a.status==='gelmedi'?'tag-danger':''}"><i class="dot"></i>${a.status==='geldi'?'Geldi':a.status==='gelmedi'?'Gelmedi':'Planlandı'}</span></td>
+          <td><span class="tag ${a.status==='geldi'?'tag-ok':a.status==='gelmedi'?'tag-danger':''}"><i class="dot"></i>${a.status==='geldi'?'Geldi':a.status==='gelmedi'?'Gelmedi':a.status==='iptal'?'İptal':'Planlandı'}</span></td>
           <td class="t-right num">${payOf(a)?payOf(a).toLocaleString('tr-TR')+' ₺':'—'}${a.pay&&a.pay.type?`<div class="t-sub">${esc(a.pay.type)}</div>`:''}</td>
           <td class="t-right"><button class="btn btn-sm" data-close-appt="${a.id}">Düzenle</button></td></tr>`).join('')}
       </tbody></table></div>`:`<div class="empty"><div class="eic">${ic('appts',24)}</div><h4>Seans kaydı yok</h4><p>Randevu ekleyip seansı kapattığında burada listelenir.</p></div>`}
@@ -7269,7 +7269,7 @@ function pageClient(){
       <button class="btn btn-sm" data-modal="client-edit">Bilgileri düzenle</button>
       <button class="btn btn-sm" data-act="share-open" data-cid="${c.id}">🔗 Danışan linki</button>
       <button class="btn btn-sm" data-wa-quick-open="${c.id}">📱 WhatsApp gönder</button>
-      <button class="btn btn-sm" data-arch-toggle="${c.id}">${c.archived?'Arşivden çıkar':'Arşivle'}</button>
+      ${c.archived?`<button class="btn btn-sm" data-arch-toggle="${c.id}">↩ Aktif danışanlara al</button>`:`<button class="btn btn-sm" data-former="${c.id}" title="Seansı bitti / artık gelmeyecek">🚪 Seans bitti · Gelmeyecek</button>`}
       <button class="btn btn-sm ${c.invoiced?'':'btn-primary'}" data-inv-toggle="${c.id}">🧾 ${c.invoiced?'Faturayı geri al':'Fatura kesildi'}</button>
       <button class="btn btn-sm btn-primary" data-newplan="${c.id}">${ic('plus',15)} Program</button>
       <button class="btn btn-sm btn-primary" data-brief-run="${c.id}">🧾 Görüşme brifingi</button>
@@ -7295,15 +7295,17 @@ function pagePlans(){
   const keyOf=x=>seasonOf(x.season)?x.season:'none';
   const inF=x=>!flt||keyOf(x)===flt;
   /* Danışana atanmış listeler ayrı klasörde ("assigned"); genel listede sadece şablonlar ve kimseye atanmamış programlar kalır */
-  const isAsg=p=>!!(p.clientId&&clientOf(p.clientId));
+  const isAsg=p=>{ const c=p.clientId&&clientOf(p.clientId); return !!c&&!c.archived; };
+  const isFormer=p=>{ const c=p.clientId&&clientOf(p.clientId); return !!c&&!!c.archived; };
   const asgPs=ps.filter(isAsg).sort((a,b)=>String((clientOf(a.clientId)||{}).name||'').localeCompare(String((clientOf(b.clientId)||{}).name||''),'tr')||(new Date(b.start)-new Date(a.start)));
-  const genPs=ps.filter(p=>!isAsg(p));
-  const cur=view==='assigned'?asgPs:view==='all'?genPs:ps;
+  const formerPs=ps.filter(isFormer).sort((a,b)=>String((clientOf(a.clientId)||{}).name||'').localeCompare(String((clientOf(b.clientId)||{}).name||''),'tr')||(new Date(b.start)-new Date(a.start)));
+  const genPs=ps.filter(p=>!isAsg(p)&&!isFormer(p));
+  const cur=view==='assigned'?asgPs:view==='former'?formerPs:view==='all'?genPs:ps;
   const cnt=k=>cur.filter(x=>keyOf(x)===k).length;
   const allT=tplAll(), tpls=allT.filter(inF);
   const oldPs=ps.filter(p=>p.status==='Tamamlandı');
   const recentPs=[...ps].sort((a,b)=>new Date(b.start)-new Date(a.start));
-  const base = view==='old'? oldPs : view==='recent'? recentPs : view==='hidden'? hiddenPs : view==='assigned'? asgPs : genPs;
+  const base = view==='old'? oldPs : view==='recent'? recentPs : view==='hidden'? hiddenPs : view==='assigned'? asgPs : view==='former'? formerPs : genPs;
   const shown = (view==='tpl')? [] : base.filter(inF);
   const showTplSection = (view==='all'||view==='tpl') && tpls.length;
   const showTable = view!=='tpl' && !(view==='all'&&!genPs.length&&(tpls.length||asgPs.length));
@@ -7315,6 +7317,7 @@ function pagePlans(){
     <button class="chip" data-plan-view="all" aria-pressed="${view==='all'}">Genel programlar (${genPs.length+allT.length})</button>
     <button class="chip" data-plan-view="tpl" aria-pressed="${view==='tpl'}">📑 Şablon liste (${allT.length})</button>
     <button class="chip" data-plan-view="assigned" aria-pressed="${view==='assigned'}">👥 Danışanlara atanmış listeler (${asgPs.length})</button>
+    ${formerPs.length?`<button class="chip" data-plan-view="former" aria-pressed="${view==='former'}">📁 Eski danışanların listeleri (${formerPs.length})</button>`:''}
     <button class="chip" data-plan-view="old" aria-pressed="${view==='old'}">🗄 Eski liste (${oldPs.length})</button>
     <button class="chip" data-plan-view="recent" aria-pressed="${view==='recent'}">🕐 Son listeler</button>
     ${hiddenPs.length?`<button class="chip" data-plan-view="hidden" aria-pressed="${view==='hidden'}">🙈 Gizlenenler (${hiddenPs.length})</button>`:''}
@@ -7324,6 +7327,7 @@ function pagePlans(){
     ${SEASONS.map(x=>`<button class="chip" data-season-f="${x.k}" aria-pressed="${flt===x.k}">${x.em} ${x.ad} (${cnt(x.k)})</button>`).join('')}
     <button class="chip" data-season-f="none" aria-pressed="${flt==='none'}">Mevsimsiz (${cnt('none')})</button></div>`:''}
   ${view==='assigned'?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 10px">Bir danışana atanmış tüm listeler burada, danışan adına göre sıralı. Genel program listesinde görünmezler.</p>`:''}
+  ${view==='former'?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 10px">Seansa gelmeyecek olarak işaretlenen eski danışanların tüm listeleri burada. Genel listede ve atanmış listelerde görünmezler.</p>`:''}
   ${view==='all'&&asgPs.length?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 10px">👥 Danışanlara atanmış <b>${asgPs.length}</b> liste ayrı klasörde. <button type="button" class="btn btn-sm" data-plan-view="assigned">Klasörü aç →</button></p>`:''}
   ${isHiddenView?`<p style="color:var(--muted);font-size:12.5px;margin:0 0 10px">Bu programlar genel listeden gizlendi ama ait oldukları danışanın kendi dosyasında görünmeye devam ediyor. "Göster"e basarsan genel listeye geri döner.</p>`:''}
   ${showTplSection?`<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Şablonlarım</h3>
@@ -7716,7 +7720,7 @@ function apptListHtml(){
   const past=as.filter(a=>new Date(a.when)<new Date(Date.now()-36e5)).reverse();
   const row=a=>{const c=clientOf(a.clientId);return `<tr><td class="num">${trDT(a.when)}</td><td class="t-name">${esc(c?c.name:'—')}</td>
     <td><span class="tag ${a.type==='Online'?'tag-blue':''}">${esc(a.type)}</span></td><td style="color:var(--muted)">${esc(a.note||'')}</td>
-    <td class="t-right">${a.status?`<span class="tag ${a.status==='geldi'?'tag-ok':'tag-danger'}" style="margin-right:6px"><i class="dot"></i>${a.status==='geldi'?'Geldi':'Gelmedi'}</span>`:`<button class="btn btn-sm btn-primary" data-close-appt="${a.id}" style="margin-right:6px">Bitti</button>`}${c&&c.phone?`<button class="btn btn-sm" data-appt-remind="${a.id}" title="${a.reminded?'Daha önce hatırlatıldı, yine de gönder':'WhatsApp hatırlatması gönder'}" style="margin-right:6px">${a.reminded?'🔔 Tekrar gönder':'🔔 Hatırlat'}</button>`:''}<button class="x" data-del-appt="${a.id}">✕</button></td></tr>`;};
+    <td class="t-right">${a.status?`<span class="tag ${a.status==='geldi'?'tag-ok':'tag-danger'}" style="margin-right:6px"><i class="dot"></i>${a.status==='geldi'?'Geldi':a.status==='iptal'?'İptal':'Gelmedi'}</span>`:`<button class="btn btn-sm btn-primary" data-close-appt="${a.id}" style="margin-right:6px">Bitti</button>`}${c&&c.phone?`<button class="btn btn-sm" data-appt-remind="${a.id}" title="${a.reminded?'Daha önce hatırlatıldı, yine de gönder':'WhatsApp hatırlatması gönder'}" style="margin-right:6px">${a.reminded?'🔔 Tekrar gönder':'🔔 Hatırlat'}</button>`:''}<button class="x" data-del-appt="${a.id}">✕</button></td></tr>`;};
   return `<section class="card"><div class="card-h"><h3>Yaklaşan</h3></div>
     ${future.length?`<table><thead><tr><th>Tarih</th><th>Danışan</th><th>Tür</th><th>Not</th><th></th></tr></thead><tbody>${future.map(row).join('')}</tbody></table>`
     :`<div class="empty"><div class="eic">${ic('plus',24)}</div><h4>Yaklaşan randevu yok</h4><p>Görüşme planlayın; panelde ve danışan dosyasında görünür.</p><button class="btn btn-primary" data-modal="appt">+ Randevu ekle</button></div>`}</section>
@@ -7754,7 +7758,7 @@ function ocTitle(v,anchor,days){
     : f(a,{day:'numeric',month:'short'})+' – '+f(b,{day:'numeric',month:'short',year:'numeric'});
 }
 function ocApptsOn(iso){
-  return DB.appts.map(a=>({a,p:ocParts(a.when)})).filter(x=>x.p&&x.p.d===iso).sort((x,y)=>x.p.m-y.p.m);
+  return DB.appts.filter(a=>a.status!=='iptal').map(a=>({a,p:ocParts(a.when)})).filter(x=>x.p&&x.p.d===iso).sort((x,y)=>x.p.m-y.p.m);
 }
 function ocLayout(evs){            // yan yana düşen randevuları sütunlara ayır
   const out=[]; let cluster=[], end=-1;
@@ -8835,7 +8839,7 @@ function pageSearch(){
   ${total? `
   ${cl.length?`<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Danışanlar</h3><div class="spacer"></div><span class="tag">${cl.length}</span></div>
     ${cl.map(c=>`<div class="alert-row"><span class="av" style="background:${avColor(c.name)}">${initials(c.name)}</span>
-      <div style="flex:1"><div class="t-name">${esc(c.name)}</div><div class="t-sub">${esc(c.goal||'—')}${c.archived?' · arşivde':''}</div></div>
+      <div style="flex:1"><div class="t-name">${esc(c.name)}</div><div class="t-sub">${esc(c.goal||'—')}${c.archived?' · eski danışan':''}</div></div>
       <button class="btn btn-sm" data-client="${c.id}">Aç</button></div>`).join('')}</section>`:''}
   ${pl.length?`<section class="card" style="margin-bottom:16px"><div class="card-h"><h3>Programlar</h3><div class="spacer"></div><span class="tag">${pl.length}</span></div>
     ${pl.map(x=>{const c=clientOf(x.clientId);return `<div class="alert-row"><span class="alert-dot info"></span>
@@ -8932,7 +8936,7 @@ function pageCal(){
                 <div class="t-sub">${esc(a.type||'Görüşme')}${a.note?' · '+esc(a.note):''}</div>
               </div></div>
             <div class="pill-row" style="margin-top:8px">
-              <span class="tag ${a.status==='geldi'?'tag-ok':a.status==='gelmedi'?'tag-danger':''}"><i class="dot"></i>${a.status==='geldi'?'Geldi':a.status==='gelmedi'?'Gelmedi':'Planlandı'}</span>
+              <span class="tag ${a.status==='geldi'?'tag-ok':a.status==='gelmedi'?'tag-danger':''}"><i class="dot"></i>${a.status==='geldi'?'Geldi':a.status==='gelmedi'?'Gelmedi':a.status==='iptal'?'İptal':'Planlandı'}</span>
               ${a.first?'<span class="tag tag-blue">İlk görüşme</span>':''}
               ${payOf(a)?`<span class="tag tag-ok">${payOf(a).toLocaleString('tr-TR')} ₺ alındı</span>`:'<span class="tag tag-warn">Ödeme yok</span>'}
               ${mn.total?`<span class="tag">Paket: ${mn.done}/${mn.total}</span>`:''}
@@ -9899,9 +9903,16 @@ document.addEventListener('click',async e=>{
     if(ci.invoiced && !ci.invoiceDate) ci.invoiceDate=todayISO();
     if(ci.invoiced && !ci.invoiceAmount && ci.pkgPrice) ci.invoiceAmount=ci.pkgPrice;
     await save(); toast(ci.invoiced?'Fatura kesildi olarak işaretlendi':'Fatura işareti kaldırıldı'); return render(); }
+  const fm=t.closest('[data-former]'); if(fm){
+    const c2=clientOf(fm.dataset.former); if(!c2) return;
+    const open=DB.appts.filter(a=>a.clientId===c2.id&&!a.status);
+    if(!confirm('"'+c2.name+'" seansa gelmeyecek olarak işaretlensin mi?\n\nTüm dosyası (programlar, ölçümler, notlar) "Eski danışanlar" klasörüne taşınır'+(open.length?', bekleyen '+open.length+' randevusu iptal edilir':'')+'. İstediğin zaman geri alabilirsin.')) return;
+    c2.archived=true; c2.former=true; c2.formerAt=todayISO();
+    open.forEach(a=>{ a.status='iptal'; });
+    await save(); toast('Eski danışanlar klasörüne taşındı 📁'); if(S.page==='client'){ S.page='clients'; S.arch='arsiv'; } return render(); }
   const at=t.closest('[data-arch-toggle]'); if(at){
-    const c2=clientOf(at.dataset.archToggle); c2.archived=!c2.archived;
-    await save(); toast(c2.archived?'Danışan arşivlendi':'Arşivden çıkarıldı'); return render(); }
+    const c2=clientOf(at.dataset.archToggle); c2.archived=!c2.archived; if(!c2.archived){ c2.former=false; }
+    await save(); toast(c2.archived?'Eski danışanlar klasörüne taşındı 📁':'Aktif danışanlara alındı'); return render(); }
   const occ=t.closest('.oc-col'); if(occ&&!t.closest('.oc-ev')){
     const r=occ.getBoundingClientRect(); const mins=Math.floor(((e.clientY-r.top)/OC_RH+(+occ.dataset.h0))*2)*30;
     S.apptPrefill=occ.dataset.ocday+'T'+ocHM(Math.max(0,Math.min(1410,mins)));
