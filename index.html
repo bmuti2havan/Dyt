@@ -9907,9 +9907,14 @@ document.addEventListener('click',async e=>{
     const c2=clientOf(fm.dataset.former); if(!c2) return;
     const open=DB.appts.filter(a=>a.clientId===c2.id&&!a.status);
     if(!confirm('"'+c2.name+'" seansa gelmeyecek olarak işaretlensin mi?\n\nTüm dosyası (programlar, ölçümler, notlar) "Eski danışanlar" klasörüne taşınır'+(open.length?', bekleyen '+open.length+' randevusu iptal edilir':'')+'. İstediğin zaman geri alabilirsin.')) return;
-    c2.archived=true; c2.former=true; c2.formerAt=todayISO();
-    open.forEach(a=>{ a.status='iptal'; });
-    await save(); toast('Eski danışanlar klasörüne taşındı 📁'); if(S.page==='client'){ S.page='clients'; S.arch='arsiv'; } return render(); }
+    try{
+      c2.archived=true; c2.former=true; c2.formerAt=todayISO();
+      open.forEach(a=>{ a.status='iptal'; });
+      if(S.page==='client'){ S.page='clients'; S.arch='arsiv'; }
+      render(); toast('Eski danışanlar klasörüne taşındı 📁');
+      await save();
+    }catch(err){ toast('Taşınamadı: '+(err&&err.message||err)); }
+    return; }
   const at=t.closest('[data-arch-toggle]'); if(at){
     const c2=clientOf(at.dataset.archToggle); c2.archived=!c2.archived; if(!c2.archived){ c2.former=false; }
     await save(); toast(c2.archived?'Eski danışanlar klasörüne taşındı 📁':'Aktif danışanlara alındı'); return render(); }
