@@ -2,6 +2,17 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
+<script>
+/* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
+   Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), daha önce ?app=1 ile açılmış cihaz. */
+(function(){try{
+  var q=location.search, ok=false;
+  try{ if(/[?&]app=1/.test(q)) localStorage.setItem('dyt_app_ok','1'); ok=localStorage.getItem('dyt_app_ok')==='1'; }catch(e){}
+  var pwa=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
+  var local=/^(localhost|127\.|file)/.test(location.hostname)||location.protocol==='file:';
+  if(!q && !ok && !pwa && !local && location.pathname==='/') location.replace('https://dytaysenurkorkmazantalya.com.tr/');
+}catch(e){}})();
+</script>
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Diyetisyen Ayşenur Korkmaz | Antalya Muratpaşa Diyetisyen</title>
@@ -12,7 +23,7 @@
 <meta name="apple-mobile-web-app-title" content="Dyt. Ayşenur">
 <meta name="application-name" content="Dyt. Ayşenur KORKMAZ">
 <meta name="description" content="Diyetisyen Ayşenur Korkmaz — Antalya Muratpaşa'da yüz yüze ve online kişiye özel beslenme danışmanlığı, haftalık diyet listesi.">
-<link rel="canonical" href="https://diyetisyenaysenurkorkmazantalya.com/">
+<link rel="canonical" href="https://dytaysenurkorkmazantalya.com.tr/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="tr_TR">
 <meta property="og:site_name" content="Dyt. Ayşenur Korkmaz">
