@@ -3,14 +3,19 @@
 <head>
 <meta charset="utf-8">
 <script>
-/* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
-   Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), daha önce ?app=1 ile açılmış cihaz. */
+/* takip alt alanı: çıplak adrese gelen ziyaretçiye ana siteyi tam ekran göster (iframe) + köşede küçük 🍎 yönetici girişi.
+   Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (panel), kurulu uygulama (PWA), daha önce ?app=1 ile açılmış cihaz. */
 (function(){try{
   var q=location.search, ok=false;
   try{ if(/[?&]app=1/.test(q)) localStorage.setItem('dyt_app_ok','1'); ok=localStorage.getItem('dyt_app_ok')==='1'; }catch(e){}
   var pwa=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
   var local=/^(localhost|127\.|file)/.test(location.hostname)||location.protocol==='file:';
-  if(!q && !ok && !pwa && !local && location.pathname==='/') location.replace('https://dytaysenurkorkmazantalya.com.tr/');
+  if(!q && !ok && !pwa && !local && location.pathname==='/'){
+    document.open();
+    document.write('<!DOCTYPE html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Diyetisyen Ayşenur Korkmaz</title><style>html,body{margin:0;height:100%;background:#fff}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}a.pn{position:fixed;left:10px;bottom:10px;z-index:9;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center;font-size:17px;text-decoration:none;opacity:.35;box-shadow:0 1px 6px rgba(0,0,0,.25)}a.pn:hover{opacity:1}</style></head><body><iframe src="https://dytaysenurkorkmazantalya.com.tr/" title="Diyetisyen Ayşenur Korkmaz" allow="clipboard-write; fullscreen"></iframe><a class="pn" href="/?app=1" title="Danışan paneli">🍎</a></body></html>');
+    document.close();
+    window.stop&&0;
+  }
 }catch(e){}})();
 </script>
 <meta name="robots" content="noindex, nofollow">
