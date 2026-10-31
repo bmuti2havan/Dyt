@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
-   Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), daha önce ?app=1 ile açılmış cihaz. */
+   Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
 (function(){try{
   var q=location.search, ok=false;
-  try{ if(/[?&]app=1/.test(q)) localStorage.setItem('dyt_app_ok','1'); ok=localStorage.getItem('dyt_app_ok')==='1'; }catch(e){}
+  try{ localStorage.removeItem('dyt_app_ok'); if(/[?&]app=1/.test(q)) sessionStorage.setItem('dyt_app_ok','1'); ok=sessionStorage.getItem('dyt_app_ok')==='1'; }catch(e){}
   var pwa=(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone;
   var local=/^(localhost|127\.|file)/.test(location.hostname)||location.protocol==='file:';
   if(!q && !ok && !pwa && !local && location.pathname==='/') location.replace('https://dytaysenurkorkmazantalya.com.tr/');
