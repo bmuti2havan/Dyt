@@ -43,7 +43,7 @@
 [functions."scheduled-water"]
   schedule = "*/15 * * * *"
 
-# Arama motorlari bu alt alan adini dizine almasin (ana site: dytaysenurkorkmazantalya.com.tr)
+# Arama motorlari bu alt alan adini dizine almasin (ana site: diyetisyenaysenurkorkmazantalya.com)
 [[headers]]
   for = "/*"
   [headers.values]
