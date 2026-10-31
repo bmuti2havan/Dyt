@@ -42,3 +42,9 @@
 # Su hatirlaticisi: 15 dakikada bir, acik olan danisanlara bildirim.
 [functions."scheduled-water"]
   schedule = "*/15 * * * *"
+
+# Arama motorlari bu alt alan adini dizine almasin (ana site: dytaysenurkorkmazantalya.com.tr)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
