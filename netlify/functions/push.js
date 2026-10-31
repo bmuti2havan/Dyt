@@ -55,7 +55,7 @@ async function pushAll(path, privKey) {
 // Telegram: danisan yazinca diyetisyenin Telegram'ina duser (TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID varsa).
 // Isim, danisan adina giden gizli baglantidir (?v=token): cevap verirken sunucu token'i oradan okur.
 const htmlEsc = t => String(t == null ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-async function telegramNotify(token, text) {
+async function telegramNotify(token, text, photo) {
   const bot = process.env.TELEGRAM_BOT_TOKEN, chat = process.env.TELEGRAM_CHAT_ID;
   if (!bot || !chat) return 0;
   try {
@@ -63,6 +63,19 @@ async function telegramNotify(token, text) {
     try { const r = await fetch(CLOUD_DB + '/shares/' + token + '/name.json'); if (r.ok) { const n = await r.json(); if (n) name = String(n).slice(0, 60); } } catch (e) {}
     const site = process.env.URL || 'https://takip.dytaysenurkorkmazantalya.com.tr';
     const body = '💌 <a href="' + site + '/?v=' + token + '">' + htmlEsc(name) + '</a>\n' + htmlEsc(String(text || 'yeni bir mesaj/bilgi gonderdi').slice(0, 600)) + '\n\n<i>Cevaplamak icin bu mesaji Yanitla ile sec</i>';
+    // Gorsel varsa (danisanin gonderdigi ogun fotografi) sendPhoto ile gonder; olmazsa duz mesaja dus.
+    const m = typeof photo === 'string' && photo.length < 3500000 && /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+\/=]+)$/.exec(photo);
+    if (m) {
+      try {
+        const fd = new FormData();
+        fd.append('chat_id', String(chat));
+        fd.append('caption', body.slice(0, 1024));
+        fd.append('parse_mode', 'HTML');
+        fd.append('photo', new Blob([Buffer.from(m[2], 'base64')], { type: 'image/' + m[1] }), 'ogun.' + (m[1] === 'jpeg' ? 'jpg' : m[1]));
+        const rp = await fetch('https://api.telegram.org/bot' + bot + '/sendPhoto', { method: 'POST', body: fd });
+        if (rp.ok) return 1;
+      } catch (e) {}
+    }
     const r = await fetch('https://api.telegram.org/bot' + bot + '/sendMessage', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chat_id: chat, text: body, parse_mode: 'HTML', disable_web_page_preview: true }) });
     return r.ok ? 1 : 0;
@@ -94,7 +107,7 @@ exports.handler = async function (event) {
       if (b.to === 'admin') {
         if (!(await shareExists(b.token))) return res(404);
         const out = await pushAll('shares/admin-push', priv);
-        out.tg = await telegramNotify(b.token, b.text);
+        out.tg = await telegramNotify(b.token, b.text, b.photo);
         return res(200, out);
       }
     }

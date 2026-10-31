@@ -13293,9 +13293,9 @@ async function pushSubscribe(role,token){
   const r=await fetch('/.netlify/functions/push',{method:'POST',headers:h,body:JSON.stringify({action:'subscribe',to:role,token,sub:sub.toJSON()})});
   if(!r.ok){ let m=''; try{ m=(await r.json()).error||''; }catch(e){} throw new Error(m||('sunucu '+r.status)); }
 }
-function pushNotifyAdmin(text){
+function pushNotifyAdmin(text,photo){
   try{ const k='sv_pushthr_'+window.__shareTok; if(text){ localStorage.removeItem(k); } const last=+(localStorage.getItem(k)||0); if(Date.now()-last<8000) return; localStorage.setItem(k,String(Date.now())); }catch(e){}
-  try{ fetch('/.netlify/functions/push',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'notify',to:'admin',token:window.__shareTok,text:String(text||'').slice(0,500)})}).catch(()=>{}); }catch(e){}
+  try{ fetch('/.netlify/functions/push',{method:'POST',keepalive:true,headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'notify',to:'admin',token:window.__shareTok,text:String(text||'').slice(0,500),photo:(typeof photo==='string'&&/^data:image\//.test(photo)&&photo.length<3000000)?photo:undefined})}).catch(()=>{}); }catch(e){}
 }
 function svLastReplyText(c){ try{ const l=repliesOf(c).filter(x=>x&&(x.text||x.emoji||x.heart)); const r=l[l.length-1]; if(!r) return ''; return String((r.heart?'❤️ ':'')+(r.emoji?r.emoji+' ':'')+(r.text||'')).trim().slice(0,110); }catch(e){ return ''; } }
 async function pushNotifyClient(c){
@@ -14742,7 +14742,7 @@ async function svIntakePost(entry){
   if(entry&&['clientNote','dailyMeal','mealPhoto','mealFeedback','journal','measure','taskDone','foodTags','referral'].includes(entry.type)){
     const T={clientNote:()=>entry.text,dailyMeal:()=>'🍽 '+(entry.mealType||'Öğün')+(entry.text?' — '+entry.text:'')+(entry.photo?' 📷':''),mealPhoto:()=>'📷 '+(entry.mealName||'Öğün')+' fotoğrafı gönderdi',
       mealFeedback:()=>(entry.liked?'❤️ beğendi: ':'👎 beğenmedi: ')+(entry.mealName||''),journal:()=>'📝 günü işaretledi',measure:()=>'⚖ ölçüm girdi',taskDone:()=>'🎯 görevi tamamladı: '+(entry.taskText||''),foodTags:()=>'🚫 besin tercihlerini güncelledi',referral:()=>'👋 arkadaşını önerdi: '+(entry.friendName||'')};
-    pushNotifyAdmin(entry.type==='clientNote'||entry.type==='dailyMeal'||entry.type==='mealPhoto'||entry.type==='mealFeedback'||entry.type==='taskDone'||entry.type==='foodTags'||entry.type==='referral'||entry.type==='journal'||entry.type==='measure'?T[entry.type]():'');
+    pushNotifyAdmin(entry.type==='clientNote'||entry.type==='dailyMeal'||entry.type==='mealPhoto'||entry.type==='mealFeedback'||entry.type==='taskDone'||entry.type==='foodTags'||entry.type==='referral'||entry.type==='journal'||entry.type==='measure'?T[entry.type]():'', entry.photo);
   }
   return r.json();
 }
