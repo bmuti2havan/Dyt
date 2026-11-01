@@ -14731,6 +14731,136 @@ function svCheckReminder(){
     localStorage.setItem('sv_remind_fired_'+window.__shareTok,today);
   }catch(e){}
 }
+
+/* ══ Danışan paneli: sadeleştirilmiş Bugün ekranı, "Yedim" işareti, seçmeli seçimi, hafta ilerlemesi, yazı boyutu, karanlık mod ══ */
+function svAteKey(){ return 'sv_ate_'+(window.__shareTok||''); }
+function svAteLoad(){ try{ const o=JSON.parse(localStorage.getItem(svAteKey())||'{}'); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } }
+function svAteSave(o){ try{ localStorage.setItem(svAteKey(),JSON.stringify(o)); }catch(e){} }
+const svAK=(pid,di,mi)=>String(pid||'cur')+'|'+di+'|'+mi;
+function svUxIsoOf(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function svUxMealOk(m){ return !!(m&&((m.lines&&m.lines.length)||m.title)); }
+function svUxHit(iso){
+  try{ const h=svPlanOn(iso||svIso(),svPlansAll()); if(!h) return null; const di=h.plan.days.indexOf(h.day); if(di<0) return null; return {pid:h.plan.id||'cur',di,day:h.day,plan:h.plan}; }catch(e){ return null; }
+}
+function svUxWeek(){
+  const st=svAteLoad(), now=new Date(), mon=new Date(now.getFullYear(),now.getMonth(),now.getDate()-((now.getDay()+6)%7)); let tot=0,done=0;
+  for(let k=0;k<7;k++){ const d=new Date(mon.getFullYear(),mon.getMonth(),mon.getDate()+k), h=svUxHit(svUxIsoOf(d)); if(!h) continue;
+    (h.day.meals||[]).forEach((m,mi)=>{ if(!svUxMealOk(m)) return; tot++; if((st[svAK(h.pid,h.di,mi)]||{}).d) done++; }); }
+  return {tot,done};
+}
+function svUxRowsHtml(h,st){
+  return (h.day.meals||[]).map((m,mi)=>{
+    if(!svUxMealOk(m)) return '';
+    const k=svAK(h.pid,h.di,mi), v=st[k]||{}, ls=(m.lines||[]);
+    const body=(m.choice&&ls.length>1)
+      ? '<div class="uxopts">'+ls.map((l,li)=>'<button type="button" class="uxo'+(v.c===li?' on':'')+'" data-ux-opt="'+esc(k)+'|'+li+'">'+(v.c===li?'● ':'○ ')+esc(l)+'</button>').join('')+'</div>'
+      : '<div class="uxl">'+ls.slice(0,4).map(esc).join(' · ')+'</div>';
+    return '<div class="uxm'+(v.d?' done':'')+'"><div class="uxe">'+esc(m.emoji||'🍽')+'</div><div class="uxb"><b>'+esc(m.name||'')+'</b>'+(m.title&&!/^birini seç/i.test(m.title)?'<div class="uxt">'+esc(m.title)+'</div>':'')+(m.choice&&ls.length>1&&!v.c&&v.c!==0?'<div class="uxh">Birini seç 👇</div>':'')+body+'</div>'
+      +'<button type="button" class="uxk" data-ux-ate="'+esc(k)+'" aria-pressed="'+(v.d?'true':'false')+'" aria-label="Yedim">'+(v.d?'✓':'')+'</button></div>';
+  }).join('');
+}
+function svUxToday(){
+  const card=document.getElementById('svMealsCard'); if(!card) return;
+  const h=svUxHit(); if(!h) return;
+  const rows=card.children[1]; if(!rows||rows.tagName!=='DIV') return;
+  const st=svAteLoad(), sig=h.pid+'|'+h.di+'|'+JSON.stringify(h.day.meals.map((m,mi)=>st[svAK(h.pid,h.di,mi)]||0));
+  if(card.dataset.uxsig===sig) return; card.dataset.uxsig=sig;
+  rows.className='uxrows'; rows.removeAttribute('style'); rows.innerHTML=svUxRowsHtml(h,st);
+  let tot=0,done=0; h.day.meals.forEach((m,mi)=>{ if(!svUxMealOk(m)) return; tot++; if((st[svAK(h.pid,h.di,mi)]||{}).d) done++; });
+  const wk=svUxWeek(), pct=tot?Math.round(done/tot*100):0, wp=wk.tot?Math.round(wk.done/wk.tot*100):0;
+  let pr=document.getElementById('svUxProg'); if(!pr){ pr=document.createElement('div'); pr.id='svUxProg'; card.children[0].after(pr); }
+  pr.innerHTML='<div class="uxpl"><span>Bugün <b>'+done+'/'+tot+'</b> öğün'+(tot&&done===tot?' 🎉':'')+'</span><span>Bu hafta <b>'+wk.done+'/'+wk.tot+'</b></span></div><div class="uxbar"><i style="width:'+pct+'%"></i></div><div class="uxbar w"><i style="width:'+wp+'%"></i></div>';
+}
+function svUxPlanDecorate(){
+  const host=document.getElementById('svDayBody'); if(!host) return;
+  const st=svAteLoad(), pid=(window.__svCurPlan&&window.__svCurPlan.id)||'cur', cp=window.__svCurPlan;
+  host.querySelectorAll('.card').forEach(card=>{
+    const fb=card.querySelector('[data-sv-fb]'); if(!fb) return;
+    const [di,mi]=fb.dataset.svFb.split(':').map(Number), k=svAK(pid,di,mi), v=st[k]||{};
+    if(!card.dataset.uxd){
+      card.dataset.uxd='1';
+      const row=fb.parentElement; if(row){ row.style.flexWrap='wrap'; const b=document.createElement('button'); b.type='button'; b.className='btn btn-sm uxeat'; b.dataset.uxAte=k; row.insertBefore(b,row.firstChild); }
+      const m=cp&&cp.days&&cp.days[di]&&cp.days[di].meals&&cp.days[di].meals[mi];
+      if(m&&m.choice&&(m.lines||[]).length>1){ let li=0; card.querySelectorAll('div').forEach(d=>{ const t=d.textContent||''; if(d.children.length===0&&t.indexOf('○ ')===0&&li<m.lines.length){ d.classList.add('uxo2'); d.dataset.uxOpt=k+'|'+li; d.dataset.uxTxt=t.slice(2); li++; } }); }
+    }
+    const b=card.querySelector('.uxeat'); if(b){ b.textContent=v.d?'✓ Yedim':'Yedim'; b.setAttribute('aria-pressed',v.d?'true':'false'); b.classList.toggle('on',!!v.d); }
+    card.classList.toggle('uxdone',!!v.d);
+    card.querySelectorAll('.uxo2').forEach(d=>{ const li=+d.dataset.uxOpt.split('|').pop(); const on=v.c===li; d.classList.toggle('on',on); d.textContent=(on?'● ':'○ ')+d.dataset.uxTxt; });
+  });
+}
+function svUxTidy(){
+  const td=document.querySelector('#shareView .sv-tab[data-svtab="today"]'); if(!td) return;
+  const sec=new Set(['svTreeCard','svGratCard','svStepsCard','svWxCard']);
+  [...td.children].forEach(e=>{
+    let o=40;
+    if(e.classList.contains('sv-banner')) o=0; else if(e.classList.contains('sv-hero')) o=10;
+    else if(e.id==='svNowCard') o=20; else if(e.id==='svMealsCard') o=30; else if(e.id==='svRingCard') o=45;
+    else if(e.classList.contains('pm-daily')) o=50; else if(e.id==='svToolsRow') o=60;
+    else if(e.id==='svUxMoreBtn') o=90; else if(sec.has(e.id)){ o=100; e.classList.add('uxsec'); }
+    else if(e.classList.contains('sv-card')&&/Bugünü işaretle/.test((e.innerText||'').slice(0,40))) o=70;
+    if(e.style.order!==String(o)) e.style.order=String(o);
+  });
+  if(!document.getElementById('svUxMoreBtn')&&td.querySelector('.uxsec')){
+    const b=document.createElement('button'); b.type='button'; b.id='svUxMoreBtn'; b.className='uxmore'; b.textContent='🌿 Daha fazlası: ağacım, adım, günün satırı'; td.appendChild(b);
+  }
+  svUxToday();
+}
+function svUxPrefs(){
+  const g=k=>{ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } };
+  const dk=g('sv_dark')||'auto', z=+g('sv_zoom')||1;
+  const dark=dk==='on'||(dk==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.classList.toggle('sv-dark',!!dark);
+  const w=document.querySelector('#shareView .sv-wrap'); if(w){ const zz=z>1?String(z):''; if(w.style.zoom!==zz) w.style.zoom=zz; }
+}
+function svUxSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} svUxPrefs(); try{ svThemeOpen(); }catch(e){} }
+(function(){
+  if(window.__svUxInit) return; window.__svUxInit=1;
+  const css=document.createElement('style'); css.id='svUxCss'; css.textContent=`
+#shareView .sv-tab[data-svtab=today].on{display:flex;flex-direction:column}
+#shareView .sv-tab[data-svtab=today]:not(.ux-open) .uxsec{display:none!important}
+.uxmore{order:90;margin:14px 0 4px;padding:12px 14px;border-radius:16px;border:1.5px dashed var(--blue-500,#9c3f60);background:#fff;color:var(--blue-700,#9c3f60);font:700 13.5px/1.2 inherit;cursor:pointer}
+#svUxProg{padding:0 16px 2px}.uxpl{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted,#7a6a72);margin-bottom:6px}.uxpl b{color:var(--blue-900,#5c2238)}
+.uxbar{height:8px;border-radius:99px;background:rgba(156,63,96,.12);overflow:hidden;margin-bottom:5px}.uxbar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--blue-600,#b8506f),#e4772f);transition:width .5s}.uxbar.w{height:5px;opacity:.7}
+.uxrows{padding:6px 16px 4px}.uxm{display:flex;gap:10px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line-2,#eee)}.uxm:last-child{border-bottom:0}
+.uxe{font-size:24px;line-height:1.2}.uxb{flex:1;min-width:0}.uxb>b{font-size:14.5px}.uxt{font-size:13px;font-weight:600;margin-top:2px}.uxl{font-size:13px;color:var(--muted,#7a6a72);line-height:1.5;margin-top:2px}.uxh{font-size:11.5px;font-weight:800;color:#b45309;margin-top:4px}
+.uxopts{display:flex;flex-direction:column;gap:6px;margin-top:6px}.uxo,.uxo2{display:block;width:100%;text-align:left;min-height:44px;padding:10px 12px;border-radius:12px;border:1.5px solid var(--line-2,#e6dde1);background:#fff;font:inherit;font-size:13px;line-height:1.4;cursor:pointer;color:inherit}
+.uxo.on,.uxo2.on{border-color:var(--blue-600,#b8506f);background:var(--blue-50,#fdf1f5);font-weight:700}
+.uxo2{margin:4px 0;padding:8px 12px;min-height:40px}
+.uxk{flex:0 0 auto;width:44px;height:44px;border-radius:50%;border:2px solid var(--blue-500,#c9708a);background:#fff;color:#fff;font-size:22px;font-weight:800;cursor:pointer;display:grid;place-items:center;transition:all .2s}
+.uxk[aria-pressed=true]{background:#3aa66a;border-color:#3aa66a;transform:scale(1.04)}
+.uxm.done .uxb{opacity:.55}.uxm.done .uxb>b{text-decoration:line-through}
+.uxeat{flex:1 0 100%;min-height:44px;justify-content:center;order:-1}#svDayBody .card [data-sv-fb]{flex:1 1 0}.card:has(.uxeat) .uxeat{margin-bottom:2px}.uxeat.on{background:#3aa66a!important;border-color:#3aa66a!important;color:#fff!important}
+.card.uxdone{opacity:.8}
+.sv-like,.sv-dislike,[data-sv-photo]{min-height:44px}
+html.sv-dark{filter:invert(.93) hue-rotate(180deg);background:#fff}
+html.sv-dark img,html.sv-dark video,html.sv-dark canvas,html.sv-dark .sv-hero,html.sv-dark .sv-banner,html.sv-dark .svup-hero{filter:invert(.93) hue-rotate(180deg)}
+`;
+  document.head.appendChild(css);
+  document.addEventListener('click',e=>{
+    const t=e.target; if(!t||!t.closest||!window.__shareTok) return;
+    const a=t.closest('[data-ux-ate]'), o=t.closest('[data-ux-opt]'), tg=t.closest('#svUxMoreBtn');
+    if(tg){ const td=document.querySelector('#shareView .sv-tab[data-svtab="today"]'); if(td){ const on=td.classList.toggle('ux-open'); tg.textContent=on?'▲ Daha az göster':'🌿 Daha fazlası: ağacım, adım, günün satırı'; } return; }
+    if(!a&&!o) return;
+    e.preventDefault(); e.stopPropagation();
+    const st=svAteLoad();
+    if(a){ const k=a.dataset.uxAte; const v=st[k]||{}; v.d=!v.d; st[k]=v; svAteSave(st);
+      if(v.d){ try{ const h=svUxHit(); if(h&&k.indexOf(h.pid+'|'+h.di+'|')===0){ const all=h.day.meals.every((m,mi)=>!svUxMealOk(m)||(st[svAK(h.pid,h.di,mi)]||{}).d); if(all) toast('🎉 Bugünkü tüm öğünler tamam, harikasın!',2600); } }catch(err){} } }
+    else{ const p=o.dataset.uxOpt.split('|'), li=+p.pop(), k=p.join('|'); const v=st[k]||{}; v.c=(v.c===li?undefined:li); st[k]=v; svAteSave(st); }
+    const c=document.getElementById('svMealsCard'); if(c) delete c.dataset.uxsig;
+    svUxToday(); svUxPlanDecorate();
+  },true);
+  const _open=window.svThemeOpen;
+  if(typeof _open==='function') window.svThemeOpen=function(){
+    _open.apply(this,arguments);
+    try{ const box=document.querySelector('#svSheet > div'); if(!box) return;
+      const dk=localStorage.getItem('sv_dark')||'auto', z=localStorage.getItem('sv_zoom')||'1';
+      const btn=(l,on,js)=>'<button type="button" onclick="'+js+'" style="flex:1;border:2px solid '+(on?'var(--blue-600,#b8506f)':'#e6e6e6')+';background:'+(on?'var(--blue-50,#fdf1f5)':'#fff')+';border-radius:12px;padding:11px 6px;font:700 12.5px inherit;min-height:44px;cursor:pointer;color:inherit">'+l+'</button>';
+      box.insertAdjacentHTML('beforeend','<div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:16px 0 6px;letter-spacing:.04em">YAZI BOYUTU</div><div style="display:flex;gap:8px">'+btn('Normal',z==='1',"svUxSet('sv_zoom','1')")+btn('Büyük',z==='1.12',"svUxSet('sv_zoom','1.12')")+btn('Çok büyük',z==='1.25',"svUxSet('sv_zoom','1.25')")+'</div>'
+        +'<div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:16px 0 6px;letter-spacing:.04em">KARANLIK MOD</div><div style="display:flex;gap:8px">'+btn('Otomatik',dk==='auto',"svUxSet('sv_dark','auto')")+btn('☀️ Açık',dk==='off',"svUxSet('sv_dark','off')")+btn('🌙 Koyu',dk==='on',"svUxSet('sv_dark','on')")+'</div>');
+    }catch(err){}
+  };
+  setInterval(()=>{ if(!window.__shareTok) return; try{ svUxTidy(); svUxPlanDecorate(); svUxPrefs(); }catch(e){} },800);
+})();
 async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
