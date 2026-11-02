@@ -2,6 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
+<meta name="app-ver" content="20261102-081349">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -14946,6 +14947,34 @@ document.addEventListener('click',e=>{
   document.querySelectorAll('[data-adm-c]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.admC===cur.c)));
 },true);
 try{ admLookApply(); }catch(e){}
+
+/* ══ Yönetici paneli: yeni sürüm kontrolü ("Yeni güncelleme var" çubuğu) ══ */
+(function(){
+  if(/[?&](v|promo)=/.test(location.search)||location.protocol==='file:') return;
+  const cur=(document.querySelector('meta[name="app-ver"]')||{}).content; if(!cur) return;
+  function show(){
+    if(document.getElementById('appUpd')) return;
+    const d=document.createElement('div'); d.id='appUpd'; d.setAttribute('role','status');
+    d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:99999;display:flex;align-items:center;gap:12px;max-width:calc(100% - 24px);padding:10px 12px 10px 16px;border-radius:999px;background:linear-gradient(100deg,#3B1E54,#6E3CA0,#FF6B57);color:#fff;font:600 13.5px/1.2 system-ui,sans-serif;box-shadow:0 12px 30px -10px rgba(59,30,84,.6)';
+    d.innerHTML='<span>🔄 Yeni güncelleme var</span><button type="button" style="border:0;border-radius:999px;background:#fff;color:#3B1E54;font:800 13px system-ui,sans-serif;padding:8px 14px;cursor:pointer">Güncelle</button>';
+    d.querySelector('button').onclick=async()=>{
+      d.querySelector('button').textContent='Yükleniyor…';
+      try{ if(window.caches){ for(const k of await caches.keys()) await caches.delete(k); } }catch(e){}
+      try{ const rs=await navigator.serviceWorker.getRegistrations(); for(const r of rs) await r.update(); }catch(e){}
+      const u=new URL(location.href); u.searchParams.set('_u',Date.now()); location.replace(u.toString());
+    };
+    document.body.appendChild(d);
+  }
+  async function chk(){
+    try{
+      const r=await fetch('/index.html?_c='+Date.now(),{cache:'no-store',headers:{Range:'bytes=0-4095'}});
+      const t=await r.text(), m=/name="app-ver" content="([^"]+)"/.exec(t);
+      if(m&&m[1]!==cur) show();
+    }catch(e){}
+  }
+  setTimeout(chk,6000); setInterval(chk,120000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) chk(); });
+})();
 async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
