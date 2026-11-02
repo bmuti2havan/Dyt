@@ -1074,6 +1074,7 @@ main>*{animation:rise .22s ease both}
         <input id="gsearch" placeholder="Danışan, program veya besin ara" aria-label="Genel arama"></div>
       <div class="top-right">
         <button class="btn btn-sm" data-act="print" id="btnPrint"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M7 9V3.6h10V9"/><rect x="3.6" y="9" width="16.8" height="7.6" rx="2"/><path d="M7 14.4h10v6H7z"/></svg> Yazdır</button>
+        <button class="btn btn-sm" data-act="adm-look" title="Panelin görünümünü değiştir">🎨 Görünüm</button>
         <button class="btn btn-sm" data-act="support" title="Bir şey çalışmıyorsa buradan bildir"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 4.8 1c0 1.6-2.3 1.9-2.3 3.4"/><path d="M12 17.2h.01"/></svg> Yardım</button>
         <button class="btn btn-sm" data-act="notif" id="btnNotif" title="Danışan bildirimleri" style="position:relative">🔔 Bildirimler<span id="notifBadge" class="notif-badge" hidden>0</span></button>
         <button class="btn btn-sm" data-act="lock" title="Uygulamayı kilitle">Kilitle</button>
@@ -14877,6 +14878,74 @@ html.sv-dark img,html.sv-dark video,html.sv-dark canvas,html.sv-dark .sv-hero,ht
   };
   setInterval(()=>{ if(!window.__shareTok) return; try{ svUxTidy(); svUxPlanDecorate(); svUxPrefs(); }catch(e){} },800);
 })();
+
+/* ══ Yönetici paneli görünümü: 5 stil (yazı + buton şekli) × 10 geçişli renk ══ */
+const ADM_STYLES={
+  klasik:{n:'Klasik',d:'Serif başlık, yumuşak köşe',serif:'"Iowan Old Style","Palatino Linotype",Palatino,Georgia,ui-serif,serif',sans:'ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif',r:'14px',rs:'10px',btn:'10px',hw:'600',hs:'normal',ls:'-.01em',bt:'none',bls:'0',bsh:'',csh:''},
+  yumusak:{n:'Yumuşak',d:'Yuvarlak yazı, hap butonlar',serif:'ui-rounded,"SF Pro Rounded","Nunito","Varela Round","Segoe UI",system-ui,sans-serif',sans:'ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,sans-serif',r:'24px',rs:'14px',btn:'999px',hw:'800',hs:'normal',ls:'0',bt:'none',bls:'0',bsh:'',csh:'0 10px 30px -18px var(--g1)'},
+  zarif:{n:'Zarif',d:'İtalik serif, ince keskin butonlar',serif:'Georgia,"Times New Roman",serif',sans:'ui-sans-serif,-apple-system,"Segoe UI",Roboto,Arial,sans-serif',r:'6px',rs:'3px',btn:'3px',hw:'500',hs:'italic',ls:'.01em',bt:'uppercase',bls:'.07em',bsh:'',csh:''},
+  modern:{n:'Modern',d:'Kalın sans, yuvarlak köşeli butonlar',serif:'ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif',sans:'ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif',r:'18px',rs:'12px',btn:'12px',hw:'800',hs:'normal',ls:'-.035em',bt:'none',bls:'0',bsh:'0 14px 26px -12px var(--g1)',csh:'0 2px 0 rgba(0,0,0,.03),0 18px 36px -24px var(--g1)'},
+  dergi:{n:'Dergi',d:'Daktilo yazı, gölgeli kutu butonlar',serif:'ui-monospace,"SF Mono",Menlo,Consolas,"Courier New",monospace',sans:'ui-sans-serif,-apple-system,"Segoe UI",Roboto,Arial,sans-serif',r:'8px',rs:'6px',btn:'6px',hw:'700',hs:'normal',ls:'-.02em',bt:'none',bls:'0',bsh:'3px 3px 0 var(--ink)',csh:'4px 4px 0 var(--line)',bbd:'2px solid var(--ink)'}
+};
+const ADM_COLORS=[
+  {n:'Mürdüm–mercan',g:['#53297A','#6E3CA0','#FF6B57']},
+  {n:'Okyanus',g:['#0F4C75','#1B8FB8','#2CC2C1']},
+  {n:'Gün batımı',g:['#C0392B','#FF6B57','#FFC53D']},
+  {n:'Orman',g:['#1E5B3A','#43A074','#B2D77A']},
+  {n:'Gül',g:['#9C3F60','#D2607C','#EE9A72']},
+  {n:'Lavanta',g:['#5B3FB0','#8B6FC4','#E39AC8']},
+  {n:'Turkuaz',g:['#0B7A82','#14A3A8','#5ED6C9']},
+  {n:'Şeftali',g:['#D9482A','#FF8A70','#FFC2A1']},
+  {n:'Gece mavisi',g:['#1E2140','#3A4080','#C27BC0']},
+  {n:'Altın',g:['#7A4B0C','#D9902B','#FFD36B']}
+];
+function admMix(a,b,t){ const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)); const x=p(a),y=p(b); return '#'+x.map((v,i)=>Math.round(v*(1-t)+y[i]*t).toString(16).padStart(2,'0')).join(''); }
+function admLookGet(){ try{ const o=JSON.parse(localStorage.getItem('adm_look')||'null'); if(o&&ADM_STYLES[o.s]&&ADM_COLORS[o.c]) return o; }catch(e){} return null; }
+function admLookApply(){
+  const isClient=/[?&](v|promo)=/.test(location.search); if(isClient) return;
+  const o=admLookGet(); let st=document.getElementById('admLookCss');
+  if(!o){ if(st) st.remove(); document.documentElement.removeAttribute('data-adm'); return; }
+  const S_=ADM_STYLES[o.s], C=ADM_COLORS[o.c], g=C.g;
+  if(!st){ st=document.createElement('style'); st.id='admLookCss'; document.head.appendChild(st); }
+  document.documentElement.setAttribute('data-adm',o.s);
+  const grad='linear-gradient(100deg,'+g[0]+','+g[1]+','+g[2]+')';
+  st.textContent=`:root{--g1:${g[0]};--g2:${g[1]};--g3:${g[2]};--blue-900:${admMix(g[0],'#12081c',.55)};--blue-700:${g[0]};--blue-600:${g[1]};--blue-500:${g[2]};--blue-100:${admMix(g[1],'#ffffff',.86)};--blue-50:${admMix(g[1],'#ffffff',.94)};--canvas:${admMix(g[1],'#FFF8F2',.95)};--ink:${admMix(g[0],'#12081c',.75)};--line:${admMix(g[1],'#ffffff',.84)};--line-2:${admMix(g[1],'#ffffff',.92)};--ring:0 0 0 3px ${g[1]}33;--serif:${S_.serif};--sans:${S_.sans};--r:${S_.r};--r-s:${S_.rs}}
+body{font-family:var(--sans);background:radial-gradient(1200px 600px at 78% -10%,${admMix(g[2],'#ffffff',.7)} 0%,transparent 60%),radial-gradient(900px 500px at -10% 105%,${admMix(g[1],'#ffffff',.8)} 0%,transparent 60%),var(--canvas)!important}
+h1,h2,h3,h4{font-weight:${S_.hw};font-style:${S_.hs};letter-spacing:${S_.ls}}
+.btn,.chip,.tag{border-radius:${S_.btn};text-transform:${S_.bt};letter-spacing:${S_.bls}}
+.btn-primary,.nav-item[aria-current="page"],.avatar{background:${grad}!important;border-color:transparent!important;color:#fff!important}
+.btn-primary{box-shadow:${S_.bsh||'0 10px 20px -12px '+g[1]}${S_.bbd?';border:'+S_.bbd+'!important':''}}
+.btn-primary:hover{filter:brightness(1.07)}
+.chip[aria-pressed="true"]{background:${grad}!important;border-color:transparent!important;color:#fff!important}
+.topbar{border-bottom:3px solid transparent;border-image:${grad} 1}
+.card,.kpi,.modal{border-radius:var(--r);${S_.csh?'box-shadow:'+S_.csh:''}}
+.nav-item{border-radius:${S_.btn==='999px'?'999px':S_.rs}}
+`;
+}
+function admLookOpen(){
+  const o=admLookGet()||{s:'klasik',c:0};
+  const sty=Object.keys(ADM_STYLES).map(k=>{ const t=ADM_STYLES[k]; return '<button type="button" class="alk" data-adm-s="'+k+'" aria-pressed="'+(o.s===k)+'"><span class="alk-a" style="font-family:'+t.serif.replace(/"/g,"'")+';font-weight:'+t.hw+';font-style:'+t.hs+'">Aa</span><span class="alk-b" style="border-radius:'+t.btn+(t.bbd?';border:2px solid #24123A;box-shadow:3px 3px 0 #24123A':'')+'">Buton</span><b>'+t.n+'</b><small>'+t.d+'</small></button>'; }).join('');
+  const col=ADM_COLORS.map((c,i)=>'<button type="button" class="alc" data-adm-c="'+i+'" aria-pressed="'+(o.c===i)+'" title="'+c.n+'" style="background:linear-gradient(135deg,'+c.g.join(',')+')"><span>'+c.n+'</span></button>').join('');
+  modal('🎨 Panel görünümü','<style>.alk-grid,.alc-grid{display:grid;gap:10px}.alk-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}.alc-grid{grid-template-columns:repeat(auto-fit,minmax(92px,1fr))}.alk{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border:2px solid var(--line);background:#fff;border-radius:14px;cursor:pointer;text-align:center}.alk[aria-pressed=true]{border-color:var(--g2,#6E3CA0);box-shadow:0 0 0 3px rgba(110,60,160,.15)}.alk-a{font-size:26px;line-height:1.1}.alk-b{background:linear-gradient(100deg,#53297A,#6E3CA0,#FF6B57);color:#fff;font-size:11.5px;padding:5px 14px}.alk small{font-size:11px;color:var(--muted)}.alc{border:3px solid #fff;border-radius:16px;height:58px;cursor:pointer;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:flex-end;justify-content:center;padding:6px 4px;box-shadow:0 4px 12px -6px rgba(0,0,0,.4);text-shadow:0 1px 3px rgba(0,0,0,.5)}.alc[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:2px}</style>'
+    +'<div style="font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.05em;margin-bottom:8px">STİL — yazı ve buton şekli</div><div class="alk-grid">'+sty+'</div>'
+    +'<div style="font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.05em;margin:18px 0 8px">RENK — geçişli</div><div class="alc-grid">'+col+'</div>'
+    +'<p style="margin:14px 0 0;font-size:12px;color:var(--muted)">Bu seçim sadece senin panelinde görünür, danışanlar etkilenmez. <button type="button" class="btn btn-sm" data-adm-reset="1">Varsayılana dön</button></p>','Tamam','adm-look-ok','640px');
+}
+document.addEventListener('click',e=>{
+  const t=e.target; if(!t||!t.closest||/[?&](v|promo)=/.test(location.search)) return;
+  const op=t.closest('[data-act="adm-look"]'), s1=t.closest('[data-adm-s]'), c1=t.closest('[data-adm-c]'), rs=t.closest('[data-adm-reset]'), ok=t.closest('[data-ok="adm-look-ok"]');
+  if(!(op||s1||c1||rs||ok)) return; e.preventDefault(); e.stopPropagation();
+  if(op) return admLookOpen();
+  if(ok) return closeModal();
+  if(rs){ try{ localStorage.removeItem('adm_look'); }catch(x){} admLookApply(); return admLookOpen(); }
+  const cur=admLookGet()||{s:'klasik',c:0};
+  if(s1) cur.s=s1.dataset.admS; if(c1) cur.c=+c1.dataset.admC;
+  try{ localStorage.setItem('adm_look',JSON.stringify(cur)); }catch(x){}
+  admLookApply();
+  document.querySelectorAll('[data-adm-s]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.admS===cur.s)));
+  document.querySelectorAll('[data-adm-c]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.admC===cur.c)));
+},true);
+try{ admLookApply(); }catch(e){}
 async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
