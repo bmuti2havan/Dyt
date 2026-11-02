@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261102-082852">
+<meta name="app-ver" content="20261102-083017">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -14820,7 +14820,7 @@ function svUxTidy(){
 }
 function svUxPrefs(){
   const g=k=>{ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } };
-  const dk=g('sv_dark')||'auto', z=+g('sv_zoom')||1;
+  const dk=g('sv_dark')||'off', z=+g('sv_zoom')||1;
   const dark=dk==='on'||(dk==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.classList.toggle('sv-dark',!!dark);
   const w=document.querySelector('#shareView .sv-wrap'); if(w){ const zz=z>1?String(z):''; if(w.style.zoom!==zz) w.style.zoom=zz; }
@@ -14851,7 +14851,7 @@ function svUxSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} svUxPrefs(); 
 .card.uxdone{opacity:.8}
 .sv-like,.sv-dislike,[data-sv-photo]{min-height:44px}
 html.sv-dark{filter:invert(.93) hue-rotate(180deg);background:#fff}
-html.sv-dark img,html.sv-dark video,html.sv-dark canvas,html.sv-dark .sv-hero,html.sv-dark .sv-banner,html.sv-dark .svup-hero{filter:invert(.93) hue-rotate(180deg)}
+html.sv-dark img,html.sv-dark video,html.sv-dark canvas,html.sv-dark .sv-hero,html.sv-dark .sv-banner,html.sv-dark .uxtick,html.sv-dark .svup-hero{filter:invert(.93) hue-rotate(180deg)}
 `;
   document.head.appendChild(css);
   document.addEventListener('click',e=>{
@@ -14871,7 +14871,7 @@ html.sv-dark img,html.sv-dark video,html.sv-dark canvas,html.sv-dark .sv-hero,ht
   if(typeof _open==='function') window.svThemeOpen=function(){
     _open.apply(this,arguments);
     try{ const box=document.querySelector('#svSheet > div'); if(!box) return;
-      const dk=localStorage.getItem('sv_dark')||'auto', z=localStorage.getItem('sv_zoom')||'1';
+      const dk=localStorage.getItem('sv_dark')||'off', z=localStorage.getItem('sv_zoom')||'1';
       const btn=(l,on,js)=>'<button type="button" onclick="'+js+'" style="flex:1;border:2px solid '+(on?'var(--blue-600,#6E3CA0)':'#e6e6e6')+';background:'+(on?'var(--blue-50,#F6F1FF)':'#fff')+';border-radius:12px;padding:11px 6px;font:700 12.5px inherit;min-height:44px;cursor:pointer;color:inherit">'+l+'</button>';
       box.insertAdjacentHTML('beforeend','<div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:16px 0 6px;letter-spacing:.04em">YAZI BOYUTU</div><div style="display:flex;gap:8px">'+btn('Normal',z==='1',"svUxSet('sv_zoom','1')")+btn('Büyük',z==='1.12',"svUxSet('sv_zoom','1.12')")+btn('Çok büyük',z==='1.25',"svUxSet('sv_zoom','1.25')")+'</div>'
         +'<div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:16px 0 6px;letter-spacing:.04em">KARANLIK MOD</div><div style="display:flex;gap:8px">'+btn('Otomatik',dk==='auto',"svUxSet('sv_dark','auto')")+btn('☀️ Açık',dk==='off',"svUxSet('sv_dark','off')")+btn('🌙 Koyu',dk==='on',"svUxSet('sv_dark','on')")+'</div>');
@@ -14977,6 +14977,32 @@ try{ admLookApply(); }catch(e){}
   }
   setTimeout(chk,6000); setInterval(chk,120000);
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) chk(); });
+})();
+
+/* ══ Yönetici paneli: kayan, geçişli motivasyon şeridi (günlük çalışırken) ══ */
+(function(){
+  if(/[?&](v|promo)=/.test(location.search)) return;
+  const P=['Bugün birinin hayatına dokunacaksın 💛','Her danışan küçük bir hikâye, sen o hikâyenin iyi kısmısın','Emeğin görünmese de iz bırakıyor 🌿','Sabırla yazılan her liste, bir insanın yeni alışkanlığı','Bugün yorulsan da, birini cesaretlendirdin','Sen anlatınca beslenme, yük olmaktan çıkıp yol oluyor','Küçük ilerlemeleri kutla, hem onlarınkini hem kendininkini 🎉','Mükemmel liste değil, uygulanabilir liste güzeldir','Bir mesajın birine bütün haftayı kurtarabilir','Kendine de iyi bak: su iç, mola ver 💧','Her gün biraz daha iyi bir diyetisyen oluyorsun','Güzel işler yapıyorsun, devam 🌸'];
+  function build(){
+    if(document.getElementById('admTick')) return;
+    const tb=document.querySelector('.topbar'); if(!tb) return;
+    let off=''; try{ off=localStorage.getItem('adm_tick_off')||''; }catch(e){}
+    if(off===new Date().toISOString().slice(0,10)) return;
+    const row=P.map(t=>'<span>'+t+'</span>').join('');
+    const d=document.createElement('div'); d.id='admTick'; d.setAttribute('aria-label','Günün motivasyonu');
+    d.innerHTML='<div class="at-in" aria-hidden="true">'+row+row+'</div><button type="button" class="at-x" title="Bugünlük gizle" aria-label="Bugünlük gizle">✕</button>';
+    d.querySelector('.at-x').onclick=()=>{ try{ localStorage.setItem('adm_tick_off',new Date().toISOString().slice(0,10)); }catch(e){} d.remove(); };
+    tb.after(d);
+  }
+  const css=document.createElement('style'); css.textContent=`#admTick{position:relative;overflow:hidden;margin:0;padding:9px 40px 9px 0;background:linear-gradient(100deg,var(--g1,#53297A),var(--g2,#6E3CA0),var(--g3,#FF6B57));color:#fff;z-index:5}
+#admTick .at-in{display:flex;gap:2.2rem;width:max-content;animation:atKay 70s linear infinite;font-family:var(--serif);font-style:italic;font-size:15px;white-space:nowrap}
+#admTick .at-in span{display:inline-flex;align-items:center;gap:2.2rem}#admTick .at-in span::after{content:"✦";font-style:normal;font-size:.8em;color:#FFC53D}
+#admTick .at-x{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:rgba(255,255,255,.22);color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1}
+@keyframes atKay{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){#admTick .at-in{animation:none;flex-wrap:wrap;width:auto;white-space:normal;padding:0 14px;gap:.3rem 1.2rem}}
+@media print{#admTick{display:none}}`;
+  document.head.appendChild(css);
+  setInterval(build,1500); setTimeout(build,300);
 })();
 async function svIntakePost(entry){
   const tok=window.__shareTok;
