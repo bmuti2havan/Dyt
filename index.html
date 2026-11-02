@@ -14796,10 +14796,20 @@ function svUxTidy(){
     if(e.classList.contains('sv-banner')) o=0; else if(e.classList.contains('sv-hero')) o=10;
     else if(e.id==='svNowCard') o=20; else if(e.id==='svMealsCard') o=30; else if(e.id==='svRingCard') o=45;
     else if(e.classList.contains('pm-daily')) o=50; else if(e.id==='svToolsRow') o=60;
-    else if(e.id==='svUxMoreBtn') o=90; else if(sec.has(e.id)){ o=100; e.classList.add('uxsec'); }
+    else if(e.id==='svUxTicker') o=15; else if(e.id==='svUxMoreBtn') o=90; else if(sec.has(e.id)){ o=100; e.classList.add('uxsec'); }
     else if(e.classList.contains('sv-card')&&/Bugünü işaretle/.test((e.innerText||'').slice(0,40))) o=70;
     if(e.style.order!==String(o)) e.style.order=String(o);
   });
+  if(!document.getElementById('svUxTicker')){
+    const hero=td.querySelector('.sv-hero');
+    if(hero){
+      const P=['Her öğün, kendine verdiğin bir söz 🌿','Küçük adımlar büyük değişim getirir','Bugün dün yaptığından bir adım daha iyi','Mükemmel olmak zorunda değilsin, devam etmen yeter','Vücudun seni taşıyor, ona nazik davran','Bir bardak su, güzel bir başlangıç 💧','Düştüğünde değil, vazgeçtiğinde biter','Sürdürülebilir alışkanlık, geçici diyetten güçlüdür','Kendinle gurur duy, buraya kadar geldin 🌸','Yavaş ama kararlı: sonuç geliyor','Bugünkü seçimin yarınki sensin','Ben yanındayım, birlikte başaracağız 💛'];
+      const row=P.map(t=>'<span>'+esc(t)+'</span>').join('');
+      const d=document.createElement('div'); d.id='svUxTicker'; d.className='uxtick'; d.setAttribute('aria-label','Motivasyon sözleri');
+      d.innerHTML='<div class="uxtick-in" aria-hidden="true">'+row+row+'</div>';
+      hero.after(d);
+    }
+  }
   if(!document.getElementById('svUxMoreBtn')&&td.querySelector('.uxsec')){
     const b=document.createElement('button'); b.type='button'; b.id='svUxMoreBtn'; b.className='uxmore'; b.textContent='🌿 Daha fazlası: ağacım, adım, günün satırı'; td.appendChild(b);
   }
@@ -14830,6 +14840,11 @@ function svUxSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} svUxPrefs(); 
 .uxk[aria-pressed=true]{background:#3aa66a;border-color:#3aa66a;transform:scale(1.04)}
 .uxm.done .uxb{opacity:.55}.uxm.done .uxb>b{text-decoration:line-through}
 .uxeat{flex:1 0 100%;min-height:44px;justify-content:center;order:-1}#svDayBody .card [data-sv-fb]{flex:1 1 0}.card:has(.uxeat) .uxeat{margin-bottom:2px}.uxeat.on{background:#3aa66a!important;border-color:#3aa66a!important;color:#fff!important}
+.uxtick{order:15;overflow:hidden;margin:12px 0;border-radius:16px;padding:.8rem 0;background:linear-gradient(90deg,#3B1E54,#6E3CA0);color:#fff;box-shadow:0 10px 26px rgba(59,30,84,.22)}
+.uxtick-in{display:flex;gap:2.2rem;width:max-content;animation:uxKay 55s linear infinite;font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;font-style:italic;font-size:1.08rem;white-space:nowrap}
+.uxtick-in span{display:inline-flex;align-items:center;gap:2.2rem}.uxtick-in span::after{content:"✦";font-style:normal;font-size:.8rem;color:#FFC53D}
+@keyframes uxKay{to{transform:translateX(-50%)}}
+@media (prefers-reduced-motion:reduce){.uxtick-in{animation:none;flex-wrap:wrap;width:auto;white-space:normal;padding:0 14px;gap:.4rem 1.2rem}}
 .card.uxdone{opacity:.8}
 .sv-like,.sv-dislike,[data-sv-photo]{min-height:44px}
 html.sv-dark{filter:invert(.93) hue-rotate(180deg);background:#fff}
