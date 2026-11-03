@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261102-084443">
+<meta name="app-ver" content="20261103-180638">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -14776,6 +14776,7 @@ function svUxToday(){
 }
 function svUxPlanDecorate(){
   const host=document.getElementById('svDayBody'); if(!host) return;
+  try{ svUxPlanAutoImg(host); }catch(e){}
   const st=svAteLoad(), pid=(window.__svCurPlan&&window.__svCurPlan.id)||'cur', cp=window.__svCurPlan;
   host.querySelectorAll('.card').forEach(card=>{
     const fb=card.querySelector('[data-sv-fb]'); if(!fb) return;
@@ -14806,7 +14807,7 @@ function svUxTidy(){
   if(!document.getElementById('svUxMoreBtn')&&td.querySelector('.uxsec')){
     const b=document.createElement('button'); b.type='button'; b.id='svUxMoreBtn'; b.className='uxmore'; b.textContent='🌿 Daha fazlası: ağacım, adım, günün satırı'; td.appendChild(b);
   }
-  svUxToday();
+  svUxToday(); svUxTodayAutoImg();
 }
 function svUxPrefs(){
   const g=k=>{ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } };
@@ -14838,6 +14839,7 @@ function svUxSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} svUxPrefs(); 
 .uxtick-in span{display:inline-flex;align-items:center;gap:2.2rem}.uxtick-in span::after{content:"✦";font-style:normal;font-size:.8rem;color:#FFC53D}
 @keyframes uxKay{to{transform:translateX(-50%)}}
 @media (prefers-reduced-motion:reduce){.uxtick-in{animation:none;flex-wrap:wrap;width:auto;white-space:normal;padding:0 14px;gap:.4rem 1.2rem}}
+.uxai{width:92px;height:92px;object-fit:cover;border-radius:12px;flex:0 0 auto;box-shadow:0 4px 10px -4px rgba(59,30,84,.35);background:var(--blue-50,#f6f1ff)}.uxai-s{width:52px;height:52px;object-fit:cover;border-radius:12px;flex:0 0 auto;align-self:center}
 .card.uxdone{opacity:.8}
 .sv-like,.sv-dislike,[data-sv-photo]{min-height:44px}
 html.sv-dark{filter:invert(.93) hue-rotate(180deg);background:#fff}
@@ -14969,6 +14971,72 @@ try{ admLookApply(); }catch(e){}
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden) chk(); });
 })();
 
+
+/* ══ Fotoğrafı olmayan öğünlere otomatik görsel (Vikipedi'den, öğün adına göre) ══ */
+const SV_AI_STOP=new Set('adet,yemek,kaşığı,tatlı,çay,su,bardağı,bardak,dilim,kase,porsiyon,küçük,büyük,orta,gram,avuç,tane,kaşık,kutu,yarım,tam,taze,ile,veya,bol,az,biraz,içi,rendelenmiş,haşlanmış,seçmeli,birini,seç,öğün,ara,mevsim,bir,iki,üç,dört,beş,yeşillik,tuz,karabiber,dereotu,limon'.split(','));
+function svAiWords(t){ return String(t||'').toLocaleLowerCase('tr').replace(/[0-9\/.,()+\-–:;!?'"%&]+/g,' ').split(/\s+/).filter(w=>w.length>2&&!SV_AI_STOP.has(w)); }
+function svAiCands(m){
+  const out=[], add=q=>{ q=String(q||'').trim(); if(q&&!out.includes(q)) out.push(q); };
+  const tw=svAiWords(m.title); if(tw.length){ add(tw.join(' ')); add(tw[tw.length-1]); }
+  const l0=svAiWords((m.lines||[])[0]); if(l0.length){ add(l0.slice(-2).join(' ')); add(l0[l0.length-1]); }
+  const l1=svAiWords((m.lines||[])[1]); if(l1.length) add(l1[l1.length-1]);
+  return out.slice(0,4);
+}
+function svAiCache(){ try{ return JSON.parse(localStorage.getItem('sv_aimg3')||'{}')||{}; }catch(e){ return {}; } }
+function svAiCacheSet(c){ try{ const k=Object.keys(c); if(k.length>400) k.slice(0,100).forEach(x=>delete c[x]); localStorage.setItem('sv_aimg3',JSON.stringify(c)); }catch(e){} }
+let __svAiQ=Promise.resolve();
+function svAiQuery(q){
+  const c=svAiCache(); if(q in c) return Promise.resolve(c[q]||null);
+  return (__svAiQ=__svAiQ.then(async()=>{
+    const c2=svAiCache(); if(q in c2) return c2[q]||null;
+    let url=null;
+    try{
+      const u='https://tr.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=5&prop=pageimages&piprop=thumbnail&pithumbsize=320&format=json&origin=*';
+      const ac=new AbortController(); const to=setTimeout(()=>ac.abort(),6000);
+      const r=await fetch(u,{signal:ac.signal}); clearTimeout(to);
+      if(r.status===429){ await new Promise(z=>setTimeout(z,1500)); return null; }   // önbelleğe yazma, sonra tekrar dene
+      const d=await r.json(); const ps=Object.values((d.query||{}).pages||{}).sort((a,b)=>a.index-b.index);
+      const stems=svAiWords(q).map(w=>w.slice(0,5));
+      for(const p of ps){ const t=String(p.title||'').toLocaleLowerCase('tr'); if(p.thumbnail&&p.thumbnail.source&&stems.some(s=>t.includes(s))){ url=p.thumbnail.source; break; } }
+    }catch(e){ return null; }
+    const c3=svAiCache(); c3[q]=url||0; svAiCacheSet(c3);
+    await new Promise(z=>setTimeout(z,220));
+    return url;
+  }).catch(()=>null));
+}
+async function svAiFind(m){
+  if(!m||m.photo) return null;
+  for(const q of svAiCands(m)){ const u=await svAiQuery(q); if(u) return u; }
+  return null;
+}
+function svUxPlanAutoImg(host){
+  if(!host||!window.__svCurPlan) return;
+  host.querySelectorAll('.card').forEach(card=>{
+    if(card.dataset.uxai) return;
+    const fb=card.querySelector('[data-sv-fb]'); if(!fb) return;
+    const [di,mi]=fb.dataset.svFb.split(':').map(Number), cp=window.__svCurPlan;
+    const m=cp.days&&cp.days[di]&&cp.days[di].meals&&cp.days[di].meals[mi]; if(!m) return;
+    card.dataset.uxai='1'; if(m.photo||card.querySelector('img')) return;
+    svAiFind(m).then(url=>{
+      if(!url||!card.isConnected) return;
+      const row=[...card.querySelectorAll('div')].find(d=>d.style&&d.style.display==='flex'&&d.style.gap==='12px'); if(!row||row.querySelector('img')) return;
+      const im=document.createElement('img'); im.className='uxai'; im.src=url; im.alt=''; im.loading='lazy'; im.title='Örnek görsel (Vikipedi)'; im.onerror=()=>im.remove(); row.appendChild(im);
+    });
+  });
+}
+function svUxTodayAutoImg(){
+  const card=document.getElementById('svMealsCard'); if(!card) return; const h=svUxHit(); if(!h) return;
+  card.querySelectorAll('.uxm').forEach(row=>{
+    if(row.dataset.uxai) return; row.dataset.uxai='1';
+    const k=(row.querySelector('[data-ux-ate]')||{dataset:{}}).dataset.uxAte; if(!k) return;
+    const mi=+k.split('|').pop(), m=h.day.meals[mi]; if(!m||m.photo) return;
+    svAiFind(m).then(url=>{
+      if(!url||!row.isConnected||row.querySelector('.uxai-s')) return;
+      const im=document.createElement('img'); im.className='uxai-s'; im.src=url; im.alt=''; im.loading='lazy'; im.title='Örnek görsel (Vikipedi)'; im.onerror=()=>im.remove();
+      row.insertBefore(im,row.querySelector('.uxk'));
+    });
+  });
+}
 async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
