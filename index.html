@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261103-180638">
+<meta name="app-ver" content="20261103-181113">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -14973,17 +14973,16 @@ try{ admLookApply(); }catch(e){}
 
 
 /* ══ Fotoğrafı olmayan öğünlere otomatik görsel (Vikipedi'den, öğün adına göre) ══ */
-const SV_AI_STOP=new Set('adet,yemek,kaşığı,tatlı,çay,su,bardağı,bardak,dilim,kase,porsiyon,küçük,büyük,orta,gram,avuç,tane,kaşık,kutu,yarım,tam,taze,ile,veya,bol,az,biraz,içi,rendelenmiş,haşlanmış,seçmeli,birini,seç,öğün,ara,mevsim,bir,iki,üç,dört,beş,yeşillik,tuz,karabiber,dereotu,limon'.split(','));
-function svAiWords(t){ return String(t||'').toLocaleLowerCase('tr').replace(/[0-9\/.,()+\-–:;!?'"%&]+/g,' ').split(/\s+/).filter(w=>w.length>2&&!SV_AI_STOP.has(w)); }
+const SV_AI_MAP={'yumurta':'Yumurta','omlet':'Omlet','menemen':'Menemen','elma':'Elma','armut':'Armut','muz':'Muz','portakal':'Portakal','mandalina':'Mandalina','çilek':'Çilek','şeftali':'Şeftali','kayısı':'Kayısı','kiraz':'Kiraz','karpuz':'Karpuz','kavun':'Kavun','üzüm':'Üzüm','nar':'Nar','incir':'İncir','kivi':'Kivi','ananas':'Ananas','avokado':'Avokado','badem':'Badem','ceviz':'Ceviz','fındık':'Fındık','fistik':'Antep fıstığı','fıstık':'Antep fıstığı','yoğurt':'Yoğurt','zeytin':'Zeytin','peynir':'Peynir','domates':'Domates','salatalık':'Salatalık','havuç':'Havuç','marul':'Marul','ıspanak':'Ispanak','brokoli':'Brokoli','karnabahar':'Karnabahar','kabak':'Kabak','patlıcan':'Patlıcan','biber':'Biber','mantar':'Mantar','mercimek':'Mercimek','nohut':'Nohut','pirinç':'Pirinç','bulgur':'Bulgur','yulaf':'Yulaf','makarna':'Makarna','bal':'Bal','somon':'Somon','ton balığı':'Orkinos','levrek':'Levrek','çupra':'Çipura','hindi':'Hindi','kefir':'Kefir','ayran':'Ayran','süt':'Süt','humus':'Humus','mantı':'Mantı','pancar':'Pancar','çorba':'Çorba'};
+const SV_AI_KEYS=Object.keys(SV_AI_MAP);
+function svAiLow(t){ return ' '+String(t||'').toLocaleLowerCase('tr').replace(/[^a-zçğıöşü\s]+/g,' ')+' '; }
 function svAiCands(m){
-  const out=[], add=q=>{ q=String(q||'').trim(); if(q&&!out.includes(q)) out.push(q); };
-  const tw=svAiWords(m.title); if(tw.length){ add(tw.join(' ')); add(tw[tw.length-1]); }
-  const l0=svAiWords((m.lines||[])[0]); if(l0.length){ add(l0.slice(-2).join(' ')); add(l0[l0.length-1]); }
-  const l1=svAiWords((m.lines||[])[1]); if(l1.length) add(l1[l1.length-1]);
-  return out.slice(0,4);
+  const out=[], parts=[m.title].concat((m.lines||[]).slice(0,3));
+  parts.forEach(p=>{ const t=svAiLow(p); const hits=[]; SV_AI_KEYS.forEach(k=>{ const i=t.indexOf(' '+k); if(i>=0) hits.push([i,k]); }); hits.sort((a,b)=>a[0]-b[0]); hits.forEach(h=>{ const v=SV_AI_MAP[h[1]]; if(!out.includes(v)) out.push(v); }); });
+  return out.slice(0,3);
 }
-function svAiCache(){ try{ return JSON.parse(localStorage.getItem('sv_aimg3')||'{}')||{}; }catch(e){ return {}; } }
-function svAiCacheSet(c){ try{ const k=Object.keys(c); if(k.length>400) k.slice(0,100).forEach(x=>delete c[x]); localStorage.setItem('sv_aimg3',JSON.stringify(c)); }catch(e){} }
+function svAiCache(){ try{ return JSON.parse(localStorage.getItem('sv_aimg4')||'{}')||{}; }catch(e){ return {}; } }
+function svAiCacheSet(c){ try{ localStorage.setItem('sv_aimg4',JSON.stringify(c)); }catch(e){} }
 let __svAiQ=Promise.resolve();
 function svAiQuery(q){
   const c=svAiCache(); if(q in c) return Promise.resolve(c[q]||null);
@@ -14991,16 +14990,15 @@ function svAiQuery(q){
     const c2=svAiCache(); if(q in c2) return c2[q]||null;
     let url=null;
     try{
-      const u='https://tr.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(q)+'&gsrlimit=5&prop=pageimages&piprop=thumbnail&pithumbsize=320&format=json&origin=*';
+      const u='https://tr.wikipedia.org/w/api.php?action=query&redirects=1&titles='+encodeURIComponent(q)+'&prop=pageimages&piprop=thumbnail&pithumbsize=320&format=json&origin=*';
       const ac=new AbortController(); const to=setTimeout(()=>ac.abort(),6000);
       const r=await fetch(u,{signal:ac.signal}); clearTimeout(to);
-      if(r.status===429){ await new Promise(z=>setTimeout(z,1500)); return null; }   // önbelleğe yazma, sonra tekrar dene
-      const d=await r.json(); const ps=Object.values((d.query||{}).pages||{}).sort((a,b)=>a.index-b.index);
-      const stems=svAiWords(q).map(w=>w.slice(0,5));
-      for(const p of ps){ const t=String(p.title||'').toLocaleLowerCase('tr'); if(p.thumbnail&&p.thumbnail.source&&stems.some(s=>t.includes(s))){ url=p.thumbnail.source; break; } }
+      if(r.status===429){ await new Promise(z=>setTimeout(z,1500)); return null; }
+      const d=await r.json(); const p=Object.values((d.query||{}).pages||{})[0];
+      if(p&&p.thumbnail&&p.thumbnail.source) url=p.thumbnail.source;
     }catch(e){ return null; }
     const c3=svAiCache(); c3[q]=url||0; svAiCacheSet(c3);
-    await new Promise(z=>setTimeout(z,220));
+    await new Promise(z=>setTimeout(z,150));
     return url;
   }).catch(()=>null));
 }
