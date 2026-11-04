@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261104-071554">
+<meta name="app-ver" content="20261104-072951">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -7077,6 +7077,7 @@ function intakeForm(c){
         ${t('Yaş','fm-age',c.age)}
         ${t('Şehir','fm-city',c.city)}
         ${t('Boy (cm)','fm-height',c.height)}
+        ${t('Kilo (kg)','fm-weight',(ms.length?ms[ms.length-1].weight:c.weight))}
         ${t('Meslek','fm-job',c.job)}
         ${t('Telefon','fm-phone',c.phone)}
       </div>
@@ -10384,6 +10385,8 @@ document.addEventListener('click',async e=>{
       Object.assign(c2,{name:val('fm-name')||c2.name,age:val('fm-age'),city:val('fm-city'),height:val('fm-height'),
         job:val('fm-job'),phone:val('fm-phone'),health:val('fm-health'),meds:val('fm-meds'),dislikes:val('fm-dislikes'),
         likes:val('fm-likes'),allergy:val('fm-allergy'),blood:val('fm-blood'),important:val('fm-important')});
+      { const w=String(val('fm-weight')||'').replace(',','.').trim(); const ms2=[...(c2.measures||[])].sort((a,b)=>new Date(a.date)-new Date(b.date)); const lw=ms2.length?ms2[ms2.length-1].weight:c2.weight;
+        if(w&&+w>0&&+w!==+lw){ c2.weight=w; c2.measures=c2.measures||[]; c2.measures.push({id:uid('m'),date:todayISO(),weight:+w,note:'Bilgi formundan'}); } }
       await save(); toast('Bilgi formu kaydedildi'); render(); return;
     }
     if(a==='add-session'){
