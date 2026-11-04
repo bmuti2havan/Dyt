@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261104-072951">
+<meta name="app-ver" content="20261104-073217">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -3038,7 +3038,8 @@ function buildShareSnapshot(c){
   const mn=clientMoney(c.id);
   return {
     name:c.name, clientId:c.id,
-    measures:(c.measures||[]).filter(m=>m.date&&m.weight!=null).map(m=>({date:m.date,weight:m.weight,waist:m.waist,hip:m.hip,fat:m.fat})),
+    measures:(()=>{ const a=(c.measures||[]).filter(m=>m.date&&m.weight!=null&&m.weight!=='').map(m=>({date:m.date,weight:m.weight,waist:m.waist,hip:m.hip,fat:m.fat})); if(!a.length&&+c.weight>0) a.push({date:(c.createdAt?new Date(c.createdAt).toISOString().slice(0,10):todayISO()),weight:+c.weight}); return a; })(),
+    height: +c.height>0?+c.height:null,
     nextAppt: nx? {when:nx.when,type:nx.type} : null,
     plan, pastPlans, notes, booklets,
     birthday: c.birthday||null, targetWeight: c.targetWeight||null, sex: c.sex||'', nameMeaning: c.nameMeaning||'',
@@ -3063,12 +3064,12 @@ async function shareAutoSync(){
     for(const c of DB.clients){
       if(!c.shareToken) continue;
       const snap=buildShareSnapshot(c);
-      const sig=hash(JSON.stringify([snap.plan,snap.pastPlans]));
+      const sig=hash(JSON.stringify([snap.plan,snap.pastPlans,snap.measures,snap.height,snap.targetWeight]));
       if(sig===c.sharePlanSig) continue;
       const t=await cloudToken();
       const put=(node,val)=>fetch(`${CL().dbUrl}/shares/${c.shareToken}/${node}.json?auth=${encodeURIComponent(t)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});
-      const [r1,r2]=await Promise.all([put('plan',snap.plan),put('pastPlans',snap.pastPlans)]);
-      if(r1.ok&&r2.ok){ c.sharePlanSig=sig; c.shareUpdatedAt=Date.now(); dirty=true; }
+      const [r1,r2,r3,r4,r5]=await Promise.all([put('plan',snap.plan),put('pastPlans',snap.pastPlans),put('measures',snap.measures),put('height',snap.height),put('targetWeight',snap.targetWeight||null)]);
+      if(r1.ok&&r2.ok&&r3.ok&&r4.ok&&r5.ok){ c.sharePlanSig=sig; c.shareUpdatedAt=Date.now(); dirty=true; }
     }
   }catch(e){}
   _shAutoBusy=false;
