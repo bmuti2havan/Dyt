@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261104-073217">
+<meta name="app-ver" content="20261104-075158">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -3064,12 +3064,15 @@ async function shareAutoSync(){
     for(const c of DB.clients){
       if(!c.shareToken) continue;
       const snap=buildShareSnapshot(c);
-      const sig=hash(JSON.stringify([snap.plan,snap.pastPlans,snap.measures,snap.height,snap.targetWeight]));
-      if(sig===c.sharePlanSig) continue;
-      const t=await cloudToken();
-      const put=(node,val)=>fetch(`${CL().dbUrl}/shares/${c.shareToken}/${node}.json?auth=${encodeURIComponent(t)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});
-      const [r1,r2,r3,r4,r5]=await Promise.all([put('plan',snap.plan),put('pastPlans',snap.pastPlans),put('measures',snap.measures),put('height',snap.height),put('targetWeight',snap.targetWeight||null)]);
-      if(r1.ok&&r2.ok&&r3.ok&&r4.ok&&r5.ok){ c.sharePlanSig=sig; c.shareUpdatedAt=Date.now(); dirty=true; }
+      const sigs=c.shareSigs||(c.shareSigs={}); const t=await cloudToken(); let allOk=true, any=false;
+      for(const k of Object.keys(snap)){
+        if(k==='createdAt'||k==='clientId') continue;
+        const val=snap[k]===undefined?null:snap[k]; const sg=hash(JSON.stringify(val));
+        if(sigs[k]===sg) continue; any=true;
+        try{ const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}/${k}.json?auth=${encodeURIComponent(t)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});
+          if(r.ok) sigs[k]=sg; else allOk=false; }catch(e){ allOk=false; }
+      }
+      if(any){ c.shareUpdatedAt=Date.now(); dirty=true; }
     }
   }catch(e){}
   _shAutoBusy=false;
@@ -3088,8 +3091,8 @@ async function shareRepublish(c){
   try{
     const snap=buildShareSnapshot(c); snap.createdAt=c.shareCreatedAt||Date.now();
     const t=await cloudToken();
-    const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
-    if(r.ok){ c.shareUpdatedAt=Date.now(); await save(); }
+    const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});   /* PATCH: danışanın henüz alınmamış "intake" girdilerini silmesin */
+    if(r.ok){ c.shareUpdatedAt=Date.now(); c.shareSigs={}; await save(); }
   }catch(e){}
 }
 async function shareGenerate(cid){
@@ -3108,10 +3111,10 @@ async function shareGenerate(cid){
     snap.createdAt=c.shareCreatedAt||Date.now();
     const t1=await cloudToken();
     const r=await fetch(`${CL().dbUrl}/shares/${token}.json?auth=${encodeURIComponent(t1)}`,
-      {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
+      {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
     if(!r.ok) throw new Error(cloudErr(r.status));
     c.shareToken=token; c.shareCreatedAt=snap.createdAt; c.shareUpdatedAt=Date.now();
-    c.sharePlanSig=undefined;   // bir sonraki kontrolde eşitlenir
+    c.sharePlanSig=undefined; c.shareSigs={};   // bir sonraki kontrolde eşitlenir
     await save();
     toast(isNew?'Link oluşturuldu ✓':'Link güncellendi ✓');
     modal('🔗 Danışan takip linki', shareStatusHtml(c), 'Kapat','close','540px');
@@ -3407,7 +3410,7 @@ async function pullShareIntake(){
   if(!withToken.length) return;
   let changed=false;
   const fresh=[]; // yeni gelen kayıtlar — tarayıcı bildirimi için
-  const touched=new Set();
+  const touched=new Set(); const donePairs=[];
   for(const c of withToken){
     try{
       const t=await cloudToken();
@@ -3488,8 +3491,7 @@ async function pullShareIntake(){
           }
         }
       });
-      const t2=await cloudToken();
-      await fetch(`${CL().dbUrl}/shares/${c.shareToken}/intake.json?auth=${encodeURIComponent(t2)}`,{method:'DELETE'});
+      donePairs.push([c,keys]);   // silme işlemi kayıt diske yazıldıktan SONRA, yalnız işlenen anahtarlar için yapılır
     }catch(e){ /* sessiz geç — bir sonraki eşitlemede tekrar denenir */ }
   }
   /* Telegram'dan verilen cevapları panele al (sohbette görünsün) */
@@ -3502,8 +3504,14 @@ async function pullShareIntake(){
       Object.values(d).forEach(x=>{ if(x&&x.id&&x.text&&!c.msgs.some(y=>y.id===x.id)){ c.msgs.push({id:x.id,kind:'msg',ref:'',label:'',date:x.date||todayISO(),heart:false,emoji:'',text:x.text,at:x.at||Date.now(),via:x.auto?'auto':'telegram'}); changed=true; touched.add(c); } });
     }catch(e){}
   }
+  if(changed){ try{ await save({noCloud:true}); }catch(e){ donePairs.length=0; } }
+  if(donePairs.length){
+    try{ const t3=await cloudToken();
+      await Promise.all(donePairs.map(([c,keys])=>{ const o={}; keys.forEach(k=>{ o[k]=null; });
+        return fetch(`${CL().dbUrl}/shares/${c.shareToken}/intake.json?auth=${encodeURIComponent(t3)}`,{method:'PATCH',body:JSON.stringify(o)}).catch(()=>{}); }));
+    }catch(e){}
+  }
   if(changed){
-    await save({noCloud:true});
     await cloudPushMerged();
     touched.forEach(c=>{ try{ replyPush(c,true); }catch(e){} });
     toast('Danışanlardan yeni bilgi geldi 📬',4000);
@@ -13797,9 +13805,9 @@ async function tartiPublish(c){
   try{
     const snap=buildShareSnapshot(c); snap.createdAt=c.shareCreatedAt||Date.now();
     const t1=await cloudToken();
-    const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t1)}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
+    const r=await fetch(`${CL().dbUrl}/shares/${c.shareToken}.json?auth=${encodeURIComponent(t1)}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(snap)});
     if(!r.ok) throw new Error(cloudErr(r.status));
-    c.shareUpdatedAt=Date.now(); await save(); toast('Danışan linki güncellendi ✓');
+    c.shareUpdatedAt=Date.now(); c.shareSigs={}; await save(); toast('Danışan linki güncellendi ✓');
   }catch(e){ toast('Link güncellenemedi: '+(e.message||''),7000); }
 }
 function tartiPreview(id){
