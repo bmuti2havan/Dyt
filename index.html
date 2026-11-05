@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261104-172224">
+<meta name="app-ver" content="20261105-181603">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -9826,8 +9826,11 @@ function render(){
   if(S.page==='client'){const c=clientOf(S.client); cr='Danışanlar / <b>'+esc(c?c.name:'')+'</b>';}
   if(S.page==='planEdit'){const p=DB.plans.find(x=>x.id===S.plan); cr='Programlar / <b>'+esc(p?p.name:'')+'</b>';}
   document.getElementById('crumb').innerHTML=cr;
+  /* Aynı sayfada yeniden çizimde (arka plan eşitleme, danışandan gelen bilgi, kaydet vb.) kaydırma yerinde kalır; sayfa/sekme değişince başa gider */
+  const _rk=[S.page,S.client,S.plan,S.tab].join('|'), _same=(_rk===window.__rKey), _y=window.scrollY||document.documentElement.scrollTop||0;
   document.getElementById('view').innerHTML=`<div class="page">${PAGES[S.page]()}</div>`;
-  window.scrollTo(0,0);
+  window.__rKey=_rk;
+  window.scrollTo(0,_same?_y:0);
   paintNotifBadge();
 }
 /* ══ Danışan bildirimleri: üstteki 🔔 rozeti ve tıklayınca açılan liste ══
@@ -13444,7 +13447,10 @@ async function svPlanRefresh(){
     if(past&&!Array.isArray(past)) past=Object.values(past);
     past=past||[];
     if(!plan) return;
-    if(JSON.stringify(plan)===JSON.stringify(snap.plan||null)&&JSON.stringify(past)===JSON.stringify(snap.pastPlans||[])) return;
+    const _rs=JSON.stringify([plan,past]);
+    if(window.__svRemoteSig===_rs) return;   /* bulutta değişiklik yok: ekranı yeniden çizme (yerel işlemler snap'i değiştirebilir) */
+    if(JSON.stringify(plan)===JSON.stringify(snap.plan||null)&&JSON.stringify(past)===JSON.stringify(snap.pastPlans||[])){ window.__svRemoteSig=_rs; return; }
+    window.__svRemoteSig=_rs;
     const idx=window.__svPlanIdx||0, activeDay=document.querySelector('[data-sv-day][aria-pressed="true"]');
     const day=activeDay?+activeDay.dataset.svDay:0, newCur=!snap.plan||snap.plan.id!==plan.id;
     snap.plan=plan; snap.pastPlans=past;
