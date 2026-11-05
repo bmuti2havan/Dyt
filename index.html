@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261105-213706">
+<meta name="app-ver" content="20261105-214009">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -1193,6 +1193,22 @@ html[data-prem="1"] #admFabB{box-shadow:0 18px 30px -12px var(--blue-700),0 0 0 
 #admSplash .nm{margin-top:10px;font-family:'Dancing Script',cursive;font-size:36px;color:#4A3A2A;opacity:0;animation:admPop .8s 1s forwards}
 #admSplash .sb{letter-spacing:.3em;font-size:10px;color:#9A7B3E;opacity:0;animation:admPop .8s 1.25s forwards}
 @media (prefers-reduced-motion:reduce){.admsky *,.adm-rip-box i,#admSplash svg path{animation:none!important}#admSplash svg path{stroke-dashoffset:0}}
+/* Not defteri */
+.nb-quick textarea,.nb-ed textarea{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font:inherit;font-size:14.5px;line-height:1.6;resize:vertical;background:#fff}
+.nb-t{width:100%;border:0;border-bottom:1px solid var(--line-2,#eee);padding:8px 2px;margin-bottom:8px;font:inherit;font-family:var(--serif);font-size:18px;font-weight:600;background:none;outline:0}
+.nb-qrow,.nb-act{display:flex;align-items:center;gap:10px;margin-top:10px}
+.nb-cols{display:flex;gap:8px}
+.nb-col{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.14);cursor:pointer;padding:0;transition:transform .15s}
+.nb-col.on{box-shadow:0 0 0 2px var(--blue-600)}.nb-col:active{transform:scale(.9)}
+.nb-search{margin:14px 0;max-width:420px}.nb-search input{flex:1;border:0;outline:0;background:none;font:inherit}
+.nb-grid{columns:260px;column-gap:14px}
+.nb-card{position:relative;break-inside:avoid;margin:0 0 14px;padding:16px 16px 12px;border-radius:18px;background:var(--nbc,#FFF6D8);border:1px solid rgba(0,0,0,.06);box-shadow:0 14px 24px -20px rgba(60,40,10,.55);cursor:pointer;transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s}
+.nb-card:hover{transform:translateY(-3px) rotate(-.4deg);box-shadow:0 22px 30px -20px rgba(60,40,10,.6)}
+.nb-card h4{margin:0 0 6px;font-family:var(--serif);font-size:17px;font-weight:600;color:#3a2c18;padding-right:22px}
+.nb-card p{margin:0;font-size:14px;line-height:1.55;color:#4a3d2a;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:9;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.nb-card footer{margin-top:10px;font-size:11px;letter-spacing:.04em;color:rgba(70,50,20,.55)}
+.nb-pin{position:absolute;right:12px;top:10px;font-size:14px}
+.nb-empty{column-span:all;text-align:center;padding:40px 16px;color:var(--muted)}.nb-empty svg{width:54px;height:54px;color:var(--blue-500);opacity:.7;margin-bottom:8px}.nb-empty b{display:block;color:var(--ink,#222)}
 </style>
 <link rel="preload" href="/fonts/caveat-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
 </head>
@@ -2767,6 +2783,7 @@ async function loadDB(){
   if(!DB.favMeals) DB.favMeals=[];
   if(!DB.savedRecipes) DB.savedRecipes=[];
   if(!DB.myPhotos) DB.myPhotos=[];
+  if(!DB.notebook) DB.notebook=[];
   if(DB.myPhotosNote===undefined){
     // Bir kerelik, kullanıcının kendi isteğiyle eklenmiş kişisel not —
     // DB.myPhotosNote hiç ayarlanmamışsa (alan daha önce hiç yoksa) bugünün
@@ -3498,7 +3515,7 @@ function mergeDB(local,remote){
   if(Array.isArray(m.trash)) m.trash.sort((x,y)=>(+y.at||0)-(+x.at||0));
   return m;
 }
-const SYNC_LISTS=['clients','plans','appts','planTpls','templates','favMeals'];
+const SYNC_LISTS=['clients','plans','appts','planTpls','templates','favMeals','notebook'];
 function syncDiff(a,b){
   let onlyB=0,onlyA=0;
   SYNC_LISTS.forEach(k=>{
@@ -8996,10 +9013,10 @@ const avColor=n=>{
   return AV[Math.abs(h)%AV.length];
 };
 
-const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevular'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
+const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevular'},{id:'notebook',ic:'plans',t:'Not defteri'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
   {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},{id:'aware',ic:'appts',t:'İçerik takvimi'},
   {s:'Sistem'},{id:'myphotos',ic:'camera',t:'Cilvenazımla Fotiler'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
-const TITLES={aware:'İçerik takvimi',wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Cilvenazımla Fotiler'};
+const TITLES={notebook:'Not defteri',aware:'İçerik takvimi',wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Cilvenazımla Fotiler'};
 function pageSearch(){
   const q=(S.gq||'').toLocaleLowerCase('tr');
   const cl=DB.clients.filter(c=>c.name.toLocaleLowerCase('tr').includes(q));
@@ -9960,7 +9977,7 @@ function pageInvoices(){
   </section>`;
 }
 
-const PAGES={aware:pageAware,wa:pageWa,content:pageContent,trash:pageTrash,invoices:pageInvoices,cal:pageCal,search:pageSearch,panel:pagePanel,clients:pageClients,client:pageClient,appts:pageAppts,plans:pagePlans,planEdit:pagePlanEdit,foods:pageFoods,settings:pageSettings,myphotos:pageMyPhotos};
+const PAGES={notebook:pageNotebook,aware:pageAware,wa:pageWa,content:pageContent,trash:pageTrash,invoices:pageInvoices,cal:pageCal,search:pageSearch,panel:pagePanel,clients:pageClients,client:pageClient,appts:pageAppts,plans:pagePlans,planEdit:pagePlanEdit,foods:pageFoods,settings:pageSettings,myphotos:pageMyPhotos};
 
 function render(){
   document.getElementById('nav').innerHTML=NAV.map(i=>i.s?`<div class="nav-sec">${i.s}</div>`:
@@ -15407,7 +15424,7 @@ document.addEventListener('pointerdown',e=>{
 /* + hızlı ekleme */
 function admFabInit(){
   const f=document.createElement('div'); f.id='admFab';
-  f.innerHTML='<div class="admfab-m" id="admFabM"><button type="button" class="admfab-i" data-admfab="pal"><span>🔎</span>Ara / komut</button><button type="button" class="admfab-i" data-admfab="note"><span>📝</span>Not ekle</button><button type="button" class="admfab-i" data-admfab="measure"><span>⚖️</span>Ölçüm ekle</button><button type="button" class="admfab-i" data-admfab="appt"><span>📅</span>Randevu ekle</button><button type="button" class="admfab-i" data-admfab="client"><span>👤</span>Danışan ekle</button></div><button type="button" id="admFabB" aria-label="Hızlı ekle" title="Hızlı ekle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>';
+  f.innerHTML='<div class="admfab-m" id="admFabM"><button type="button" class="admfab-i" data-admfab="pal"><span>🔎</span>Ara / komut</button><button type="button" class="admfab-i" data-admfab="nb"><span>📓</span>Not defteri</button><button type="button" class="admfab-i" data-admfab="note"><span>📝</span>Danışan notu</button><button type="button" class="admfab-i" data-admfab="measure"><span>⚖️</span>Ölçüm ekle</button><button type="button" class="admfab-i" data-admfab="appt"><span>📅</span>Randevu ekle</button><button type="button" class="admfab-i" data-admfab="client"><span>👤</span>Danışan ekle</button></div><button type="button" id="admFabB" aria-label="Hızlı ekle" title="Hızlı ekle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>';
   document.body.appendChild(f);
 }
 function admClientPick(kind){
@@ -15421,7 +15438,7 @@ document.addEventListener('click',e=>{
   const fab=document.getElementById('admFab');
   if(t.closest('#admFabB')){ fab.classList.toggle('open'); return; }
   const it=t.closest('[data-admfab]');
-  if(it){ fab.classList.remove('open'); const k=it.dataset.admfab; if(k==='pal') return admPalOpen(''); if(k==='note'||k==='measure') return admClientPick(k); return openModal(k); }
+  if(it){ fab.classList.remove('open'); const k=it.dataset.admfab; if(k==='pal') return admPalOpen(''); if(k==='nb'){ S.page='notebook'; return render(); } if(k==='note'||k==='measure') return admClientPick(k); return openModal(k); }
   if(fab&&!t.closest('#admFab')) fab.classList.remove('open');
   const pk=t.closest('[data-admpick]'); if(pk){ e.stopPropagation(); S.client=pk.dataset.admpick; closeModal(); openModal(window.__admPickKind||'note'); return; }
   const pr=t.closest('[data-admcmd]'); if(pr){ e.stopPropagation(); return admCmdRun(pr.dataset.admcmd); }
@@ -15430,20 +15447,20 @@ document.addEventListener('click',e=>{
 /* komut paleti */
 const ADM_ACTS=[{k:'measure',w:/kilo|ölçüm|olcum|tartı|tarti/,l:'⚖️ Ölçüm ekle'},{k:'note',w:/\bnot\b|görüşme/,l:'📝 Not ekle'},{k:'appt',w:/randevu/,l:'📅 Randevu ekle'},{k:'plan',w:/program|liste|diyet/,l:'📋 Program yap'},{k:'open',w:/dosya|aç|ac\b|git/,l:'📂 Dosyasını aç'}];
 function admCmds(q){
-  q=String(q||'').toLocaleLowerCase('tr').trim(); const out=[]; if(!q) return [{k:'new-client',c:'',l:'👤 Yeni danışan ekle'},{k:'new-appt',c:'',l:'📅 Randevu ekle'},{k:'go-clients',c:'',l:'👥 Danışanlar'},{k:'go-plans',c:'',l:'📋 Programlar'},{k:'go-cal',c:'',l:'🗓 Takvim'}];
+  q=String(q||'').toLocaleLowerCase('tr').trim(); const out=[]; if(!q) return [{k:'new-client',c:'',l:'👤 Yeni danışan ekle'},{k:'new-appt',c:'',l:'📅 Randevu ekle'},{k:'go-clients',c:'',l:'👥 Danışanlar'},{k:'go-plans',c:'',l:'📋 Programlar'},{k:'go-notebook',c:'',l:'📓 Not defteri'},{k:'go-cal',c:'',l:'🗓 Takvim'}];
   const toks=q.split(/\s+/).filter(Boolean), names=toks.filter(t=>t.length>=2&&!ADM_ACTS.some(a=>a.w.test(t)));
   const cl=DB.clients.filter(c=>!c.archived&&names.length&&names.every(n=>c.name.toLocaleLowerCase('tr').includes(n))).slice(0,3);
   const hit=ADM_ACTS.filter(a=>a.w.test(q));
   cl.forEach(c=>{ const order=hit.concat(ADM_ACTS.filter(a=>!hit.includes(a))); order.forEach(a=>out.push({k:a.k,c:c.id,l:a.l,who:c.name,first:hit.includes(a)})); });
   if(/danışan|yeni/.test(q)) out.push({k:'new-client',c:'',l:'👤 Yeni danışan ekle'});
   if(/randevu/.test(q)&&!cl.length) out.push({k:'new-appt',c:'',l:'📅 Randevu ekle'});
-  if(/takvim/.test(q)) out.push({k:'go-cal',c:'',l:'🗓 Takvim'}); if(/program/.test(q)&&!cl.length) out.push({k:'go-plans',c:'',l:'📋 Programlar'});
+  if(/defter/.test(q)) out.push({k:'go-notebook',c:'',l:'📓 Not defteri'}); if(/takvim/.test(q)) out.push({k:'go-cal',c:'',l:'🗓 Takvim'}); if(/program/.test(q)&&!cl.length) out.push({k:'go-plans',c:'',l:'📋 Programlar'});
   return out.slice(0,10);
 }
 function admCmdRun(s){
   const [k,id]=s.split('|'); admPalClose(); const gs=document.getElementById('gsearch'); if(gs){ gs.value=''; } S.gq=''; if(S.page==='search') S.page='panel';
   if(k==='new-client') return openModal('client'); if(k==='new-appt') return openModal('appt');
-  if(k==='go-clients'||k==='go-plans'||k==='go-cal'){ S.page=k.slice(3); return render(); }
+  if(k==='go-clients'||k==='go-plans'||k==='go-cal'||k==='go-notebook'){ S.page=k.slice(3); return render(); }
   if(id) S.client=id;
   if(k==='open'){ S.page='client'; S.tab='kontrol'; return render(); }
   if(k==='plan'){ const b=document.createElement('button'); b.setAttribute('data-newplan',id); b.style.display='none'; document.body.appendChild(b); b.click(); setTimeout(()=>b.remove(),50); return; }
@@ -15472,6 +15489,45 @@ function admPremApply(){ document.documentElement.setAttribute('data-prem',admPr
 function admPremToggle(){ try{ localStorage.setItem('adm_prem',admPremOn()?'0':'1'); }catch(e){} admPremApply(); }
 document.addEventListener('click',e=>{ const b=e.target&&e.target.closest&&e.target.closest('[data-adm-prem]'); if(!b) return; e.preventDefault(); e.stopPropagation(); admPremToggle(); b.setAttribute('aria-pressed',String(admPremOn())); b.querySelector('b').textContent=admPremOn()?'Açık':'Kapalı'; },true);
 try{ admPremApply(); }catch(e){}
+/* ══ Not defteri (danışanlardan bağımsız kişisel notlar) ══ */
+const NB_COLORS=[['#FFF6D8','Krem'],['#E2F5E6','Nane'],['#EDE4FB','Lavanta'],['#FFE6D8','Şeftali'],['#DFF0FC','Gökyüzü'],['#FDE3EC','Gül']];
+function nbList(){ if(!Array.isArray(DB.notebook)) DB.notebook=[]; return DB.notebook; }
+function nbVisible(){
+  const q=String(S.nbq||'').toLocaleLowerCase('tr').trim();
+  return nbList().filter(n=>!n.deleted&&(!q||((n.title||'')+' '+(n.text||'')).toLocaleLowerCase('tr').includes(q)))
+    .sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||(+b.upd||+b.at||0)-(+a.upd||+a.at||0));
+}
+function nbCards(){
+  const l=nbVisible();
+  if(!l.length) return '<div class="nb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z"/><path d="M6 3v18M10 8h6M10 12h6M10 16h3"/></svg><b>'+(S.nbq?'Eşleşen not yok':'Defterin henüz boş')+'</b><small>'+(S.nbq?'Başka bir kelime dene.':'Yukarıdan ilk notunu yaz, buraya kaydolur.')+'</small></div>';
+  return l.map(n=>'<article class="nb-card" data-nb-open="'+n.id+'" style="--nbc:'+(n.color||NB_COLORS[0][0])+'">'+(n.pin?'<span class="nb-pin" title="Sabitlenmiş">📌</span>':'')+(n.title?'<h4>'+esc(n.title)+'</h4>':'')+'<p>'+esc(n.text||'')+'</p><footer>'+new Date(+n.upd||+n.at||Date.now()).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})+'</footer></article>').join('');
+}
+function pageNotebook(){
+  nbList();
+  return '<div class="page-head"><div><h1>Not defteri</h1><p>Sadece sana ait notlar. Danışanlarla bağlantısı yok, danışan linklerinde görünmez.</p></div></div>'
+  +'<section class="card nb-quick"><div class="card-b"><input id="nb-title" class="nb-t" placeholder="Başlık (isteğe bağlı)"><textarea id="nb-text" rows="3" placeholder="Aklına geleni yaz… (fikir, yapılacak, hatırlatma)"></textarea>'
+  +'<div class="nb-qrow"><div class="nb-cols" id="nbQCols">'+NB_COLORS.map((c,i)=>'<button type="button" class="nb-col'+(i===0?' on':'')+'" data-nb-qc="'+c[0]+'" title="'+c[1]+'" style="background:'+c[0]+'"></button>').join('')+'</div><div class="spacer"></div><button class="btn btn-primary" type="button" data-nb-add="1">Deftere ekle</button></div></div></section>'
+  +'<div class="searchbar nb-search"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.4"/><path d="m20 20-4.2-4.2"/></svg><input id="nb-q" placeholder="Notlarda ara" value="'+esc(S.nbq||'')+'"></div>'
+  +'<div class="nb-grid" id="nbGrid">'+nbCards()+'</div>';
+}
+function nbEditor(id){
+  const n=nbList().find(x=>x.id===id); if(!n) return;
+  modal('Not','<div class="nb-ed" data-id="'+n.id+'"><input id="nbe-title" class="nb-t" placeholder="Başlık" value="'+esc(n.title||'')+'"><textarea id="nbe-text" rows="10" placeholder="Not">'+esc(n.text||'')+'</textarea><div class="nb-qrow"><div class="nb-cols" id="nbEC">'+NB_COLORS.map(c=>'<button type="button" class="nb-col'+((n.color||NB_COLORS[0][0])===c[0]?' on':'')+'" data-nb-ec="'+c[0]+'" title="'+c[1]+'" style="background:'+c[0]+'"></button>').join('')+'</div><div class="spacer"></div><button type="button" class="btn btn-sm" data-nb-pin="1" aria-pressed="'+(!!n.pin)+'">'+(n.pin?'📌 Sabitli':'📍 Sabitle')+'</button></div><div class="nb-act"><button type="button" class="btn btn-sm" data-nb-del="1" style="color:var(--danger,#c0392b)">Sil</button><div class="spacer"></div><button type="button" class="btn btn-primary" data-nb-save="1">Kaydet</button></div></div>','Kapat','close','620px');
+}
+function nbRefresh(){ const g=document.getElementById('nbGrid'); if(g) g.innerHTML=nbCards(); }
+document.addEventListener('input',e=>{ if(e.target.id==='nb-q'){ S.nbq=e.target.value; nbRefresh(); } });
+document.addEventListener('click',async e=>{
+  if(admIsClientView()) return; const t=e.target; if(!t||!t.closest) return;
+  const qc=t.closest('[data-nb-qc]'); if(qc){ document.querySelectorAll('#nbQCols .nb-col').forEach(b=>b.classList.toggle('on',b===qc)); window.__nbQC=qc.dataset.nbQc; return; }
+  const ec=t.closest('[data-nb-ec]'); if(ec){ document.querySelectorAll('#nbEC .nb-col').forEach(b=>b.classList.toggle('on',b===ec)); return; }
+  const add=t.closest('[data-nb-add]'); if(add){ const tt=(document.getElementById('nb-title').value||'').trim(), tx=(document.getElementById('nb-text').value||'').trim(); if(!tt&&!tx) return toast('Önce bir şeyler yaz');
+    nbList().push({id:uid('nb'),title:tt,text:tx,color:window.__nbQC||NB_COLORS[0][0],at:Date.now(),upd:Date.now()}); DB.updatedAt=Date.now(); await save(); document.getElementById('nb-title').value=''; document.getElementById('nb-text').value=''; nbRefresh(); toast('Deftere eklendi'); return; }
+  const op=t.closest('[data-nb-open]'); if(op) return nbEditor(op.dataset.nbOpen);
+  const ed=t.closest('.nb-ed'); if(!ed) return; const n=nbList().find(x=>x.id===ed.dataset.id); if(!n) return;
+  if(t.closest('[data-nb-pin]')){ n.pin=!n.pin; const b=t.closest('[data-nb-pin]'); b.textContent=n.pin?'📌 Sabitli':'📍 Sabitle'; return; }
+  if(t.closest('[data-nb-save]')){ n.title=(document.getElementById('nbe-title').value||'').trim(); n.text=document.getElementById('nbe-text').value||''; const on=document.querySelector('#nbEC .nb-col.on'); if(on) n.color=on.dataset.nbEc; n.upd=Date.now(); DB.updatedAt=Date.now(); await save(); closeModal(); nbRefresh(); toast('Not kaydedildi'); return; }
+  if(t.closest('[data-nb-del]')){ if(!confirm('Bu not silinsin mi?')) return; n.deleted=true; n.upd=Date.now(); DB.updatedAt=Date.now(); await save(); closeModal(); nbRefresh(); toast('Not silindi'); return; }
+},true);
 async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
