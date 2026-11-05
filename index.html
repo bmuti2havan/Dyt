@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261105-184904">
+<meta name="app-ver" content="20261105-185201">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -12294,6 +12294,10 @@ function renderShareViewCore(snap){
         <button class="btn btn-sm" id="svShopBtn" type="button" style="flex:1;justify-content:center">🛒 Alışveriş Listesi</button>
       </div>`:''}
       <button class="btn btn-sm" id="svInstallBtn" type="button" style="margin-top:8px;width:100%;justify-content:center">📲 Ana ekrana ekle</button>
+      <div class="sv-soc" style="display:flex;gap:8px;margin-top:10px;justify-content:center">
+        <a href="https://www.instagram.com/dytaysenurkorkmaz?rpxt=dXg5M3FldnkzdnBt" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);color:#fff;font-size:12px;font-weight:700;text-decoration:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".6" fill="currentColor"/></svg>Instagram</a>
+        <a href="https://dytaysenurkorkmazantalya.com.tr/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);color:#fff;font-size:12px;font-weight:700;text-decoration:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg>Web sitem</a>
+      </div>
     </div>
     <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Görünümü ve rengi seç</button>
     ${svPushCardHtml()}
