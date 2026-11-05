@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261105-182035">
+<meta name="app-ver" content="20261105-183007">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -14889,7 +14889,7 @@ html.sv-dark img,html.sv-dark video,html.sv-dark canvas,html.sv-dark .sv-hero,ht
         +'<div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:16px 0 6px;letter-spacing:.04em">KARANLIK MOD</div><div style="display:flex;gap:8px">'+btn('Otomatik',dk==='auto',"svUxSet('sv_dark','auto')")+btn('☀️ Açık',dk==='off',"svUxSet('sv_dark','off')")+btn('🌙 Koyu',dk==='on',"svUxSet('sv_dark','on')")+'</div>');
     }catch(err){}
   };
-  setInterval(()=>{ if(!window.__shareTok) return; try{ svUxTidy(); svUxPlanDecorate(); svUxPrefs(); }catch(e){} },800);
+  setInterval(()=>{ if(!window.__shareTok) return; try{ svUxTidy(); svUxPlanDecorate(); svUxPrefs(); svVisTidy(); }catch(e){} },800);
 })();
 
 /* ══ Yönetici paneli görünümü: 5 stil (yazı + buton şekli) × 10 geçişli renk ══ */
@@ -15055,6 +15055,128 @@ function svUxTodayAutoImg(){
       row.insertBefore(im,row.querySelector('.uxk'));
     });
   });
+}
+/* ══ Danışan ekranı: görsel yenileme (cam kartlar, ışık lekeleri, yüzen menü, animasyonlar, çizimler) ══ */
+const SV_VIS_P='html:not([data-svui="klasik"]):not([data-svui="sade"])';
+const SV_VIS_CSS=`
+@keyframes visRise{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes visPop{0%{transform:translateY(2px) scale(.9)}60%{transform:translateY(-6px) scale(1.06)}100%{transform:translateY(-4px) scale(1)}}
+@keyframes visTick{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes visFloat{50%{transform:translateY(-6px)}}
+§ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+ radial-gradient(42vmax 42vmax at 6% 4%,color-mix(in srgb,var(--sv-g1,#6E3CA0) 26%,transparent),transparent 70%),
+ radial-gradient(38vmax 38vmax at 104% 36%,color-mix(in srgb,var(--sv-g2,#FF6B57) 22%,transparent),transparent 70%),
+ radial-gradient(36vmax 36vmax at -4% 98%,color-mix(in srgb,var(--sv-g1,#6E3CA0) 11%,transparent),transparent 70%),
+ radial-gradient(circle,color-mix(in srgb,var(--sv-g1,#6E3CA0) 15%,transparent) 1px,transparent 1.6px) 0 0/22px 22px}
+§ .sv-card{border-radius:var(--vr,24px);border:1px solid rgba(255,255,255,.8);background-color:rgba(255,255,255,.8);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);box-shadow:0 1px 0 rgba(255,255,255,.95) inset,0 20px 40px -26px var(--vs,rgba(59,30,84,.5))}
+§ .svup-card{border-radius:var(--vr,24px);box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 18px 36px -26px var(--vs,rgba(59,30,84,.5))}
+§ .sv-hero{border-radius:calc(var(--vr,24px) + 6px);box-shadow:0 26px 44px -26px var(--sv-g0,#53297A)}
+§ .sv-card-h{padding:17px 20px 14px;border-bottom:0;background:radial-gradient(130% 150% at 0% 0%,var(--blue-100,#EFE8FF) 0%,rgba(255,255,255,0) 72%)}
+§ .sv-card-h h3,§ .svup-h{font-size:16.5px;font-weight:800;letter-spacing:-.01em;color:var(--blue-900,#3B1E54)}
+§ .sv-card-h p,§ .svup-card .hint,§ .sv-card p.hint{color:var(--muted);font-size:12.5px;line-height:1.55}
+§ .sv-tab.on{gap:6px}
+§ .sv-tab.on>*{animation:visRise .55s cubic-bezier(.2,.8,.2,1) both}
+§ .sv-tab.on>*:nth-child(2){animation-delay:.05s}§ .sv-tab.on>*:nth-child(3){animation-delay:.1s}§ .sv-tab.on>*:nth-child(4){animation-delay:.15s}§ .sv-tab.on>*:nth-child(5){animation-delay:.2s}§ .sv-tab.on>*:nth-child(6){animation-delay:.25s}§ .sv-tab.on>*:nth-child(n+7){animation-delay:.3s}
+§ #shareView button:not(#svTabBar button):active,§ #shareView .btn:active,§ #shareView a.btn:active{transform:scale(.96);transition:transform .08s}
+§ #svTabBar{background:rgba(255,255,255,.74)!important;-webkit-backdrop-filter:blur(20px) saturate(1.7);backdrop-filter:blur(20px) saturate(1.7);border:1px solid rgba(255,255,255,.85);box-shadow:0 22px 44px -16px rgba(40,20,70,.5),0 1px 0 rgba(255,255,255,.95) inset!important;padding:6px;border-radius:30px;gap:2px}
+§ #svTabBar button{font-family:inherit!important;font-size:11px!important;font-weight:700!important;letter-spacing:.01em;color:var(--blue-700,#53297A)!important;opacity:.72;gap:3px!important;padding:7px 2px 6px!important;transition:all .25s cubic-bezier(.3,1.4,.5,1)}
+§ #svTabBar .ti{width:24px;height:24px;display:grid!important;place-items:center;filter:none!important;font-size:0!important}
+§ #svTabBar .ti svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+§ #svTabBar button.on{opacity:1;color:#fff!important;background:linear-gradient(135deg,var(--sv-g1,#6E3CA0),var(--sv-g2,#FF6B57))!important;box-shadow:0 12px 22px -8px var(--sv-g1,#6E3CA0)!important;transform:translateY(-4px);animation:visPop .4s cubic-bezier(.3,1.5,.5,1)}
+§ #svTabBar .dot{box-shadow:0 0 0 2px #fff}
+§ .sv-avatar{position:relative;overflow:visible}
+§ .sv-avatar .visring{position:absolute;left:-7px;top:-7px;width:calc(100% + 14px);height:calc(100% + 14px);transform:rotate(-90deg);pointer-events:none}
+§ .sv-avatar .visring circle{fill:none;stroke-width:5;stroke-linecap:round}
+§ .sv-avatar .visring .t{stroke:rgba(255,255,255,.3)}
+§ .sv-avatar .visring .p{stroke:#fff;transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 4px rgba(255,255,255,.7))}
+§ .uxm .uxe{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;font-size:23px;background:linear-gradient(135deg,var(--blue-50,#F6F1FF),var(--blue-100,#EFE8FF));box-shadow:0 8px 14px -10px rgba(59,30,84,.5)}
+§ .uxm[data-mk=k] .uxe{background:linear-gradient(135deg,#FFF1BF,#FFC965)}
+§ .uxm[data-mk=o] .uxe{background:linear-gradient(135deg,#FFE0C2,#FF9F6B)}
+§ .uxm[data-mk=a] .uxe{background:linear-gradient(135deg,#E6DDFF,#B79CF0)}
+§ .uxm[data-mk=s] .uxe{background:linear-gradient(135deg,#DDF5D2,#8FD18A)}
+§ .uxk[aria-pressed=true]{animation:visTick .45s cubic-bezier(.3,1.6,.5,1)}
+§ .svempty{text-align:center}
+§ .svempty .oi{width:92px;height:92px;margin:6px auto 10px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff,var(--blue-100,#EFE8FF));box-shadow:0 14px 26px -16px var(--sv-g1,#6E3CA0);animation:visFloat 4s ease-in-out infinite}
+§ .svempty .oi svg{width:52px;height:52px;fill:none;stroke:var(--sv-g1,#6E3CA0);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.vis-cf{position:fixed;z-index:99999;width:8px;height:12px;border-radius:2px;pointer-events:none}
+html[data-svth=gul]{--vr:28px;--vs:rgba(156,63,96,.5)}
+html[data-svth=lavanta]{--vr:26px;--vs:rgba(107,79,163,.5)}
+html[data-svth=okyanus]{--vr:16px;--vs:rgba(27,108,147,.45)}
+html[data-svth=zeytin]{--vr:20px;--vs:rgba(75,90,34,.45)}
+html[data-svth=nane]{--vr:28px;--vs:rgba(47,125,91,.45)}
+html[data-svth=gunbatimi]{--vr:22px;--vs:rgba(192,86,30,.5)}
+html[data-svth=gece]{--vr:18px;--vs:rgba(43,48,104,.55)}
+@media (prefers-reduced-motion:reduce){§ .sv-tab.on>*,§ #svTabBar button.on,§ .svempty .oi{animation:none!important}}
+`.replace(/§/g,SV_VIS_P);
+const SV_VIS_ICONS={
+ today:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8L6 18M18 6l1.8-1.8"/></svg>',
+ plan:'<svg viewBox="0 0 24 24"><path d="M3.5 11h17a8.5 8.5 0 0 1-17 0z"/><path d="M9 7.5c0-1.3 1.2-1.3 1.2-2.6M14 7.5c0-1.3 1.2-1.3 1.2-2.6"/></svg>',
+ prog:'<svg viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M7.5 15.5l4-4.2 3 2.8 5-6"/></svg>',
+ chat:'<svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-12.2 7.6L3.5 21l1.3-4.4A8.5 8.5 0 1 1 20.5 12z"/><path d="M8.5 11.5h7M8.5 14.5h4"/></svg>',
+ more:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="2"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="2"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="2"/></svg>'
+};
+const SV_VIS_EMPTY={
+ cal:'<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/><path d="M8.5 14.5l2 2 4-4"/></svg>',
+ mail:'<svg viewBox="0 0 24 24"><rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="M3.5 7.5l8.5 6 8.5-6"/></svg>',
+ scale:'<svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="4"/><path d="M8 9.5a5 5 0 0 1 8 0M12 9.5l2-2.2"/></svg>',
+ sprout:'<svg viewBox="0 0 24 24"><path d="M12 21v-9"/><path d="M12 12c0-4 2.5-6 7-6 0 4-2.5 6-7 6zM12 15c0-3-2-4.7-6-4.7 0 3 2 4.700 6 4.700z"/></svg>'
+};
+function svVisCss(){
+  if(document.getElementById('svVisCss')) return;
+  const st=document.createElement('style'); st.id='svVisCss'; st.textContent=SV_VIS_CSS; document.head.appendChild(st);
+  document.addEventListener('click',ev=>{
+    const b=ev.target&&ev.target.closest&&ev.target.closest('.uxk[data-ux-ate]'); if(!b||b.getAttribute('aria-pressed')!=='false') return;
+    try{ if(navigator.vibrate) navigator.vibrate(25); }catch(e){}
+    svVisConfetti(b);
+  },true);
+}
+function svVisConfetti(el){
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const r=el.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2, cs=getComputedStyle(document.documentElement);
+  const cols=[cs.getPropertyValue('--sv-g1')||'#6E3CA0',cs.getPropertyValue('--sv-g2')||'#FF6B57','#FFD166','#8FD18A','#fff'];
+  for(let i=0;i<22;i++){
+    const d=document.createElement('i'); d.className='vis-cf'; d.style.left=cx+'px'; d.style.top=cy+'px'; d.style.background=cols[i%cols.length].trim();
+    document.body.appendChild(d);
+    const a=Math.random()*Math.PI*2, v=60+Math.random()*90;
+    d.animate([{transform:'translate(0,0) rotate(0)',opacity:1},{transform:`translate(${Math.cos(a)*v}px,${Math.sin(a)*v-40}px) rotate(${Math.random()*540}deg)`,opacity:1,offset:.6},{transform:`translate(${Math.cos(a)*v*1.2}px,${Math.sin(a)*v+70}px) rotate(${Math.random()*720}deg)`,opacity:0}],{duration:900+Math.random()*400,easing:'cubic-bezier(.2,.7,.3,1)'}).onfinish=()=>d.remove();
+  }
+}
+function svVisCount(el){
+  const raw=(el.textContent||'').trim(), m=/^([−-]?)(\d+(?:[.,]\d+)?)(.*)$/.exec(raw); if(!m||el.dataset.vc===raw||el.children.length) return;
+  el.dataset.vc=raw; const dec=(m[2].split(/[.,]/)[1]||'').length, sep=/,/.test(m[2])?',':'.', to=parseFloat(m[2].replace(',','.')), t0=performance.now(), D=800;
+  const fmt=v=>m[1]+(dec?v.toFixed(dec).replace('.',sep):String(Math.round(v)))+m[3];
+  const step=t=>{ const k=Math.min(1,(t-t0)/D), e=1-Math.pow(1-k,3); el.textContent=fmt(to*e); if(k<1) requestAnimationFrame(step); else el.textContent=raw; };
+  el.textContent=fmt(0); requestAnimationFrame(step);
+}
+function svVisTidy(){
+  if(!window.__shareTok||!document.getElementById('shareView')) return;
+  svVisCss();
+  const th=document.documentElement.getAttribute('data-svth'); try{ const n=localStorage.getItem(svThemeKey())||'pembe'; if(th!==n) document.documentElement.setAttribute('data-svth',n); }catch(e){}
+  /* menü ikonları */
+  document.querySelectorAll('#svTabBar button[data-svtab]').forEach(b=>{ const t=b.querySelector('.ti'); if(t&&!t.dataset.vi&&SV_VIS_ICONS[b.dataset.svtab]){ t.innerHTML=SV_VIS_ICONS[b.dataset.svtab]; t.dataset.vi='1'; } });
+  /* karşılama: avatar çevresinde bugünün öğün halkası */
+  const av=document.querySelector('.sv-hero .sv-avatar');
+  if(av){
+    const mc=document.getElementById('svMealsCard'), mm=mc&&/(\d+)\s*\/\s*(\d+)\s*öğün/.exec(mc.innerText||''), fr=mm&&+mm[2]?Math.min(1,(+mm[1])/(+mm[2])):0;
+    let sv=av.querySelector('.visring');
+    if(!sv){ av.insertAdjacentHTML('beforeend','<svg class="visring" viewBox="0 0 100 100"><circle class="t" cx="50" cy="50" r="46"/><circle class="p" cx="50" cy="50" r="46" stroke-dasharray="289" stroke-dashoffset="289"/></svg>'); sv=av.querySelector('.visring'); }
+    const p=sv.querySelector('.p'), off=String(Math.round(289*(1-fr))); if(p.getAttribute('stroke-dashoffset')!==off) setTimeout(()=>p.setAttribute('stroke-dashoffset',off),60);
+    av.title='Bugün '+(mm?mm[1]+'/'+mm[2]:'0')+' öğün';
+  }
+  /* öğün renkleri */
+  document.querySelectorAll('#svMealsCard .uxm:not([data-mk])').forEach(r=>{ const n=((r.querySelector('.uxb b')||{}).textContent||'').toLocaleLowerCase('tr'); r.dataset.mk=/kahvalt/.test(n)?'k':/öğle|ogle/.test(n)?'o':/akşam|aksam/.test(n)?'a':/ara|atıştır/.test(n)?'s':'n'; });
+  /* sayarak yükselen rakamlar */
+  document.querySelectorAll('.sv-hero p b, #svRingCard .svpct, .sv-kpi *').forEach(svVisCount);
+  const rc=document.getElementById('svRingCard'); if(rc) rc.querySelectorAll('*').forEach(e=>{ if(!e.children.length&&/^\d+%$/.test((e.textContent||'').trim())) svVisCount(e); });
+  /* grafik: çizgi soldan sağa çizilir */
+  const gs=document.querySelector('#sv-grafik svg');
+  if(gs&&!gs.dataset.vd&&gs.getBoundingClientRect().width>0){
+    gs.dataset.vd='1';
+    gs.querySelectorAll('path[fill="none"][stroke]').forEach(pth=>{ try{ const L=pth.getTotalLength(); pth.style.strokeDasharray=L; pth.style.strokeDashoffset=L; pth.getBoundingClientRect(); pth.style.transition='stroke-dashoffset 1.2s cubic-bezier(.3,.7,.2,1)'; requestAnimationFrame(()=>{ pth.style.strokeDashoffset=0; }); setTimeout(()=>{ pth.style.strokeDasharray=''; pth.style.strokeDashoffset=''; pth.style.transition=''; },1500); }catch(e){} });
+    gs.querySelectorAll('circle').forEach((c,i)=>{ c.style.opacity=0; c.style.transition='opacity .4s '+(0.6+i*0.1)+'s'; requestAnimationFrame(()=>{ c.style.opacity=1; }); });
+  }
+  /* boş ekran çizimleri */
+  document.querySelectorAll('.svempty .oi:not([data-vi])').forEach(o=>{ const tx=((o.parentNode.querySelector('b')||{}).textContent||'').toLocaleLowerCase('tr'); const k=/program|takvim/.test(tx)?'cal':/mesaj|cevap|gelmedi/.test(tx)?'mail':/ölçüm|grafik|kilo/.test(tx)?'scale':'sprout'; o.innerHTML=SV_VIS_EMPTY[k]; o.dataset.vi='1'; });
 }
 async function svIntakePost(entry){
   const tok=window.__shareTok;
