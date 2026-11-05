@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261105-185201">
+<meta name="app-ver" content="20261105-190039">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -12294,10 +12294,6 @@ function renderShareViewCore(snap){
         <button class="btn btn-sm" id="svShopBtn" type="button" style="flex:1;justify-content:center">🛒 Alışveriş Listesi</button>
       </div>`:''}
       <button class="btn btn-sm" id="svInstallBtn" type="button" style="margin-top:8px;width:100%;justify-content:center">📲 Ana ekrana ekle</button>
-      <div class="sv-soc" style="display:flex;gap:8px;margin-top:10px;justify-content:center">
-        <a href="https://www.instagram.com/dytaysenurkorkmaz?rpxt=dXg5M3FldnkzdnBt" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);color:#fff;font-size:12px;font-weight:700;text-decoration:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".6" fill="currentColor"/></svg>Instagram</a>
-        <a href="https://dytaysenurkorkmazantalya.com.tr/" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);color:#fff;font-size:12px;font-weight:700;text-decoration:none"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg>Web sitem</a>
-      </div>
     </div>
     <button type="button" onclick="svThemeOpen()" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:12px;padding:11px 14px;border-radius:16px;border:1.5px dashed var(--blue-500);background:#fff;color:var(--blue-700);font:inherit;font-weight:700;font-size:13.5px;cursor:pointer">🎨 Görünümü ve rengi seç</button>
     ${svPushCardHtml()}
@@ -15143,6 +15139,13 @@ const SV_VIS_CSS=`
 § .svempty{text-align:center}
 § .svempty .oi{width:92px;height:92px;margin:6px auto 10px;display:grid;place-items:center;border-radius:50%;background:radial-gradient(circle at 30% 25%,#fff,var(--blue-100,#EFE8FF));box-shadow:0 14px 26px -16px var(--sv-g1,#6E3CA0);animation:visFloat 4s ease-in-out infinite}
 § .svempty .oi svg{width:52px;height:52px;fill:none;stroke:var(--sv-g1,#6E3CA0);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#svSoc{position:fixed;right:12px;top:76px;z-index:8200;display:flex;flex-direction:column;gap:10px;transition:opacity .25s,transform .25s}
+#svSoc.off{opacity:0;transform:translateX(70px);pointer-events:none}
+#svSoc a{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff;box-shadow:0 12px 22px -10px rgba(40,20,70,.6),0 0 0 2px rgba(255,255,255,.9);transition:transform .15s}
+#svSoc a:active{transform:scale(.92)}
+#svSoc svg{width:22px;height:22px}
+#svSoc .ig{background:linear-gradient(45deg,#F9B94B,#E1306C 55%,#833AB4)}
+#svSoc .ws{background:linear-gradient(135deg,var(--sv-g1,#6E3CA0),var(--sv-g2,#FF6B57))}
 .vis-cf{position:fixed;z-index:99999;width:8px;height:12px;border-radius:2px;pointer-events:none}
 html[data-svth=gul]{--vr:28px;--vs:rgba(156,63,96,.5)}
 html[data-svth=lavanta]{--vr:26px;--vs:rgba(107,79,163,.5)}
@@ -15196,6 +15199,13 @@ function svVisCount(el){
 function svVisTidy(){
   if(!window.__shareTok||!document.getElementById('shareView')) return;
   svVisCss();
+  if(!document.getElementById('svSoc')){
+    const d=document.createElement('div'); d.id='svSoc';
+    d.innerHTML='<a class="ig" href="https://www.instagram.com/dytaysenurkorkmaz?rpxt=dXg5M3FldnkzdnBt" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r=".6" fill="currentColor"/></svg></a><a class="ws" href="https://dytaysenurkorkmazantalya.com.tr/" target="_blank" rel="noopener" aria-label="Web sitem" title="Web sitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"/></svg></a>';
+    document.body.appendChild(d);
+    const upd=()=>{ d.classList.toggle('off',(window.scrollY||document.documentElement.scrollTop||0)>90); };
+    window.addEventListener('scroll',upd,{passive:true}); upd();
+  }
   const th=document.documentElement.getAttribute('data-svth'); try{ const n=localStorage.getItem(svThemeKey())||'pembe'; if(th!==n) document.documentElement.setAttribute('data-svth',n); }catch(e){}
   /* menü ikonları */
   document.querySelectorAll('#svTabBar button[data-svtab]').forEach(b=>{ const t=b.querySelector('.ti'); if(t&&!t.dataset.vi&&SV_VIS_ICONS[b.dataset.svtab]){ t.innerHTML=SV_VIS_ICONS[b.dataset.svtab]; t.dataset.vi='1'; } });
