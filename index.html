@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261106-114604">
+<meta name="app-ver" content="20261106-121819">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -8200,7 +8200,31 @@ function modal(title,bodyHTML,okLabel,okAct,size){
   </div></div>`;
   const f=document.querySelector('.modal-b input,.modal-b select,.modal-b textarea'); if(f) f.focus();
 }
-const closeModal=()=>{ S.apptPrefill=null; S.waAutoStop=true; document.getElementById('modalRoot').innerHTML=''; };
+/* Yeni program formu: yarım kalsa bile taslak olarak kaydet */
+const PN_IDS=['p-client','p-tpl','p-name','p-sub','p-start','p-firstday','p-status','p-season','p-purpose','p-note'];
+function pnDraftRead(){ try{ return JSON.parse(localStorage.getItem('dyt_plan_draft')||'null'); }catch(e){ return null; } }
+function pnDraftClear(){ try{ localStorage.removeItem('dyt_plan_draft'); }catch(e){} }
+function pnDraftWrite(){ const f={}; PN_IDS.forEach(id=>{ const el=document.getElementById(id); if(el) f[id]=el.value; }); try{ localStorage.setItem('dyt_plan_draft',JSON.stringify({f,at:Date.now()})); }catch(e){} }
+function pnIsOpen(){ return !!document.querySelector('.modal-f [data-ok="plan-new"]'); }
+function pnFlush(){
+  const d=pnDraftRead(); if(!d||!d.f) return false; pnDraftClear();
+  const f=d.f; if(!(f['p-name']||'').trim()||!clientOf(f['p-client'])) return false;
+  try{
+    const start=f['p-start']||todayISO();
+    const p={id:uid('p'),clientId:f['p-client'],name:f['p-name'],sub:f['p-sub']||'',start,status:'Taslak',privNote:f['p-note']||'',footer:'',firstDay:+(f['p-firstday']||0),
+      purpose:String(f['p-purpose']||'').split('\n').map(x=>x.trim()).filter(Boolean),closing:TPL.closing,days:newDays()};
+    const T0=f['p-tpl']?tplGet(f['p-tpl']):null;
+    if(T0){ applyTplToPlan(p,T0,(f['p-sub']||'')===TPL.sub); if(!p.privNote) p.privNote=String(T0.t.privNote||''); }
+    const sv=f['p-season']; p.season= sv==='auto' ? ((T0&&seasonOf(T0.t.season))? T0.t.season : seasonFromDate(start)) : (sv||'');
+    DB.plans.push(p); DB.updatedAt=Date.now();
+    setTimeout(async()=>{ try{ await save(); render(); toast('📝 Yarım kalan program taslak olarak kaydedildi'); }catch(e){} },30);
+    return true;
+  }catch(e){ return false; }
+}
+document.addEventListener('input',e=>{ if(pnIsOpen()&&e.target.closest&&e.target.closest('.modal-b')) pnDraftWrite(); });
+document.addEventListener('change',e=>{ if(pnIsOpen()&&e.target.closest&&e.target.closest('.modal-b')) pnDraftWrite(); });
+setTimeout(()=>{ try{ if(!/[?&](v|promo)=/.test(location.search)&&!pnIsOpen()&&pnDraftRead()) pnFlush(); }catch(e){} },2500);
+const closeModal=()=>{ try{ if(pnIsOpen()) pnFlush(); }catch(e){} S.apptPrefill=null; S.waAutoStop=true; document.getElementById('modalRoot').innerHTML=''; };
 function openSupportModal(){
   modal('🆘 Yardım / Bir Sorun mu Var?',
     `<p style="font-size:13px;color:var(--muted);margin:0 0 12px">Sorun yaşarsan buradan bildir, hallederiz.</p>
@@ -8985,7 +9009,7 @@ async function handleOk(act){
     if(T0){ applyTplToPlan(p,T0,val('p-sub')===TPL.sub); if(!p.privNote) p.privNote=String(T0.t.privNote||''); }
     const sv=val('p-season');
     p.season= sv==='auto' ? ((T0&&seasonOf(T0.t.season))? T0.t.season : seasonFromDate(start)) : sv;
-    DB.plans.push(p); S.plan=p.id; S.day=0; S.page='planEdit'; toast('Program oluşturuldu ✨');
+    DB.plans.push(p); S.plan=p.id; S.day=0; S.page='planEdit'; pnDraftClear(); toast('Program oluşturuldu ✨');
   }
   if(act==='plan-edit'){
     const p=DB.plans.find(x=>x.id===S.plan);
