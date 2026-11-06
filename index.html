@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261106-055825">
+<meta name="app-ver" content="20261106-114604">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -1086,7 +1086,7 @@ main>*{animation:rise .22s ease both}
   .app .rail-foot{padding:2px 12px 8px;gap:6px}.app .rail-foot .btn{font-size:11px;padding:6px 9px;min-height:32px}
   .app .top-right{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.app .top-right::-webkit-scrollbar{display:none}
   .app .top-right .btn{flex:0 0 auto;font-size:12px;padding:7px 11px}
-  #notifFloat{bottom:92px!important}
+  #notifFloat{bottom:92px!important;top:auto!important;height:auto!important}
 }
 @media (prefers-reduced-motion:reduce){.app .page>*{animation:none}}
 
@@ -9010,6 +9010,7 @@ async function handleOk(act){
 
 /* ══════════════ Yönlendirme ══════════════ */
 const SVG={
+ chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.5-4.6A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/>',
  panel:'<rect x="3" y="3" width="7" height="8" rx="1.6"/><rect x="14" y="3" width="7" height="5" rx="1.6"/><rect x="14" y="11" width="7" height="10" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/>',
  clients:'<path d="M16 20v-1.6A3.4 3.4 0 0 0 12.6 15H6.4A3.4 3.4 0 0 0 3 18.4V20"/><circle cx="9.5" cy="8" r="3.4"/><path d="M17 11.2a3.2 3.2 0 0 0 0-6.2"/><path d="M21 20v-1.5a3.3 3.3 0 0 0-2.4-3.1"/>',
  appts:'<rect x="3" y="4.6" width="18" height="16.4" rx="2.4"/><path d="M3 9.6h18M8 2.8v3.6M16 2.8v3.6"/><circle cx="12" cy="15" r="1.4" fill="currentColor" stroke="none"/>',
@@ -9041,10 +9042,10 @@ const avColor=n=>{
   return AV[Math.abs(h)%AV.length];
 };
 
-const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevular'},{id:'notebook',ic:'plans',t:'Not defteri'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
+const NAV=[{s:'Klinik'},{id:'panel',ic:'panel',t:'Panel'},{id:'chat',ic:'chat',t:'Sohbet'},{id:'clients',ic:'clients',t:'Danışanlar'},{id:'cal',ic:'appts',t:'Takvim'},{id:'appts',ic:'appts',t:'Randevular'},{id:'notebook',ic:'plans',t:'Not defteri'},{id:'invoices',ic:'chart',t:'Fatura kesilenler'},{id:'wa',ic:'clients',t:'WhatsApp'},
   {s:'Beslenme'},{id:'plans',ic:'plans',t:'Programlar'},{id:'foods',ic:'foods',t:'Besin kütüphanesi'},{id:'content',ic:'plans',t:'İçerik stüdyosu'},{id:'aware',ic:'appts',t:'İçerik takvimi'},
   {s:'Sistem'},{id:'myphotos',ic:'camera',t:'Cilvenazımla Fotiler'},{id:'trash',ic:'settings',t:'Çöp kutusu'},{id:'settings',ic:'settings',t:'Ayarlar'}];
-const TITLES={notebook:'Not defteri',aware:'İçerik takvimi',wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Cilvenazımla Fotiler'};
+const TITLES={chat:'Sohbet',notebook:'Not defteri',aware:'İçerik takvimi',wa:'WhatsApp',content:'İçerik stüdyosu',trash:'Çöp kutusu',invoices:'Fatura kesilenler',cal:'Takvim',search:'Arama',panel:'Panel',clients:'Danışanlar',client:'Danışan dosyası',appts:'Randevular',plans:'Programlar',planEdit:'Program',foods:'Besin kütüphanesi',settings:'Ayarlar',myphotos:'Cilvenazımla Fotiler'};
 function pageSearch(){
   const q=(S.gq||'').toLocaleLowerCase('tr');
   const cl=DB.clients.filter(c=>c.name.toLocaleLowerCase('tr').includes(q));
@@ -10005,12 +10006,12 @@ function pageInvoices(){
   </section>`;
 }
 
-const PAGES={notebook:pageNotebook,aware:pageAware,wa:pageWa,content:pageContent,trash:pageTrash,invoices:pageInvoices,cal:pageCal,search:pageSearch,panel:pagePanel,clients:pageClients,client:pageClient,appts:pageAppts,plans:pagePlans,planEdit:pagePlanEdit,foods:pageFoods,settings:pageSettings,myphotos:pageMyPhotos};
+const PAGES={chat:pageChat,notebook:pageNotebook,aware:pageAware,wa:pageWa,content:pageContent,trash:pageTrash,invoices:pageInvoices,cal:pageCal,search:pageSearch,panel:pagePanel,clients:pageClients,client:pageClient,appts:pageAppts,plans:pagePlans,planEdit:pagePlanEdit,foods:pageFoods,settings:pageSettings,myphotos:pageMyPhotos};
 
 function render(){
   document.getElementById('nav').innerHTML=NAV.map(i=>i.s?`<div class="nav-sec">${i.s}</div>`:
     `<button class="nav-item" data-go="${i.id}" ${S.page===i.id||(i.id==='clients'&&S.page==='client')||(i.id==='plans'&&S.page==='planEdit')?'aria-current="page"':''}>
-      <span class="ic">${ic(i.ic)}</span>${i.t}${i.id==='clients'&&DB.clients.length?`<span class="count">${DB.clients.length}</span>`:''}${i.id==='plans'&&DB.plans.length?`<span class="count">${DB.plans.length}</span>`:''}</button>`).join('');
+      <span class="ic">${ic(i.ic)}</span>${i.t}${i.id==='clients'&&DB.clients.length?`<span class="count">${DB.clients.length}</span>`:''}${i.id==='plans'&&DB.plans.length?`<span class="count">${DB.plans.length}</span>`:''}${i.id==='chat'?wcNavBadge():''}</button>`).join('');
   const bl=document.getElementById('brandLogo');
   if(DB.profile.logo){ bl.src=DB.profile.logo; bl.style.display=''; } else bl.style.display='none';
   document.getElementById('brandName').textContent=DB.profile.name;
@@ -10060,6 +10061,80 @@ function paintNotifBadge(){
 }
 function chatSeenOf(c){ return c.chatSeenAt!=null?c.chatSeenAt:((DB.profile&&DB.profile.notifSeenAt)||0); }
 function chatUnreadOf(c){ const seen=chatSeenOf(c); return chatItems(c).filter(x=>(+x.at||0)>seen).length; }
+/* ══════════════ 💬 Sohbet sayfası (WhatsApp Web gibi: solda danışanlar, sağda mesajlar) ══════════════ */
+const WC_CSS=`
+.wc{display:grid;grid-template-columns:minmax(290px,370px) 1fr;height:calc(100dvh - 150px);min-height:480px;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--sh-1,0 6px 24px rgba(20,60,80,.08))}
+.wc-l{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line);background:#fff}
+.wc-l h2{margin:0;padding:16px 16px 4px;font-family:var(--serif);font-size:21px;color:var(--blue-900);display:flex;align-items:center;gap:8px}
+.wc-q{margin:8px 14px 10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;font-size:14px;background:#f4f7f8;width:calc(100% - 28px)}
+.wc-list{flex:1;overflow:auto}
+.wc-it{display:flex;gap:12px;align-items:center;width:100%;padding:11px 14px;border:0;border-bottom:1px solid #eef1f3;background:#fff;text-align:left;cursor:pointer;font:inherit;transition:background .15s}
+.wc-it:hover{background:#f5f9fa}.wc-it.on{background:linear-gradient(120deg,#E3F1F5,#FDF1E2)}
+.wc-av{flex:0 0 46px;height:46px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:15px}
+.wc-m{flex:1;min-width:0}
+.wc-r1{display:flex;gap:8px;align-items:baseline}
+.wc-r1 b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14.5px}
+.wc-r1 span{font-size:11.5px;color:var(--muted)}.wc-it.un .wc-r1 span{color:#128C4A;font-weight:700}
+.wc-r2{display:flex;gap:8px;align-items:center;margin-top:2px}
+.wc-r2 span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--muted)}
+.wc-it.un .wc-r2 span{color:var(--ink);font-weight:600}
+.wc-bd{flex:0 0 auto;min-width:21px;height:21px;border-radius:11px;background:#25d366;color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;padding:0 6px}
+.wc-sec{padding:8px 16px;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:#f7f9fa}
+.wc-r{display:flex;flex-direction:column;min-width:0;min-height:0;background:#efe7dd}
+.wc-h{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)}
+.wc-h .wc-av{flex-basis:40px;height:40px;font-size:14px}
+.wc-h b{display:block;font-size:15px}.wc-h small{color:var(--muted);font-size:12px}
+.wc-back{display:none;border:0;background:none;font-size:24px;cursor:pointer;color:var(--blue-700);padding:0 6px}
+.wc-r>section.card{flex:1;display:flex;flex-direction:column;min-height:0;border:0;border-radius:0;box-shadow:none;background:transparent;margin:0}
+.wc-r .card-h{display:none}
+.wc-r #chatBox{flex:1;max-height:none!important;min-height:0}
+.wc-r .card-b{background:#fff}
+html:has(.wc) #notifFloat{display:none!important}
+.wc-empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px;background:linear-gradient(160deg,#EAF4F7,#FDF1E2)}
+.wc-empty div{font-size:46px;margin-bottom:6px}
+@media(max-width:900px){
+ .wc{grid-template-columns:1fr;height:auto;min-height:0;border-radius:16px}
+ .wc.open .wc-l{display:none}.wc:not(.open) .wc-r{display:none}
+ .wc-list{max-height:calc(100dvh - 330px)}
+ .wc-back{display:block}
+ .wc-r #chatBox{max-height:50vh!important;min-height:300px}
+}
+`;
+function gcStrip(h){ return String(h||'').replace(/<br\s*\/?>/gi,' ').replace(/<img[^>]*>/gi,' 📷 ').replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/\s+/g,' ').trim(); }
+function wcLast(c){
+  const inc=chatItems(c); const out=[...(c.mealReplies||[]),...(c.msgs||[])];
+  let a=null; inc.forEach(x=>{ if(!a||(+x.at||0)>(+a.at||0)) a=x; });
+  let b=null; out.forEach(x=>{ if(!b||(+x.at||0)>(+b.at||0)) b=x; });
+  if(!a&&!b) return null;
+  if(b&&(!a||(+b.at||0)>=(+a.at||0))) return {at:+b.at||0,out:true,text:String((b.heart?'❤️ ':'')+(b.emoji?b.emoji+' ':'')+(b.text||'')).trim()||'💌'};
+  return {at:+a.at||0,out:false,text:gcStrip(a.html).slice(0,90)};
+}
+function wcTime(at){ if(!at) return ''; const d=new Date(at), n=new Date(); const dk=localISODate(d), nk=localISODate(n); const y=new Date(n); y.setDate(y.getDate()-1);
+  if(dk===nk) return d.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}); if(dk===localISODate(y)) return 'Dün'; return d.toLocaleDateString('tr-TR',{day:'2-digit',month:'2-digit'}); }
+function wcRows(){
+  const q=(S.wcq||'').toLocaleLowerCase('tr').trim();
+  const all=(DB.clients||[]).filter(c=>!c.deleted&&(!q||String(c.name||'').toLocaleLowerCase('tr').includes(q))).map(c=>({c,last:wcLast(c),un:chatUnreadOf(c)}));
+  const w=all.filter(x=>x.last).sort((a,b)=>b.last.at-a.last.at), n=all.filter(x=>!x.last&&!x.c.archived).sort((a,b)=>String(a.c.name).localeCompare(String(b.c.name),'tr'));
+  const item=x=>`<button type="button" class="wc-it${x.un?' un':''}${S.chatOpen&&S.client===x.c.id?' on':''}" data-wc-open="${esc(x.c.id)}"><span class="wc-av" style="background:${avColor(x.c.name)}">${esc(initials(x.c.name))}</span><span class="wc-m"><span class="wc-r1"><b>${esc(x.c.name||'Danışan')}</b>${x.last?`<span>${wcTime(x.last.at)}</span>`:''}</span><span class="wc-r2"><span>${x.last?(x.last.out?'<b style="color:#4a9a62">✓✓</b> ':'')+esc(x.last.text):'Henüz mesaj yok'}</span>${x.un?`<i class="wc-bd" style="font-style:normal">${x.un}</i>`:''}</span></span></button>`;
+  return (w.length?w.map(item).join(''):'')+(n.length?`<div class="wc-sec">Mesajlaşma başlat</div>`+n.map(item).join(''):'')+((!w.length&&!n.length)?'<p style="padding:24px;text-align:center;color:var(--muted);font-size:13.5px">Danışan bulunamadı.</p>':'');
+}
+function wcTotalUnread(){ try{ return (DB.clients||[]).reduce((t,c)=>t+(c.deleted?0:chatUnreadOf(c)),0); }catch(e){ return 0; } }
+function wcNavBadge(){ const n=wcTotalUnread(); return n?`<span class="count" style="background:#25d366;color:#fff">${n>99?'99+':n}</span>`:''; }
+function pageChat(){
+  if(!document.getElementById('wcCss')){ const st=document.createElement('style'); st.id='wcCss'; st.textContent=WC_CSS; document.head.appendChild(st); }
+  const c=S.chatOpen?clientOf(S.client):null; if(S.chatOpen&&!c) S.chatOpen=false;
+  const tot=wcTotalUnread();
+  const left=`<div class="wc-l"><h2>💬 Sohbet${tot?`<span class="wc-bd" style="font-size:12px">${tot}</span>`:''}</h2><input id="wcq" class="wc-q" placeholder="Danışan ara…" autocomplete="off" value="${esc(S.wcq||'')}"><div class="wc-list" id="wcList">${wcRows()}</div></div>`;
+  const right=c?`<div class="wc-r"><div class="wc-h"><button type="button" class="wc-back" data-wc-back="1" aria-label="Geri">‹</button><span class="wc-av" style="background:${avColor(c.name)}">${esc(initials(c.name))}</span><div style="flex:1;min-width:0"><b>${esc(c.name||'Danışan')}</b><small>${c.shareToken?'🟢 Takip linki bağlı':'🟠 Danışan linki yok, mesaj ulaşmaz'}</small></div><button type="button" class="btn btn-sm" data-client="${esc(c.id)}">Dosyayı aç</button></div>${pageClientChat(c)}</div>`
+    :`<div class="wc-r"><div class="wc-empty"><div><div>💬</div><b style="color:var(--blue-900);font-size:17px">Danışan mesajları</b><p style="margin:6px 0 0;font-size:13.5px">Soldan bir danışan seç, yazışmalar burada açılsın.</p></div></div></div>`;
+  return `<div class="wc${c?' open':''}">${left}${right}</div>`;
+}
+document.addEventListener('click',e=>{
+  if(admIsClientView()) return; const t=e.target; if(!t||!t.closest) return;
+  const o=t.closest('[data-wc-open]'); if(o){ S.client=o.dataset.wcOpen; S.chatOpen=true; S.chatRef=null; S.page='chat'; render(); return; }
+  if(t.closest('[data-wc-back]')){ S.chatOpen=false; render(); return; }
+},true);
+document.addEventListener('input',e=>{ if(e.target&&e.target.id==='wcq'){ S.wcq=e.target.value; const l=document.getElementById('wcList'); if(l) l.innerHTML=wcRows(); } });
 function openNotifPanel(){
   if(typeof Notification!=='undefined' && Notification.permission==='default'){ try{ Notification.requestPermission(); }catch(e){} }
   const todayVisits=(DB.clients||[]).reduce((s,c)=>s+(c.visits||[]).filter(v=>v.date===todayISO()).length,0);
@@ -10082,7 +10157,7 @@ function openNotifPanel(){
   if(unreadNotices().length){ (DB.clients||[]).forEach(c=>{ if(c.chatSeenAt==null) c.chatSeenAt=(DB.profile&&DB.profile.notifSeenAt)||0; }); DB.profile.notifSeenAt=Date.now(); save(); }
   paintNotifBadge();
   document.querySelectorAll('[data-notif-go]').forEach(r=>r.addEventListener('click',()=>{
-    S.page='client'; S.client=r.dataset.notifGo; S.tab='sohbet'; closeModal(); render();
+    S.page='chat'; S.client=r.dataset.notifGo; S.chatOpen=true; S.chatRef=null; closeModal(); render();
   }));
 }
 
@@ -15405,7 +15480,7 @@ function admTodayHtml(){
   const now=new Date(), day=864e5, act=DB.clients.filter(c=>!c.archived);
   const rows=[], sec=(ico,tone,title,items)=>{ if(!items.length) return ''; return '<div class="admt-sec"><div class="admt-h"><span class="admt-i '+tone+'">'+ico+'</span><b>'+title+'</b><em>'+items.length+'</em></div>'+items.slice(0,3).map(i=>'<button type="button" class="admt-r" '+i.attr+'><span class="av" style="background:'+avColor(i.name)+'">'+initials(i.name)+'</span><span class="admt-t"><b>'+esc(i.name)+'</b><small>'+i.sub+'</small></span><span class="admt-go">›</span></button>').join('')+(items.length>3?'<div class="admt-more">+'+(items.length-3)+' kişi daha</div>':'')+'</div>'; };
   const todayA=DB.appts.filter(a=>new Date(a.when).toDateString()===now.toDateString()).sort((a,b)=>new Date(a.when)-new Date(b.when)).map(a=>{ const c=clientOf(a.clientId); return {name:c?c.name:'—',sub:hhmm(a.when)+' · '+esc(a.type||'Görüşme'),attr:'data-client="'+a.clientId+'"'}; });
-  const unread=act.map(c=>({c,n:chatUnreadOf(c)})).filter(x=>x.n>0).map(x=>({name:x.c.name,sub:x.n+' yeni mesaj bekliyor',attr:'data-client="'+x.c.id+'" data-tab-go="sohbet"'}));
+  const unread=act.map(c=>({c,n:chatUnreadOf(c)})).filter(x=>x.n>0).map(x=>({name:x.c.name,sub:x.n+' yeni mesaj bekliyor',attr:'data-wc-open="'+x.c.id+'"'}));
   const quiet=act.filter(c=>plansOf(c.id).some(p=>p.status==='Aktif')).map(c=>({c,g:Math.floor((+now-admLastAct(c))/day)})).filter(x=>admLastAct(x.c)&&x.g>=7).sort((a,b)=>b.g-a.g).map(x=>({name:x.c.name,sub:x.g+' gündür hareket yok',attr:'data-client="'+x.c.id+'"'}));
   const meas=act.map(c=>{ const ms=(c.measures||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date)); return {c,g:ms.length?Math.floor((+now-+new Date(ms[0].date))/day):null}; }).filter(x=>x.g!==null&&x.g>=14).map(x=>({name:x.c.name,sub:x.g+' gündür ölçüm girilmedi',attr:'data-client="'+x.c.id+'"'}));
   const ended=[]; act.forEach(c=>plansOf(c.id).filter(p=>p.status==='Aktif').forEach(p=>{ const end=new Date(p.start); end.setDate(end.getDate()+7); const o=Math.floor((+now-+end)/day); if(o>=0) ended.push({name:c.name,sub:'Programı '+(o===0?'bugün bitti':o+' gün önce bitti'),attr:'data-plan="'+p.id+'"'}); }));
