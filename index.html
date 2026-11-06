@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261106-121819">
+<meta name="app-ver" content="20261106-122019">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -2136,6 +2136,9 @@ function docxMealName(raw){
   f=f.replace(/\b(saat|gibi|civari)\b/g,' ').replace(/\s+/g,' ').trim();
   if(!f||f.length>34) return null;
   f=f.replace(/^\d+\s*/,'').replace(/\s*\d+$/,'').trim();
+  { const km=f.match(/^kalan (?:ogun|yemek|yemegi)(?: ogle| aksam| kahvalti)?(?: (ogle|aksam|kahvalti))?$/)||f.match(/^(ogle|aksam|kahvalti) kalan (?:ogun|yemek|yemegi)$/);   // "♻️ KALAN ÖĞÜN · ÖĞLE"
+    if(km){ const w=km[1]||(f.match(/(ogle|aksam|kahvalti)/)||[])[1]; if(w==='ogle') return 'Öğle'; if(w==='aksam') return 'Akşam'; if(w==='kahvalti') return 'Kahvaltı'; } }
+  if(/^(ikindi|kusluk|gece|sabah|gun ortasi) ara( ogun(u)?| atistirmalik)?$/.test(f)) return 'Ara Öğün';
   if(/^(sabah )?kahvalti(si)?$/.test(f)) return 'Kahvaltı';
   if(/^(ogle|oglen)( yemegi| ogunu| yemek)?$/.test(f)) return 'Öğle';
   if(/^aksam( yemegi| ogunu| yemek)?$/.test(f)) return 'Akşam';
@@ -2155,7 +2158,7 @@ function docxDayInfo(raw){
   m=f.match(/^tek ogun (?:secenegi |gunu )?alternatif (\d{1,2})$/);
   if(m) return {sig:'tek'+(+m[1]),num:null,reps:1,single:true,label:'Tek öğün · Alternatif '+(+m[1])};
   m=f.match(/^(\d{1,2}) ?gun(?: (.*))?$/);
-  if(m&&(restOk(m[2])||/^[^\p{L}\p{N}]*\d{1,2}\s*\.?\s*g[üu]n\s*[-–—:]\s*\S/iu.test(c))) return {sig:'g'+(+m[1]),num:+m[1]};
+  if(m&&(restOk(m[2])||/^[^\p{L}\p{N}]*\d{1,2}\s*\.?\s*g[üu]n\s*[-–—:·•|]\s*\S/iu.test(c))) return {sig:'g'+(+m[1]),num:+m[1]};
   m=f.match(/^gun (\d{1,2})(?: (.*))?$/);
   if(m&&restOk(m[2])) return {sig:'g'+(+m[1]),num:+m[1]};
   m=f.match(new RegExp('^('+DOCX_WD+')(?: (.*))?$'));
@@ -2334,7 +2337,7 @@ async function docxToTemplate(file){
       if(/^genel amac/.test(tlo)){ intro.mode='purpose'; return; }
       if(/^gunluk aromali su/.test(tlo)){ intro.mode='su'; return; }
       const c0=docxCleanLine(t);
-      if(intro.mode==='purpose'){ if(/^bu programda/.test(tlo)) return; if(p.bullet) intro.purpose.push(c0); else if(/hedeflen/.test(tlo)) intro.closing=c0.charAt(0).toLocaleUpperCase('tr')+c0.slice(1); return; }
+      if(intro.mode==='purpose'){ if(/^bu programda/.test(tlo)) return; if(p.bullet||/^[•●▪◦·]\s/.test(t)) intro.purpose.push(c0); else if(/hedeflen/.test(tlo)) intro.closing=c0.charAt(0).toLocaleUpperCase('tr')+c0.slice(1); return; }
       if(intro.mode==='su'){ intro.su.push({c:c0,bu:p.bullet}); return; }
       if(intro.mode==='tek'){ intro.tek.push(c0); return; }
       if(intro.head.length<4&&!p.bullet) intro.head.push(c0);
