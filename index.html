@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261106-053350">
+<meta name="app-ver" content="20261106-054348">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -11901,20 +11901,21 @@ function svRingData(){
   let steps=0,logged=0; try{ const h=svHistLoad().filter(x=>x.date===iso); h.forEach(x=>{ if(x.steps) steps=Math.max(steps,+x.steps||0); }); logged=h.length?1:0; }catch(e){}
   return [{k:'Su',c:'#3ba7d6',v:water/8,t:water+'/8 bardak'},{k:'Adım',c:'#7c8f3e',v:Math.min(1,steps/8000),t:steps?steps.toLocaleString('tr-TR'):'—'},{k:'Günlük',c:'#e4772f',v:logged,t:logged?'işaretlendi ✓':'bekliyor'}];
 }
+const GX_RING=[['#2586B0','#7ED6C0'],['#43A074','#E8D56E'],['#E4604F','#F7AE82']];
 function svRingSvg(d){
   const R=[50,38,26];
-  return '<svg viewBox="0 0 120 120">'+d.map((x,i)=>{ const r=R[i], C=2*Math.PI*r; return '<circle cx="60" cy="60" r="'+r+'" fill="none" stroke="'+x.c+'" stroke-opacity=".16" stroke-width="9"/><circle cx="60" cy="60" r="'+r+'" fill="none" stroke="'+x.c+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(C*x.v).toFixed(1)+' '+C.toFixed(1)+'" style="transition:stroke-dasharray .6s"/>'; }).join('')+'</svg>';
+  return '<svg viewBox="0 0 120 120"><defs>'+GX_RING.map((g,i)=>'<linearGradient id="gxr'+i+'" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="'+g[0]+'"/><stop offset="1" stop-color="'+g[1]+'"/></linearGradient>').join('')+'</defs>'+d.map((x,i)=>{ const r=R[i], C=2*Math.PI*r; return '<circle cx="60" cy="60" r="'+r+'" fill="none" stroke="'+x.c+'" stroke-opacity=".16" stroke-width="9"/><circle cx="60" cy="60" r="'+r+'" fill="none" stroke="url(#gxr'+i+')" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+(C*x.v).toFixed(1)+' '+C.toFixed(1)+'" style="transition:stroke-dasharray .6s"/>'; }).join('')+'</svg>';
 }
 function svRingCardHtml(){
   const d=svRingData(), pct=Math.round(d.reduce((s,x)=>s+x.v,0)/3*100);
-  return '<section class="svup-card" id="svRingCard"><h3 class="svup-h">Bugünün halkası</h3><div class="svring"><div style="position:relative">'+svRingSvg(d).replace('<svg','<svg id="svRingSvg"')+'<div id="svRingPct" style="position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:18px;color:var(--blue-900)">'+pct+'%</div></div><div class="rt" id="svRingTxt">'+d.map(x=>'<div><i style="background:'+x.c+'"></i>'+x.k+'<b>'+x.t+'</b></div>').join('')+'</div></div></section>';
+  return '<section class="svup-card" id="svRingCard"><h3 class="svup-h">Bugünün halkası</h3><div class="svring"><div style="position:relative">'+svRingSvg(d).replace('<svg','<svg id="svRingSvg"')+'<div id="svRingPct" style="position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:18px;color:var(--blue-900)">'+pct+'%</div></div><div class="rt" id="svRingTxt">'+d.map((x,i)=>'<div><i style="background:linear-gradient(135deg,'+GX_RING[i][0]+','+GX_RING[i][1]+')"></i>'+x.k+'<b>'+x.t+'</b></div>').join('')+'</div></div></section>';
 }
 function svRingUpdate(){
   const c=document.getElementById('svRingCard'); if(!c) return;
   const d=svRingData(), pct=Math.round(d.reduce((s,x)=>s+x.v,0)/3*100);
   c.querySelector('svg').outerHTML=svRingSvg(d).replace('<svg','<svg id="svRingSvg"');
   document.getElementById('svRingPct').textContent=pct+'%';
-  document.getElementById('svRingTxt').innerHTML=d.map(x=>'<div><i style="background:'+x.c+'"></i>'+x.k+'<b>'+x.t+'</b></div>').join('');
+  document.getElementById('svRingTxt').innerHTML=d.map((x,i)=>'<div><i style="background:linear-gradient(135deg,'+GX_RING[i][0]+','+GX_RING[i][1]+')"></i>'+x.k+'<b>'+x.t+'</b></div>').join('');
 }
 /* ── Şimdi sıra: saate göre öğün ── */
 function svNowMealHtml(day){
@@ -13160,6 +13161,10 @@ function svAchievementHtml(snap){
 }
 /* ══════════════ Danışan linki: renk temaları, sabah mesajı, kutlamalar ══════════════ */
 const SV_THEMES={
+  safak:{n:'Şafak',em:'🌄',sw:'#2586B0',v:['#10405A','#17678A','#2586B0','#8DBCCB','#D6E9EF','#EBF4F6','#F5F8F6'],h:['#1F7BA6','#5E9AA3','#E39A55']},
+  aksam:{n:'Akşam sisi',em:'🌆',sw:'#6E6FB8',v:['#2F2E5E','#4F4F94','#6E6FB8','#C0A6CC','#E8DFF0','#F3EEF7','#FAF5F6'],h:['#5B5FA8','#C98AA5','#F4B684']},
+  gulkurusu:{n:'Gül kurusu',em:'🥀',sw:'#C15678',v:['#5C2238','#9C3F60','#C15678','#E9A9A0','#F6DCE4','#FBEEF2','#FFF6F2'],h:['#B04A6A','#E07A6E','#F6B98F']},
+  aurora:{n:'Aurora',em:'🌌',sw:'#2FA39A',v:['#123E4F','#1E6F7C','#2FA39A','#8BD1B5','#D4F0E6','#E9F8F2','#F4FBF7'],h:['#2A8CB8','#43A074','#E8D56E']},
   pembe:{n:'Mürdüm',em:'💜',sw:'#6E3CA0'},
   gul:{n:'Gül',em:'🌸',sw:'#D2607C',v:['#5C2238','#9C3F60','#C15678','#D98CA0','#F6DCE4','#FBEEF2','#FBF3F5'],h:['#9C3F60','#D2607C','#EE9A72']},
   lavanta:{n:'Lavanta',em:'💜',sw:'#8B6FC4',v:['#3F2A66','#6B4FA3','#8B6FC4','#B7A1E0','#E6DDF7','#F3EEFB','#F7F4FC'],h:['#6B4FA3','#8B6FC4','#E39AC8']},
@@ -13253,14 +13258,14 @@ function svUiPick(k){
 }
 function svThemeKey(){ return 'sv_theme_'+(window.__shareTok||''); }
 function svThemeApply(name){
-  if(name===undefined){ try{ name=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){ name='pembe'; } }
+  if(name===undefined){ try{ name=localStorage.getItem(svThemeKey())||'safak'; }catch(e){ name='safak'; } }
   const T=SV_THEMES[name]||SV_THEMES.pembe, r=document.documentElement.style;
   { const g=T.h||['#53297A','#6E3CA0','#FF6B57']; r.setProperty('--sv-g0',g[0]); r.setProperty('--sv-g1',g[1]); r.setProperty('--sv-g2',g[2]); }
   ['--blue-900','--blue-700','--blue-600','--blue-500','--blue-100','--blue-50','--canvas'].forEach((k,i)=>{ if(T.v) r.setProperty(k,T.v[i]); else r.removeProperty(k); });
   let st=document.getElementById('svThemeStyle');
   if(!T.h){ if(st) st.remove(); }
   else{ if(!st){ st=document.createElement('style'); st.id='svThemeStyle'; document.head.appendChild(st); }
-    st.textContent=`.sv-hero{background:radial-gradient(90% 70% at 85% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(165deg,${T.h[0]} 0%,${T.h[1]} 55%,${T.h[2]} 100%)!important}.pm-cheer{background:linear-gradient(135deg,${T.v[5]},#fff)!important;border-color:${T.v[4]}!important}`; }
+    st.textContent=`.sv-hero{background:radial-gradient(90% 70% at 85% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(165deg,${T.h[0]} 0%,${T.h[1]} 55%,${T.h[2]} 100%)!important}.pm-cheer{background:linear-gradient(135deg,${T.v[5]},#fff)!important;border-color:${T.v[4]}!important}.sv-chat-user{background:linear-gradient(135deg,${T.h[0]},${T.h[1]} 60%,${T.h[2]})!important}.sv-day[aria-pressed="true"]{background:linear-gradient(135deg,${T.h[0]},${T.h[2]})!important}`; }
   try{ svUiApply(); }catch(e){}
 }
 function svSheet(html){
@@ -13273,15 +13278,16 @@ function svSheet(html){
   document.body.appendChild(o); return o;
 }
 function svThemeOpen(){
-  let cur='pembe'; try{ cur=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){}
+  let cur='safak'; try{ cur=localStorage.getItem(svThemeKey())||'safak'; }catch(e){}
   const ui=svUiGet();
   svSheet(`<div style="text-align:center"><div style="font-size:34px">🎨</div><h3 style="margin:4px 0 2px;font-family:'Caveat',cursive,var(--sans);font-size:28px;color:var(--blue-900)">Sayfan nasıl görünsün?</h3>
     <p style="margin:0 0 12px;font-size:13px;color:var(--muted)">İstediğin gibi değiştir, istediğin zaman geri dön 💛</p>
     <div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:0 0 6px;letter-spacing:.04em">GÖRÜNÜM</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">${Object.keys(SV_UIS).map(k=>{const U=SV_UIS[k];return `<button type="button" onclick="svUiPick('${k}')" style="border:2px solid ${ui===k?'var(--blue-600)':'#e6e6e6'};background:${ui===k?'var(--blue-50)':'#fff'};border-radius:16px;padding:10px 8px;cursor:pointer;font:inherit;text-align:center"><div style="font-size:22px">${U.em}</div><div style="font-size:13px;font-weight:800;color:#333">${U.n}</div><div style="font-size:11px;color:#777;line-height:1.3">${U.d}</div></button>`;}).join('')}</div>
+    ${gxToggleBtn()}
     <div style="font-size:12px;font-weight:800;color:var(--muted);text-align:left;margin:0 0 6px;letter-spacing:.04em">RENK</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${Object.keys(SV_THEMES).map(k=>{const T=SV_THEMES[k];return `<button type="button" onclick="svThemePick('${k}')" style="border:2px solid ${cur===k?T.sw:'#eee'};background:${cur===k?'#fff8fb':'#fff'};border-radius:18px;padding:12px 6px;cursor:pointer;font:inherit">
-      <div style="width:46px;height:46px;border-radius:50%;margin:0 auto 6px;background:${T.sw};display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 16px -8px ${T.sw}">${T.em}</div><div style="font-size:12px;font-weight:700;color:#4a2c3a">${T.n}</div></button>`;}).join('')}</div></div>`);
+      <div style="width:46px;height:46px;border-radius:50%;margin:0 auto 6px;background:linear-gradient(135deg,${(T.h||['#53297A','#6E3CA0','#FF6B57']).join(',')});display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 16px -8px ${T.sw}">${T.em}</div><div style="font-size:12px;font-weight:700;color:#4a2c3a">${T.n}</div></button>`;}).join('')}</div></div>`);
 }
 function svThemePick(k){
   try{ localStorage.setItem(svThemeKey(),k); }catch(e){}
@@ -13369,11 +13375,11 @@ function svPopups(snap){
       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a2c3a">${esc(it.msg)}</p>
       <button type="button" id="svSheetOk" class="btn btn-primary" style="width:100%;justify-content:center">Teşekkür ederim 💛</button></div>`;
     else if(it.kind==='color'){
-      let cur='pembe'; try{ cur=localStorage.getItem(svThemeKey())||'pembe'; }catch(e){}
+      let cur='safak'; try{ cur=localStorage.getItem(svThemeKey())||'safak'; }catch(e){}
       html=`<div style="text-align:center"><div style="font-size:46px;animation:ttBob 2.4s ease-in-out infinite;display:inline-block">🎨</div>
       <h3 style="margin:4px 0 4px;font-family:'Caveat',cursive,var(--sans);font-size:31px;line-height:1.1;color:var(--blue-900)">Güne nasıl başladık bakalım${nm?' '+esc(nm):''}? 🌸</h3>
       <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#4a2c3a">Hadi bugünün rengini seçelim! Ruh haline uyanı seç, sayfan sana göre renklensin 💛</p>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${Object.keys(SV_THEMES).map(k=>{const T=SV_THEMES[k];return `<button type="button" data-svcol="${k}" style="border:2px solid ${cur===k?T.sw:'#eee'};background:${cur===k?'#fff8fb':'#fff'};border-radius:18px;padding:12px 6px;cursor:pointer;font-family:inherit"><div style="width:46px;height:46px;border-radius:50%;margin:0 auto 6px;background:${T.sw};display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 16px -8px ${T.sw}">${T.em}</div><div style="font-size:12px;font-weight:700;color:#4a2c3a">${T.n}</div></button>`;}).join('')}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">${Object.keys(SV_THEMES).map(k=>{const T=SV_THEMES[k];return `<button type="button" data-svcol="${k}" style="border:2px solid ${cur===k?T.sw:'#eee'};background:${cur===k?'#fff8fb':'#fff'};border-radius:18px;padding:12px 6px;cursor:pointer;font-family:inherit"><div style="width:46px;height:46px;border-radius:50%;margin:0 auto 6px;background:linear-gradient(135deg,${(T.h||['#53297A','#6E3CA0','#FF6B57']).join(',')});display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 16px -8px ${T.sw}">${T.em}</div><div style="font-size:12px;font-weight:700;color:#4a2c3a">${T.n}</div></button>`;}).join('')}</div>
       <button type="button" id="svSheetOk" class="btn" style="width:100%;justify-content:center;margin-top:14px;border:0;background:none;color:var(--muted)">Bugün böyle kalsın</button></div>`;
     }
     else html=`<div style="text-align:center"><div style="font-size:60px;animation:ttBob 1.6s ease-in-out infinite;display:inline-block">${it.em}</div>
@@ -15010,7 +15016,7 @@ function svUxTidy(){
   [...td.children].forEach(e=>{
     let o=40;
     if(e.classList.contains('sv-banner')) o=0; else if(e.classList.contains('sv-hero')) o=10;
-    else if(e.id==='svNowCard') o=20; else if(e.id==='svMealsCard') o=30; else if(e.id==='svRingCard') o=45;
+    else if(e.id==='svNowCard') o=20; else if(e.id==='gxWx') o=25; else if(e.id==='svMealsCard') o=30; else if(e.id==='svRingCard') o=45;
     else if(e.classList.contains('pm-daily')) o=50; else if(e.id==='svToolsRow') o=60;
     else if(e.id==='svUxMoreBtn') o=90; else if(sec.has(e.id)){ o=100; e.classList.add('uxsec'); }
     else if(e.classList.contains('sv-card')&&/Bugünü işaretle/.test((e.innerText||'').slice(0,40))) o=70;
@@ -15104,14 +15110,19 @@ const ADM_COLORS=[
   {n:'Turkuaz',g:['#0B7A82','#14A3A8','#5ED6C9']},
   {n:'Şeftali',g:['#D9482A','#FF8A70','#FFC2A1']},
   {n:'Gece mavisi',g:['#1E2140','#3A4080','#C27BC0']},
-  {n:'Altın',g:['#7A4B0C','#D9902B','#FFD36B']}
+  {n:'Altın',g:['#7A4B0C','#D9902B','#FFD36B']},
+  {n:'Şafak',g:['#1F6F94','#4F93A3','#C9803F']},
+  {n:'Gül kurusu',g:['#A8405F','#DD6F69','#F2A77E']},
+  {n:'Aurora',g:['#1E7BA8','#34A08A','#C9C45A']},
+  {n:'Akşam sisi',g:['#4F4F94','#B9768F','#EFA871']}
 ];
+const ADM_DEF={s:'klasik',c:10};
 function admMix(a,b,t){ const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)); const x=p(a),y=p(b); return '#'+x.map((v,i)=>Math.round(v*(1-t)+y[i]*t).toString(16).padStart(2,'0')).join(''); }
 function admLookGet(){ try{ const o=JSON.parse(localStorage.getItem('adm_look')||'null'); if(o&&ADM_STYLES[o.s]&&ADM_COLORS[o.c]) return o; }catch(e){} return null; }
+function admLookCur(){ return admLookGet()||{s:ADM_DEF.s,c:ADM_DEF.c}; }
 function admLookApply(){
   const isClient=/[?&](v|promo)=/.test(location.search); if(isClient) return;
-  const o=admLookGet(); let st=document.getElementById('admLookCss');
-  if(!o){ if(st) st.remove(); document.documentElement.removeAttribute('data-adm'); return; }
+  const o=admLookCur(); let st=document.getElementById('admLookCss');
   const S_=ADM_STYLES[o.s], C=ADM_COLORS[o.c], g=C.g;
   if(!st){ st=document.createElement('style'); st.id='admLookCss'; document.head.appendChild(st); }
   document.documentElement.setAttribute('data-adm',o.s);
@@ -15131,14 +15142,14 @@ ${S_.hand?'h1{font-size:38px!important;line-height:1.1}h2{font-size:30px!importa
 `;
 }
 function admLookOpen(){
-  const o=admLookGet()||{s:'klasik',c:0};
+  const o=admLookCur();
   const sty=Object.keys(ADM_STYLES).map(k=>{ const t=ADM_STYLES[k]; return '<button type="button" class="alk" data-adm-s="'+k+'" aria-pressed="'+(o.s===k)+'"><span class="alk-a" style="font-family:'+t.serif.replace(/"/g,"'")+';font-weight:'+t.hw+';font-style:'+t.hs+'">Aa</span><span class="alk-b" style="border-radius:'+t.btn+(t.bbd?';border:2px solid #24123A;box-shadow:3px 3px 0 #24123A':'')+'">Buton</span><b>'+t.n+'</b><small>'+t.d+'</small></button>'; }).join('');
   const col=ADM_COLORS.map((c,i)=>'<button type="button" class="alc" data-adm-c="'+i+'" aria-pressed="'+(o.c===i)+'" title="'+c.n+'" style="background:linear-gradient(135deg,'+c.g.join(',')+')"><span>'+c.n+'</span></button>').join('');
   modal('🎨 Panel görünümü','<style>.alk-grid,.alc-grid{display:grid;gap:10px}.alk-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}.alc-grid{grid-template-columns:repeat(auto-fit,minmax(92px,1fr))}.alk{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px;border:2px solid var(--line);background:#fff;border-radius:14px;cursor:pointer;text-align:center}.alk[aria-pressed=true]{border-color:var(--g2,#6E3CA0);box-shadow:0 0 0 3px rgba(110,60,160,.15)}.alk-a{font-size:26px;line-height:1.1}.alk-b{background:linear-gradient(100deg,#53297A,#6E3CA0,#FF6B57);color:#fff;font-size:11.5px;padding:5px 14px}.alk small{font-size:11px;color:var(--muted)}.alc{border:3px solid #fff;border-radius:16px;height:58px;cursor:pointer;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:flex-end;justify-content:center;padding:6px 4px;box-shadow:0 4px 12px -6px rgba(0,0,0,.4);text-shadow:0 1px 3px rgba(0,0,0,.5)}.alc[aria-pressed=true]{outline:3px solid var(--ink);outline-offset:2px}</style>'
     +'<div style="font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.05em;margin-bottom:8px">STİL — yazı ve buton şekli</div><div class="alk-grid">'+sty+'</div>'
     +'<div style="font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.05em;margin:18px 0 8px">RENK — geçişli</div><div class="alc-grid">'+col+'</div>'
     +'<button type="button" data-adm-prem="1" aria-pressed="'+admPremOn()+'" style="display:flex;align-items:center;gap:10px;width:100%;margin-top:14px;padding:12px 14px;border-radius:14px;border:1.5px solid #C9A35E;background:linear-gradient(135deg,#FFFBF0,#FFF3D6);cursor:pointer;font:inherit;color:#5B431A"><span style="font-size:18px">✨</span><span style="flex:1;text-align:left"><b style="display:block;font-size:13.5px">Premium dokunuşlar</b><small style="opacity:.75">Altın çizgiler, serif rakamlar, kâğıt dokusu</small></span><b style="padding:3px 10px;border-radius:99px;background:#C9A35E;color:#fff;font-size:12px">'+(admPremOn()?'Açık':'Kapalı')+'</b></button>'
-    +'<p style="margin:14px 0 0;font-size:12px;color:var(--muted)">Bu seçim sadece senin panelinde görünür, danışanlar etkilenmez. <button type="button" class="btn btn-sm" data-adm-reset="1">Varsayılana dön</button></p>','Tamam','adm-look-ok','640px');
+    +gxToggleBtn()+'<p style="margin:14px 0 0;font-size:12px;color:var(--muted)">Bu seçim sadece senin panelinde görünür, danışanlar etkilenmez. <button type="button" class="btn btn-sm" data-adm-reset="1">Varsayılana dön</button></p>','Tamam','adm-look-ok','640px');
 }
 document.addEventListener('click',e=>{
   const t=e.target; if(!t||!t.closest||/[?&](v|promo)=/.test(location.search)) return;
@@ -15147,7 +15158,7 @@ document.addEventListener('click',e=>{
   if(op) return admLookOpen();
   if(ok) return closeModal();
   if(rs){ try{ localStorage.removeItem('adm_look'); }catch(x){} admLookApply(); return admLookOpen(); }
-  const cur=admLookGet()||{s:'klasik',c:0};
+  const cur=admLookCur();
   if(s1) cur.s=s1.dataset.admS; if(c1) cur.c=+c1.dataset.admC;
   try{ localStorage.setItem('adm_look',JSON.stringify(cur)); }catch(x){}
   admLookApply();
@@ -15358,7 +15369,7 @@ function svVisTidy(){
     const upd=()=>{ d.classList.toggle('off',(window.scrollY||document.documentElement.scrollTop||0)>90); };
     window.addEventListener('scroll',upd,{passive:true}); upd();
   }
-  const th=document.documentElement.getAttribute('data-svth'); try{ const n=localStorage.getItem(svThemeKey())||'pembe'; if(th!==n) document.documentElement.setAttribute('data-svth',n); }catch(e){}
+  const th=document.documentElement.getAttribute('data-svth'); try{ const n=localStorage.getItem(svThemeKey())||'safak'; if(th!==n) document.documentElement.setAttribute('data-svth',n); }catch(e){}
   /* menü ikonları */
   document.querySelectorAll('#svTabBar button[data-svtab]').forEach(b=>{ const t=b.querySelector('.ti'); if(t&&!t.dataset.vi&&SV_VIS_ICONS[b.dataset.svtab]){ t.innerHTML=SV_VIS_ICONS[b.dataset.svtab]; t.dataset.vi='1'; } });
   /* karşılama: avatar çevresinde bugünün öğün halkası */
@@ -15630,6 +15641,105 @@ function admHoroHtml(){
   const h=admHoro();
   return '<div class="admhoro"><div class="hh"><span class="hs">♍</span><b>Başak · Günün yorumu</b><em>'+'★'.repeat(h.star)+'<i>'+'★'.repeat(5-h.star)+'</i></em></div><p>'+esc(h.text)+'</p><small>Şanslı renk: <b>'+h.color+'</b> · Şanslı sayı: <b>'+h.num+'</b> · Eğlence amaçlıdır</small></div>';
 }
+/* ══ Geçişli renk sistemi (Şafak): düz renk yok, saate göre hareketli arka plan, cam yüzeyler, danışan hava şeridi ══ */
+const GX_PH={
+  sabah:{bg:['#D5EAF1','#E6EBE6','#FBE9CF'],bl:['#2586B0','#9DA399','#EFB36B']},
+  ogle:{bg:['#DDF1F5','#E6F5EE','#FAF3D6'],bl:['#3FA7C8','#7ED6C0','#F7D96B']},
+  aksam:{bg:['#E3E0F0','#F8E0D6','#FCE8C6'],bl:['#6E5FA8','#E58A6B','#F7C86B']},
+  gece:{bg:['#DCDDF0','#E4DDEE','#F1E1EA'],bl:['#3A4080','#8A63B0','#D98FB4']}
+};
+function gxPhase(){ const h=new Date().getHours(); return h>=5&&h<11?'sabah':h>=11&&h<16?'ogle':h>=16&&h<20?'aksam':'gece'; }
+const GX_CSS=`
+:root{--gx-ok:linear-gradient(120deg,#0E9F8E,#4FBF9F 55%,#BFDC7A);--gx-warn:linear-gradient(120deg,#E58A1F,#F3AE59 55%,#F7CF8A);--gx-danger:linear-gradient(120deg,#D63F6A,#EE6F5E 55%,#F7AE82);--gx-info:linear-gradient(120deg,#2586B0,#5E9AA3 55%,#D9A66A)}
+.tag-ok{background:linear-gradient(120deg,#DDF3EE,#EEF7DC)!important;border-color:#BFE5DA!important;color:#0B7566!important}
+.tag-warn{background:linear-gradient(120deg,#FDEBD0,#FFF4DC)!important;border-color:#F3D9A8!important;color:#8A5200!important}
+.tag-danger{background:linear-gradient(120deg,#FBDDE3,#FDE8DC)!important;border-color:#F4C3C8!important;color:#B0304F!important}
+.tag-blue{background:linear-gradient(120deg,#D9ECF4,#EDEFE6)!important;border-color:#BFD9E4!important;color:#1D6F93!important}
+.tag-plum{background:linear-gradient(120deg,#EEE6F6,#FBE6EE)!important}
+.tag-sage{background:linear-gradient(120deg,#E3F1E9,#F3F5DA)!important}
+.kpi-c::before{width:4px!important;background:linear-gradient(180deg,var(--blue-600),var(--blue-500))!important}
+.kpi-c.ok::before{background:linear-gradient(180deg,#0E9F8E,#BFDC7A)!important}
+.kpi-c.warn::before{background:linear-gradient(180deg,#E58A1F,#F7CF8A)!important}
+.kpi-c.dn::before{background:linear-gradient(180deg,#D63F6A,#F7AE82)!important}
+.kpi-v.pos,.kpi-v.neg{-webkit-background-clip:text;background-clip:text;color:transparent!important}
+.kpi-v.pos{background-image:var(--gx-ok)}.kpi-v.neg{background-image:var(--gx-danger)}
+.bar-in{background:linear-gradient(90deg,var(--blue-700),var(--blue-600) 50%,var(--blue-500))!important}
+.bar-in.ok{background:var(--gx-ok)!important}.bar-in.warn{background:var(--gx-warn)!important}.bar-in.dn,.bar-in.bad{background:var(--gx-danger)!important}
+.btn-primary{text-shadow:0 1px 1px rgba(0,0,0,.2)}
+.btn-danger:hover{background:linear-gradient(120deg,#FBDDE3,#FDE8DC)!important;border-color:#F0BDC2!important}
+.sv-chat-user{background:linear-gradient(135deg,var(--sv-g0,var(--blue-700)),var(--sv-g1,var(--blue-600)) 60%,var(--sv-g2,var(--blue-500)))}
+.sv-hero{text-shadow:0 1px 8px rgba(10,40,60,.18)}
+#gxBg{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden;background:linear-gradient(180deg,var(--gx0,#D5EAF1),var(--gx1,#E6EBE6) 55%,var(--gx2,#FBE9CF));transition:background 1.5s}
+#gxBg::before,#gxBg::after,#gxBg i{content:'';position:absolute;width:90vmax;height:90vmax;border-radius:50%;opacity:.42;will-change:transform}
+#gxBg::before{left:-38vmax;top:-42vmax;background:radial-gradient(circle,var(--gxa,#2586B0) 0%,transparent 62%);animation:gxA 46s ease-in-out infinite alternate}
+#gxBg::after{right:-40vmax;bottom:-46vmax;background:radial-gradient(circle,var(--gxc,#EFB36B) 0%,transparent 62%);animation:gxB 58s ease-in-out infinite alternate}
+#gxBg i{right:-30vmax;top:22%;width:70vmax;height:70vmax;opacity:.26;background:radial-gradient(circle,var(--gxb,#9DA399) 0%,transparent 62%);animation:gxC 70s ease-in-out infinite alternate}
+@keyframes gxA{to{transform:translate3d(16vmax,10vmax,0) scale(1.12)}}
+@keyframes gxB{to{transform:translate3d(-14vmax,-12vmax,0) scale(1.1)}}
+@keyframes gxC{to{transform:translate3d(-20vmax,8vmax,0) scale(.9)}}
+@media (prefers-reduced-motion:reduce){#gxBg::before,#gxBg::after,#gxBg i{animation:none}}
+html:not([data-gx="on"]) #gxBg{display:none}
+html[data-gx="on"] #shareView{background:transparent!important}
+html[data-gx="on"] .card,html[data-gx="on"] .sv-card,html[data-gx="on"] .svup-card{background-color:rgba(255,255,255,.80)}
+html[data-gx="on"] .kpi-c{background:linear-gradient(160deg,rgba(255,255,255,.92),color-mix(in srgb,var(--blue-50) 70%,rgba(255,255,255,.7)))!important}
+html[data-gx="on"] .topbar{background:rgba(255,255,255,.66)!important;backdrop-filter:saturate(170%) blur(14px)}
+html[data-gx="on"] .modal{background:rgba(255,255,255,.93);backdrop-filter:blur(18px)}
+#gxWx{display:flex;align-items:center;gap:12px;padding:12px 16px!important;margin:0 0 12px!important;border-radius:18px;background:linear-gradient(120deg,rgba(255,255,255,.86),rgba(255,255,255,.7)),var(--gx-info)!important}
+#gxWx .wi{font-size:30px;line-height:1}
+#gxWx b{font-size:21px;color:var(--blue-900)}
+#gxWx small{display:block;color:var(--ink-2);font-size:12px;line-height:1.35}
+#gxWx~#svWxCard{display:none!important}
+#gxWx .tp{margin-left:auto;text-align:right;max-width:52%;font-size:12.5px;font-weight:600;color:var(--blue-700)}
+`;
+function gxIsClient(){ return /[?&](v|promo)=/.test(location.search); }
+function gxOn(){
+  try{ if(localStorage.getItem('gx_off')==='1') return false; }catch(e){}
+  const u=document.documentElement.getAttribute('data-svui'); if(u==='klasik'||u==='sade') return false;
+  return true;
+}
+function gxApply(){
+  const r=document.documentElement;
+  if(!document.getElementById('gxCss')){ const st=document.createElement('style'); st.id='gxCss'; st.textContent=GX_CSS; document.head.appendChild(st); }
+  let bg=document.getElementById('gxBg'); if(!bg){ bg=document.createElement('div'); bg.id='gxBg'; bg.setAttribute('aria-hidden','true'); bg.innerHTML='<i></i>'; document.body.insertBefore(bg,document.body.firstChild); }
+  const p=GX_PH[gxPhase()];
+  ['--gx0','--gx1','--gx2'].forEach((k,i)=>r.style.setProperty(k,p.bg[i])); ['--gxa','--gxb','--gxc'].forEach((k,i)=>r.style.setProperty(k,p.bl[i]));
+  const on=gxOn(); if((r.getAttribute('data-gx')==='on')!==on){ if(on) r.setAttribute('data-gx','on'); else r.removeAttribute('data-gx'); }
+}
+/* danışan: bugünün havası (konum izni sormaz; izin zaten verilmişse onu, yoksa Antalya) */
+function gxWxCached(){ try{ const w=JSON.parse(localStorage.getItem('gx_wx')||'null'); return w&&w.ts?w:null; }catch(e){ return null; } }
+let __gxWxBusy=false;
+async function gxWxLoad(){
+  if(__gxWxBusy) return; __gxWxBusy=true;
+  try{
+    let loc=ADM_WX_DEF;
+    try{ const pm=navigator.permissions&&await navigator.permissions.query({name:'geolocation'}); if(pm&&pm.state==='granted'&&navigator.geolocation){ const g=await new Promise(res=>navigator.geolocation.getCurrentPosition(p=>res({lat:+p.coords.latitude.toFixed(2),lon:+p.coords.longitude.toFixed(2),name:''}),()=>res(null),{timeout:6000,maximumAge:36e5})); if(g) loc=g; } }catch(e){}
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+loc.lat+'&longitude='+loc.lon+'&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1'), d=await r.json(); if(!d.current) throw 0;
+    const w={ts:Date.now(),code:d.current.weather_code,temp:Math.round(d.current.temperature_2m),max:Math.round(d.daily.temperature_2m_max[0]),min:Math.round(d.daily.temperature_2m_min[0]),name:loc.name||''};
+    try{ localStorage.setItem('gx_wx',JSON.stringify(w)); }catch(e){}
+    gxWxPaint();
+  }catch(e){} finally{ __gxWxBusy=false; }
+}
+function gxWxPaint(){
+  const w=gxWxCached(); const hero=document.querySelector('#shareView .sv-tab[data-svtab="today"] .sv-hero'); if(!w||!hero) return;
+  const c=admWxCond(w.code); let tip=admWxTip({code:w.code,temp:w.temp});
+  const html='<span class="wi">'+c.i+'</span><div><b>'+w.temp+'°</b><small>'+c.t+(w.name?' · '+esc(w.name):' · Antalya')+' · ↑'+w.max+'° ↓'+w.min+'°</small></div><div class="tp">'+tip+'</div>';
+  let el=document.getElementById('gxWx'); if(!el){ el=document.createElement('section'); el.id='gxWx'; el.className='svup-card'; hero.insertAdjacentElement('afterend',el); }
+  if(el.innerHTML!==html) el.innerHTML=html;
+}
+function gxTick(){
+  try{ gxApply(); }catch(e){}
+  if(gxIsClient()&&window.__shareTok&&!window.__svPromo&&document.querySelector('#shareView .sv-hero')){
+    try{ const w=gxWxCached(); if(w) gxWxPaint(); if(!w||Date.now()-w.ts>30*60*1000) gxWxLoad(); }catch(e){}
+  }
+}
+function gxToggleBtn(){ let off=false; try{ off=localStorage.getItem('gx_off')==='1'; }catch(e){} return '<button type="button" data-gx-toggle="1" aria-pressed="'+(!off)+'" style="display:flex;align-items:center;gap:10px;width:100%;margin-top:10px;padding:11px 14px;border-radius:14px;border:1.5px solid var(--blue-500);background:linear-gradient(135deg,#EAF4F7,#FDF1E2);cursor:pointer;font:inherit;text-align:left"><span style="font-size:20px">🌄</span><span style="flex:1"><b style="display:block;font-size:13.5px">Saate göre canlı arka plan</b><small style="color:var(--muted)">Sabah, öğle, akşam, gece renk değiştirir</small></span><b>'+(off?'Kapalı':'Açık')+'</b></button>'; }
+document.addEventListener('click',e=>{
+  const b=e.target&&e.target.closest&&e.target.closest('[data-gx-toggle]'); if(!b) return; e.preventDefault(); e.stopPropagation();
+  let off=false; try{ off=localStorage.getItem('gx_off')==='1'; localStorage.setItem('gx_off',off?'0':'1'); }catch(x){}
+  gxApply(); b.outerHTML=gxToggleBtn();
+},true);
+try{ gxTick(); setInterval(gxTick,2000); }catch(e){}
+
 async function svIntakePost(entry){
   const tok=window.__shareTok;
   const r=await fetch(`${CLOUD_DB}/shares/${encodeURIComponent(tok)}/intake.json`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});
