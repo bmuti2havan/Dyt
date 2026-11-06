@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261106-054348">
+<meta name="app-ver" content="20261106-055825">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -15535,7 +15535,7 @@ const NB_COLORS=[['#FFF6D8','Krem'],['#E2F5E6','Nane'],['#EDE4FB','Lavanta'],['#
 function nbList(){ if(!Array.isArray(DB.notebook)) DB.notebook=[]; return DB.notebook; }
 function nbVisible(){
   const q=String(S.nbq||'').toLocaleLowerCase('tr').trim();
-  return nbList().filter(n=>!n.deleted&&(!q||((n.title||'')+' '+(n.text||'')).toLocaleLowerCase('tr').includes(q)))
+  return nbList().filter(n=>!n.deleted&&!n.kind&&(!q||((n.title||'')+' '+(n.text||'')).toLocaleLowerCase('tr').includes(q)))
     .sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||(+b.upd||+b.at||0)-(+a.upd||+a.at||0));
 }
 function nbCards(){
@@ -15543,14 +15543,82 @@ function nbCards(){
   if(!l.length) return '<div class="nb-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z"/><path d="M6 3v18M10 8h6M10 12h6M10 16h3"/></svg><b>'+(S.nbq?'Eşleşen not yok':'Defterin henüz boş')+'</b><small>'+(S.nbq?'Başka bir kelime dene.':'Yukarıdan ilk notunu yaz, buraya kaydolur.')+'</small></div>';
   return l.map(n=>'<article class="nb-card" data-nb-open="'+n.id+'" style="--nbc:'+(n.color||NB_COLORS[0][0])+'">'+(n.pin?'<span class="nb-pin" title="Sabitlenmiş">📌</span>':'')+(n.title?'<h4>'+esc(n.title)+'</h4>':'')+'<p>'+esc(n.text||'')+'</p><footer>'+new Date(+n.upd||+n.at||Date.now()).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})+'</footer></article>').join('');
 }
-function pageNotebook(){
-  nbList();
-  return '<div class="page-head"><div><h1>Not defteri</h1><p>Sadece sana ait notlar. Danışanlarla bağlantısı yok, danışan linklerinde görünmez.</p></div></div>'
-  +'<section class="card nb-quick"><div class="card-b"><input id="nb-title" class="nb-t" placeholder="Başlık (isteğe bağlı)"><textarea id="nb-text" rows="3" placeholder="Aklına geleni yaz… (fikir, yapılacak, hatırlatma)"></textarea>'
+function nbNotesHtml(){
+  return '<section class="card nb-quick"><div class="card-b"><input id="nb-title" class="nb-t" placeholder="Başlık (isteğe bağlı)"><textarea id="nb-text" rows="3" placeholder="Aklına geleni yaz… (fikir, yapılacak, hatırlatma)"></textarea>'
   +'<div class="nb-qrow"><div class="nb-cols" id="nbQCols">'+NB_COLORS.map((c,i)=>'<button type="button" class="nb-col'+(i===0?' on':'')+'" data-nb-qc="'+c[0]+'" title="'+c[1]+'" style="background:'+c[0]+'"></button>').join('')+'</div><div class="spacer"></div><button class="btn btn-primary" type="button" data-nb-add="1">Deftere ekle</button></div></div></section>'
   +'<div class="searchbar nb-search"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.4"/><path d="m20 20-4.2-4.2"/></svg><input id="nb-q" placeholder="Notlarda ara" value="'+esc(S.nbq||'')+'"></div>'
   +'<div class="nb-grid" id="nbGrid">'+nbCards()+'</div>';
 }
+/* ── Günlük notlar: güne ait yapılacaklar, bitince üstü çizilir ── */
+const NBD_CSS=`
+.nbd-tabs{display:flex;gap:8px;margin:0 0 14px}
+.nbd-tabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 12px;border-radius:14px;border:1.5px solid var(--line);background:#fff;font:inherit;font-weight:700;font-size:14px;color:var(--ink-2);cursor:pointer}
+.nbd-tabs button[aria-pressed="true"]{background:linear-gradient(100deg,var(--blue-700),var(--blue-600) 55%,var(--blue-500));border-color:transparent;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.2)}
+.nbd-tabs em{font-style:normal;font-size:11.5px;min-width:20px;padding:1px 6px;border-radius:99px;background:rgba(0,0,0,.1)}
+.nbd-nav{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.nbd-nav b{flex:1;text-align:center;font-family:var(--serif);font-size:17px;color:var(--blue-900)}
+.nbd-nav button{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer;color:var(--blue-700)}
+.nbd-today{padding:6px 12px!important;width:auto!important;border-radius:99px!important;font-size:12.5px!important;font-weight:700}
+.nbd-add{display:flex;gap:8px;margin:12px 0}
+.nbd-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font:inherit;font-size:15px;background:#fff}
+.nbd-list{display:flex;flex-direction:column;gap:8px}
+.nbd-row{display:flex;align-items:center;gap:12px;padding:11px 12px 11px 14px;border-radius:16px;background:#fff;border:1px solid var(--line);transition:opacity .3s,transform .2s}
+.nbd-chk{flex:0 0 auto;width:30px;height:30px;border-radius:50%;border:2px solid var(--blue-500);background:#fff;color:#fff;font-size:17px;font-weight:800;cursor:pointer;display:grid;place-items:center;transition:background .2s,border-color .2s,transform .2s;padding:0}
+.nbd-row.done .nbd-chk{background:var(--gx-ok,#3aa66a);border-color:transparent;transform:scale(1.06)}
+.nbd-tx{flex:1;min-width:0;font-size:15px;line-height:1.4;word-break:break-word;background:linear-gradient(currentColor,currentColor) no-repeat 0 58%/0 2px;transition:background-size .35s ease,opacity .3s}
+.nbd-row.done .nbd-tx{background-size:100% 2px;opacity:.5}
+.nbd-x{flex:0 0 auto;border:0;background:none;color:var(--muted);font-size:20px;cursor:pointer;padding:2px 6px;border-radius:8px}
+.nbd-x:hover{color:#B0304F}
+.nbd-prog{margin:4px 0 14px;font-size:13px;color:var(--ink-2)}
+.nbd-carry{margin-top:20px}
+.nbd-carry h4{margin:0 0 8px;font-size:13px;letter-spacing:.04em;color:var(--muted);text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.nbd-carry .nbd-row{background:linear-gradient(120deg,#FFF4DC,#fff)}
+.nbd-carry small{color:var(--muted);font-size:11.5px;display:block}
+.nbd-empty{padding:26px 10px;text-align:center;color:var(--muted);font-size:14px}
+`;
+function nbdIso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function nbdDay(){ return S.nbDay||nbdIso(new Date()); }
+function nbdItems(day){ return nbList().filter(n=>!n.deleted&&n.kind==='todo'&&n.day===day).sort((a,b)=>(a.done?1:0)-(b.done?1:0)||(+a.at||0)-(+b.at||0)); }
+function nbdOpenCount(){ return nbList().filter(n=>!n.deleted&&n.kind==='todo'&&!n.done&&n.day===nbdIso(new Date())).length; }
+function nbdRow(n,carry){
+  return '<div class="nbd-row'+(n.done?' done':'')+'" data-id="'+n.id+'"><button type="button" class="nbd-chk" data-nbd-t="'+n.id+'" aria-pressed="'+(!!n.done)+'" aria-label="Tamamlandı">'+(n.done?'✓':'')+'</button><span class="nbd-tx">'+esc(n.text)+(carry?'<small>'+new Date(n.day+'T12:00').toLocaleDateString('tr-TR',{day:'numeric',month:'long'})+'</small>':'')+'</span>'+(carry?'<button type="button" class="btn btn-sm" data-nbd-carry="'+n.id+'">Bugüne al</button>':'')+'<button type="button" class="nbd-x" data-nbd-x="'+n.id+'" aria-label="Sil">×</button></div>';
+}
+function nbdHtml(){
+  const day=nbdDay(), today=nbdIso(new Date()), items=nbdItems(day), done=items.filter(x=>x.done).length;
+  const dt=new Date(day+'T12:00'), label=dt.toLocaleDateString('tr-TR',{day:'numeric',month:'long',weekday:'long'});
+  let h='<div class="nbd-nav"><button type="button" data-nbd-nav="-1" aria-label="Önceki gün">‹</button><b>'+(day===today?'Bugün · ':'')+label+'</b>'+(day!==today?'<button type="button" class="nbd-today" data-nbd-nav="0">Bugün</button>':'')+'<button type="button" data-nbd-nav="1" aria-label="Sonraki gün">›</button></div>';
+  h+='<div class="nbd-add"><input id="nbd-in" maxlength="300" placeholder="Bu güne bir iş ekle…" autocomplete="off"><button class="btn btn-primary" type="button" data-nbd-add="1">Ekle</button></div>';
+  if(items.length) h+='<div class="nbd-prog"><b>'+done+'/'+items.length+'</b> tamamlandı'+(done===items.length?' 🎉':'')+'<div class="bar-out"><div class="bar-in'+(done===items.length?' ok':'')+'" style="width:'+Math.round(done/items.length*100)+'%"></div></div></div>';
+  h+='<div class="nbd-list">'+(items.length?items.map(n=>nbdRow(n)).join(''):'<div class="nbd-empty">Bu gün için henüz iş yok.<br>Yukarıdan ekle, bitince yanındaki daireye dokun, üstü çizilir ✓</div>')+'</div>';
+  if(day===today){ const old=nbList().filter(n=>!n.deleted&&n.kind==='todo'&&!n.done&&n.day<today).sort((a,b)=>b.day.localeCompare(a.day)).slice(0,10);
+    if(old.length) h+='<div class="nbd-carry"><h4>Önceki günlerden kalanlar <button type="button" class="btn btn-sm" data-nbd-carry="all">Hepsini bugüne al</button></h4><div class="nbd-list">'+old.map(n=>nbdRow(n,true)).join('')+'</div></div>'; }
+  return h;
+}
+function pageNotebook(){
+  nbList(); if(!document.getElementById('nbdCss')){ const st=document.createElement('style'); st.id='nbdCss'; st.textContent=NBD_CSS; document.head.appendChild(st); }
+  const tab=S.nbTab==='note'?'note':'day', oc=nbdOpenCount();
+  return '<div class="page-head"><div><h1>Not defteri</h1><p>Sadece sana ait notlar ve günlük yapılacaklar. Danışan linklerinde görünmez.</p></div></div>'
+  +'<div class="nbd-tabs"><button type="button" data-nbd-tab="day" aria-pressed="'+(tab==='day')+'">📅 Günlük notlar'+(oc?'<em>'+oc+'</em>':'')+'</button><button type="button" data-nbd-tab="note" aria-pressed="'+(tab==='note')+'">📓 Normal notlar</button></div>'
+  +(tab==='day'?'<div id="nbDay">'+nbdHtml()+'</div>':nbNotesHtml());
+}
+function nbdRefresh(keepFocus){ const d=document.getElementById('nbDay'); if(!d) return; d.innerHTML=nbdHtml(); const oc=nbdOpenCount(), tb=document.querySelector('[data-nbd-tab="day"]'); if(tb) tb.innerHTML='📅 Günlük notlar'+(oc?'<em>'+oc+'</em>':''); if(keepFocus){ const i=document.getElementById('nbd-in'); if(i) i.focus(); } }
+async function nbdAdd(){
+  const i=document.getElementById('nbd-in'); const tx=((i&&i.value)||'').trim(); if(!tx) return;
+  nbList().push({id:uid('nb'),kind:'todo',text:tx,day:nbdDay(),done:false,at:Date.now(),upd:Date.now()}); DB.updatedAt=Date.now(); nbdRefresh(true); await save();
+}
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='nbd-in'&&e.key==='Enter'){ e.preventDefault(); nbdAdd(); } });
+document.addEventListener('click',async e=>{
+  if(admIsClientView()) return; const t=e.target; if(!t||!t.closest) return;
+  const tab=t.closest('[data-nbd-tab]'); if(tab){ S.nbTab=tab.dataset.nbdTab; return render(); }
+  if(t.closest('[data-nbd-add]')) return nbdAdd();
+  const nv=t.closest('[data-nbd-nav]'); if(nv){ const v=+nv.dataset.nbdNav; if(!v) S.nbDay=nbdIso(new Date()); else { const d=new Date(nbdDay()+'T12:00'); d.setDate(d.getDate()+v); S.nbDay=nbdIso(d); } return nbdRefresh(); }
+  const tg=t.closest('[data-nbd-t]'); if(tg){ const n=nbList().find(x=>x.id===tg.dataset.nbdT); if(!n) return; n.done=!n.done; n.upd=Date.now(); DB.updatedAt=Date.now();
+    const row=tg.closest('.nbd-row'); if(row){ row.classList.toggle('done',n.done); tg.textContent=n.done?'✓':''; tg.setAttribute('aria-pressed',String(n.done)); }
+    await save(); setTimeout(()=>nbdRefresh(),n.done?650:0); return; }
+  const x=t.closest('[data-nbd-x]'); if(x){ const n=nbList().find(y=>y.id===x.dataset.nbdX); if(!n) return; n.deleted=true; n.upd=Date.now(); DB.updatedAt=Date.now(); nbdRefresh(); await save(); return; }
+  const cy=t.closest('[data-nbd-carry]'); if(cy){ const today=nbdIso(new Date()), id=cy.dataset.nbdCarry;
+    nbList().filter(n=>!n.deleted&&n.kind==='todo'&&!n.done&&n.day<today&&(id==='all'||n.id===id)).forEach(n=>{ n.day=today; n.upd=Date.now(); }); DB.updatedAt=Date.now(); nbdRefresh(); await save(); return; }
+},true);
 function nbEditor(id){
   const n=nbList().find(x=>x.id===id); if(!n) return;
   modal('Not','<div class="nb-ed" data-id="'+n.id+'"><input id="nbe-title" class="nb-t" placeholder="Başlık" value="'+esc(n.title||'')+'"><textarea id="nbe-text" rows="10" placeholder="Not">'+esc(n.text||'')+'</textarea><div class="nb-qrow"><div class="nb-cols" id="nbEC">'+NB_COLORS.map(c=>'<button type="button" class="nb-col'+((n.color||NB_COLORS[0][0])===c[0]?' on':'')+'" data-nb-ec="'+c[0]+'" title="'+c[1]+'" style="background:'+c[0]+'"></button>').join('')+'</div><div class="spacer"></div><button type="button" class="btn btn-sm" data-nb-pin="1" aria-pressed="'+(!!n.pin)+'">'+(n.pin?'📌 Sabitli':'📍 Sabitle')+'</button></div><div class="nb-act"><button type="button" class="btn btn-sm" data-nb-del="1" style="color:var(--danger,#c0392b)">Sil</button><div class="spacer"></div><button type="button" class="btn btn-primary" data-nb-save="1">Kaydet</button></div></div>','Kapat','close','620px');
