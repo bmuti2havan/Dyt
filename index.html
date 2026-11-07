@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261106-122019">
+<meta name="app-ver" content="20261107-125216">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -13711,7 +13711,7 @@ function svReplyHtml(snap){
   }
   const inAll=[...(snap.mealReplies||[])]; (snap.tgIn||[]).forEach(t=>{ if(t&&!inAll.some(x=>x.id===t.id)) inAll.push(t); });
   const L=[...inAll.map(r=>({d:'in',at:+r.at||0,r})),...mine.map(m=>({d:'out',at:+m.at||0,m}))].sort((a,b)=>a.at-b.at).slice(-30);
-  if(!L.length) return '';
+  if(!L.length&&snap.demo) return '';
   let last='';
   const bub=L.map(x=>{
     const dt=new Date(x.at||Date.now()), dk=localISODate(dt), tm=dt.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
@@ -13721,11 +13721,11 @@ function svReplyHtml(snap){
       ${(r.heart||r.emoji)?`<div style="font-size:26px;line-height:1.2">${r.heart?'❤️':''}${esc(r.emoji||'')}</div>`:''}${r.heart&&!r.text?'<div style="font-weight:700;color:#d6336c;font-size:13px">Tabağını beğendi!</div>':''}${r.text?esc(r.text).replace(/\n/g,'<br>'):''}
       <div style="font-size:10.5px;color:#b09aa4;margin-top:3px">${tm}</div></div></div>`; }
     return head+`<div style="display:flex;justify-content:flex-end;margin:5px 0"><div style="max-width:80%;background:#e3f7d0;border-radius:14px 14px 4px 14px;padding:9px 12px;font-size:13.5px;line-height:1.55">${esc(x.m.text).replace(/\n/g,'<br>')}<div style="font-size:10.5px;color:#6a8a64;text-align:right;margin-top:3px">${tm} ✓✓</div></div></div>`;
-  }).join('');
+  }).join('')||'<div style="text-align:center;color:#9a6b7c;font-size:13.5px;padding:40px 12px;line-height:1.6"><div style="font-size:40px">💬</div>Henüz mesaj yok.<br>Diyetisyenine aşağıdan dilediğin zaman yazabilirsin.</div>';
   return `<section class="sv-card" id="sv-yorum" style="margin-top:16px;border:1px solid #f6cfdd">
     <div class="sv-card-h"><h3>🌸 Diyetisyeninle sohbet</h3></div>
-    <div id="svChatBox" style="background:linear-gradient(180deg,#fff7fa,#fff);padding:6px 14px 10px;max-height:380px;overflow:auto">${bub}</div>
-    ${snap.demo?'':`<div style="display:flex;gap:8px;padding:10px 14px 14px;border-top:1px solid #f3dbe4"><textarea id="svDmInput" rows="1" placeholder="Cevap yaz…" style="flex:1;min-width:0;border-radius:14px"></textarea><button type="button" class="btn btn-primary" id="svDmSendBtn" onclick="svMsgSend()">Gönder</button></div>`}</section>`;
+    <div id="svChatBox" style="background:linear-gradient(180deg,#fff7fa,#fff);padding:6px 14px 10px;height:calc(100dvh - 330px);min-height:260px;overflow:auto">${bub}</div>
+    ${snap.demo?'':`<div style="display:flex;gap:8px;align-items:flex-end;padding:10px 12px 12px;border-top:1px solid #f3dbe4;background:#fff"><textarea id="svDmInput" rows="1" placeholder="Mesaj yaz…" maxlength="600" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,110)+'px'" style="flex:1;min-width:0;border-radius:22px;padding:11px 16px;resize:none;max-height:110px;font-size:15px;line-height:1.35"></textarea><button type="button" id="svDmSendBtn" onclick="svMsgSend()" aria-label="Gönder" style="flex:0 0 46px;width:46px;height:46px;border:0;border-radius:50%;background:linear-gradient(135deg,var(--sv-g0,#2586B0),var(--sv-g2,#EFB36B));color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center;box-shadow:0 6px 14px -6px rgba(0,0,0,.4)">➤</button></div>`}</section>`;
 }
 function svChatScroll(){ const e=document.getElementById('svChatBox'); if(e) e.scrollTop=e.scrollHeight; }
 async function svMsgSend(){
@@ -13736,7 +13736,7 @@ async function svMsgSend(){
     await svIntakePost({type:'clientNote',date:todayISO(),text,at:Date.now()});
     const l=svChatMine(); l.push({text,at:Date.now()}); try{ localStorage.setItem(svChatKey(),JSON.stringify(l.slice(-40))); }catch(e){}
     const el=document.getElementById('sv-yorum'); if(el) el.outerHTML=svReplyHtml(window.__shareSnap);
-    svChatScroll(); toast('Diyetisyenine iletildi 💌',2500);
+    svChatScroll(); try{ const ni=document.getElementById('svDmInput'); if(ni) ni.focus(); }catch(e){} toast('Diyetisyenine iletildi 💌',2500);
   }catch(e){ btn.disabled=false; toast('Gönderilemedi, tekrar dene'); }
 }
 document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='svDmInput'&&e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); svMsgSend(); } });
@@ -13784,7 +13784,9 @@ function svChatPollStart(){
       snap.mealReplies=list; snap.clientMsgs=cm; snap.tgIn=tg;
       if(list.length+tg.length>prevN&&prevN>0){ try{ toast('💌 Diyetisyeninden yeni mesaj',3500); if(navigator.vibrate) navigator.vibrate(30); }catch(e){} }
       const el=document.getElementById('sv-yorum'); const h=svReplyHtml(snap);
+      const _di=document.getElementById('svDmInput'), _dv=_di?_di.value:'', _df=_di&&document.activeElement===_di;
       if(el) el.outerHTML=h; else { const nav=document.querySelector('.sv-qn'); if(nav) nav.insertAdjacentHTML('afterend',h); }
+      if(_dv){ const ni=document.getElementById('svDmInput'); if(ni){ ni.value=_dv; ni.style.height='auto'; ni.style.height=Math.min(ni.scrollHeight,110)+'px'; if(_df) ni.focus(); } }
       if(!document.getElementById('svMsgFab')) document.body.insertAdjacentHTML('beforeend',svMsgFabHtml(snap));
       svTabsRegroup();
       svChatScroll();
