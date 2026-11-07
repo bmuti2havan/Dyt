@@ -1,0 +1,5 @@
+@font-face{font-family:'AKSerif';src:url(/assets/akserif-0.woff) format('woff');font-weight:400 700;font-style:normal;font-display:swap}
+@font-face{font-family:'AKSerif';src:url(/assets/akserif-1.woff) format('woff');font-weight:400 700;font-style:italic;font-display:swap}
+@font-face{font-family:'AKSans';src:url(/assets/aksans-2.woff) format('woff');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'AKSans';src:url(/assets/aksans-3.woff) format('woff');font-weight:500 600;font-style:normal;font-display:swap}
+@font-face{font-family:'AKSans';src:url(/assets/aksans-4.woff) format('woff');font-weight:700 900;font-style:normal;font-display:swap}
