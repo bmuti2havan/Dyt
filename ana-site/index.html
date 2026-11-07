@@ -546,6 +546,42 @@ body.yon-acik .duyuru{display:none}
   #manifesto .mnf p:not(.ilk){max-width:62ch;font-size:1.1rem}
 }
 </style>
+<style id="renk-duzeni">
+/* Renk duzeni: tek palet, belirgin bolum gecisleri, okunur yazilar */
+:root{
+  --bal:#A8723A;            /* tek sicak vurgu */
+  --bal-acik:#F3E7D6;
+  --zemin-krem:#F7F2E9; --zemin-beyaz:#FFFDF9; --zemin-adacayi:#EDF2E8; --zemin-bej:#F0E7D8;
+  --murekkep-2:#4C524A!important;   /* govde yazisi: daha okunur */
+  --murekkep-3:#6A7067!important;   /* kucuk notlar: daha okunur */
+  --karamel:#B98A57!important;
+}
+/* 1) duyuru seridi zeytin */
+.duyuru{background:linear-gradient(95deg,#2F3E2E,var(--zeytin) 70%)!important}
+/* 3) baslik vurgulari tek sicak renkte */
+.hero h1 em,.blm-bas h2 em,.tv h2 em,.bant-yazi h2 em,.hk h2 em{color:var(--bal)!important}
+.blm.koyu .blm-bas h2 em{color:var(--bal)!important}
+.rozet .pul{background:var(--bal)}
+/* 4) bolumler: belirgin ve sirali zemin */
+.hero{background:var(--zemin-krem)!important}
+#tanisma{background:var(--zemin-beyaz)!important}
+.blm.koyu{background:var(--zemin-adacayi)!important}
+#hakkinda{background:var(--zemin-krem)!important}
+#manifesto{background:var(--zemin-beyaz)!important}
+#hizmetler{background:var(--zemin-bej)!important}
+#surec{background:var(--zemin-beyaz)!important}
+#takip-sistemi{background:var(--zemin-adacayi)!important}
+#hesaplama{background:var(--zemin-krem)!important}
+#tarifler{background:var(--zemin-beyaz)!important}
+#rehber{background:var(--zemin-bej)!important}
+#yazilar{background:var(--zemin-adacayi)!important}
+#sss{background:var(--zemin-beyaz)!important}
+/* kartlar zeminden ayrissin */
+#hizmetler .akart,#rehber .el-o,#yazilar .ikart,.blm.koyu .nkart,#takip-sistemi .tks-ozellik>div{background:#fff!important}
+/* 5) Instagram dugmesi paletle uyumlu */
+body .yuzen a.ig{background:#fff!important;color:var(--zeytin)!important;border:1px solid var(--cizgi-2)!important;box-shadow:0 8px 20px -8px rgba(40,45,30,.35)!important}
+body .yuzen a.ig:hover{background:var(--zeytin)!important;color:#fff!important}
+</style>
 <style id="footer-logo">footer .footer-marka .marka-yazi{filter:none!important;opacity:1!important;background:#FFFFFF;border-radius:14px;padding:8px 14px;box-sizing:content-box;height:58px!important;width:auto}</style>
 <style id="seo-css">.tum-lnk{text-align:center;margin:1.6rem 0 0}.yol-tarif{margin:.4rem 0 0;font-size:.92rem}</style>
 <style id="tv-css">
