@@ -582,6 +582,23 @@ body.yon-acik .duyuru{display:none}
 body .yuzen a.ig{background:#fff!important;color:var(--zeytin)!important;border:1px solid var(--cizgi-2)!important;box-shadow:0 8px 20px -8px rgba(40,45,30,.35)!important}
 body .yuzen a.ig:hover{background:var(--zeytin)!important;color:#fff!important}
 </style>
+<style id="belge-cerceve">
+/* Diyetisyen belgeleri: krem paspartu, altin cift cizgi, zeytin dali */
+.belge-bas{margin:1.8rem 0 .2rem}
+.belge-iz{gap:1.4rem 1.1rem!important}
+.dbelge{margin:0;display:flex;flex-direction:column;align-items:stretch}
+.dbelge-cer{position:relative;background:linear-gradient(160deg,#FFFDF8,#F6EFE2);padding:14px;border-radius:10px;
+  border:1px solid #DCCDB2;box-shadow:inset 0 0 0 5px #FFFDF8,inset 0 0 0 6px #C7A974,inset 0 0 0 8px #FFFDF8,inset 0 0 0 9px rgba(199,169,116,.55),0 14px 28px -18px rgba(60,48,25,.55);transition:transform .25s,box-shadow .25s}
+.dbelge-cer::before{content:"";position:absolute;top:-10px;right:-8px;width:62px;height:24px;background:no-repeat center/contain var(--dal);transform:rotate(18deg);opacity:.9;pointer-events:none}
+.dbelge-cer::after{content:"";position:absolute;left:50%;bottom:-9px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#E3C88F,#B88E4C);box-shadow:0 2px 5px rgba(80,60,20,.35),inset 0 0 0 2px rgba(255,255,255,.35)}
+.dbelge-cer img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;background:#fff;border:1px solid #E8DCC6!important;border-radius:3px!important;box-shadow:none!important;cursor:zoom-in}
+.dbelge:hover .dbelge-cer{transform:translateY(-3px);box-shadow:inset 0 0 0 5px #FFFDF8,inset 0 0 0 6px #C7A974,inset 0 0 0 8px #FFFDF8,inset 0 0 0 9px rgba(199,169,116,.55),0 20px 34px -18px rgba(60,48,25,.6)}
+.dbelge figcaption{margin-top:1.1rem;text-align:center;font-family:var(--govde,inherit)!important;text-transform:none!important;letter-spacing:0!important;font-size:.86rem!important;line-height:1.4;color:var(--murekkep-2)!important;display:block!important;-webkit-line-clamp:unset!important}
+.dbelge figcaption b{display:block;font-weight:600;color:var(--zeytin);font-size:.9rem;margin-bottom:.15rem}
+.dbelge figcaption span{display:block;font-size:.8rem;opacity:.85}
+@media (min-width:521px) and (max-width:700px){.belge-iz{grid-auto-columns:46%!important}}
+@media (min-width:701px){.belge-iz{grid-template-columns:repeat(2,1fr)!important}}
+</style>
 <style id="footer-logo">footer .footer-marka .marka-yazi{filter:none!important;opacity:1!important;background:#FFFFFF;border-radius:14px;padding:8px 14px;box-sizing:content-box;height:58px!important;width:auto}</style>
 <style id="seo-css">.tum-lnk{text-align:center;margin:1.6rem 0 0}.yol-tarif{margin:.4rem 0 0;font-size:.92rem}</style>
 <style id="tv-css">
@@ -2030,8 +2047,17 @@ function gorselUygula(){
   var iltK=q("iltGorsel");
   if(iltK){ if(ilt){ iltK.querySelector("img").src=ilt; iltK.hidden=false; } else iltK.hidden=true; }
   var bl=AK.gorselListe().filter(function(k){return k.indexOf("belge_")===0;});
-  q("belgeler").innerHTML = bl.length ? '<div class="belge-iz">'+bl.map(function(k){
-      return '<figure><img src="'+AK.gorselUrl(k)+'" alt="Belge" loading="lazy"><figcaption>'+esc(decodeURIComponent(k.slice(6)))+'</figcaption></figure>';
+  function belgeOzet(t){
+    /* "Kurum – Belge türü 21 Mart 2021 tarihinde ..." -> kurum, tür, yıl */
+    var yil=(t.match(/(19|20)\d{2}/)||[""])[0];
+    var bas=t.split(/\s\d{1,2}(?:\s?[-–]\s?\d{1,2})?\s(?:Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)/)[0];
+    var p=bas.split(/\s[–-]\s/); var kurum=(p[0]||bas).trim(), tur=(p.slice(1).join(" – ")||"Belge").trim(); if(tur.length>70) tur=tur.slice(0,68).replace(/\s\S*$/,"")+"…";
+    return {kurum:kurum, tur:tur, yil:yil};
+  }
+  q("belgeler").innerHTML = bl.length ? '<div class="belge-bas"><span class="rozet"><span class="pul"></span> Eğitim ve belgeler</span></div><div class="belge-iz">'+bl.map(function(k){
+      var tam=decodeURIComponent(k.slice(6)), o=belgeOzet(tam);
+      return '<figure class="dbelge"><div class="dbelge-cer"><img src="'+AK.gorselUrl(k)+'" alt="'+esc(o.kurum+' – '+o.tur)+'" loading="lazy" data-tam="'+esc(tam)+'"></div>'+
+        '<figcaption><b>'+esc(o.kurum)+'</b><span>'+esc(o.tur)+(o.yil?' · '+o.yil:'')+'</span></figcaption></figure>';
     }).join("")+'</div>' : "";
 }
 gorselUygula();
@@ -3822,7 +3848,7 @@ img,svg,video,table{max-width:100%}
   function kapat(){pen.hidden=true;document.documentElement.style.overflow="";}
   document.addEventListener("click",function(e){
     var im=e.target.closest&&e.target.closest(".belge-iz img"); if(!im) return;
-    pen.querySelector("img").src=im.src; var fc=im.parentNode.querySelector("figcaption"); pen.querySelector("p").textContent=fc?fc.textContent:"";
+    pen.querySelector("img").src=im.src; pen.querySelector("p").textContent=im.getAttribute("data-tam")||"";
     pen.hidden=false; document.documentElement.style.overflow="hidden";
   });
   pen.addEventListener("click",kapat);
