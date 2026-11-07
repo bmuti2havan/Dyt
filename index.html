@@ -13266,7 +13266,6 @@ function svAchievementHtml(snap){
 }
 /* ══════════════ Danışan linki: renk temaları, sabah mesajı, kutlamalar ══════════════ */
 const SV_THEMES={
-  ayse:{n:'Zeytin & bal',em:'🫒',sw:'#435342',v:['#2A3628','#3B4C38','#435342','#9DAE93','#E3EADD','#EFF3EA','#F7F3EA'],h:['#34452F','#5E7356','#B98A57']},
   safak:{n:'Şafak',em:'🌄',sw:'#2586B0',v:['#10405A','#17678A','#2586B0','#8DBCCB','#D6E9EF','#EBF4F6','#F5F8F6'],h:['#1F7BA6','#5E9AA3','#E39A55']},
   aksam:{n:'Akşam sisi',em:'🌆',sw:'#6E6FB8',v:['#2F2E5E','#4F4F94','#6E6FB8','#C0A6CC','#E8DFF0','#F3EEF7','#FAF5F6'],h:['#5B5FA8','#C98AA5','#F4B684']},
   gulkurusu:{n:'Gül kurusu',em:'🥀',sw:'#C15678',v:['#5C2238','#9C3F60','#C15678','#E9A9A0','#F6DCE4','#FBEEF2','#FFF6F2'],h:['#B04A6A','#E07A6E','#F6B98F']},
@@ -13363,19 +13362,16 @@ function svUiPick(k){
   svUiApply(k); svThemeOpen(); toast('Görünüm değişti '+(SV_UIS[k]||{}).em,2200);
 }
 function svThemeKey(){ return 'sv_theme_'+(window.__shareTok||''); }
-function svThemeDefault(){ return window.__shareTok==='promo-landing' ? 'ayse' : 'safak'; }
-function svThemeCur(){ try{ return localStorage.getItem(svThemeKey())||svThemeDefault(); }catch(e){ return svThemeDefault(); } }
 function svThemeApply(name){
-  if(name===undefined){ try{ name=localStorage.getItem(svThemeKey())||svThemeDefault(); }catch(e){ name=svThemeDefault(); } }
+  if(name===undefined){ try{ name=localStorage.getItem(svThemeKey())||'safak'; }catch(e){ name='safak'; } }
   const T=SV_THEMES[name]||SV_THEMES.pembe, r=document.documentElement.style;
   { const g=T.h||['#53297A','#6E3CA0','#FF6B57']; r.setProperty('--sv-g0',g[0]); r.setProperty('--sv-g1',g[1]); r.setProperty('--sv-g2',g[2]); }
   ['--blue-900','--blue-700','--blue-600','--blue-500','--blue-100','--blue-50','--canvas'].forEach((k,i)=>{ if(T.v) r.setProperty(k,T.v[i]); else r.removeProperty(k); });
   let st=document.getElementById('svThemeStyle');
   if(!T.h){ if(st) st.remove(); }
   else{ if(!st){ st=document.createElement('style'); st.id='svThemeStyle'; document.head.appendChild(st); }
-    st.textContent=`.pm-hero{background:radial-gradient(90% 60% at 50% 18%,rgba(255,236,200,.28),transparent 65%),linear-gradient(165deg,${T.h[0]} 0%,${T.h[1]} 55%,${T.h[2]} 100%)!important}.sv-hero{background:radial-gradient(90% 70% at 85% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(165deg,${T.h[0]} 0%,${T.h[1]} 55%,${T.h[2]} 100%)!important}.pm-cheer{background:linear-gradient(135deg,${T.v[5]},#fff)!important;border-color:${T.v[4]}!important}.sv-chat-user{background:linear-gradient(135deg,${T.h[0]},${T.h[1]} 60%,${T.h[2]})!important}.sv-day[aria-pressed="true"]{background:linear-gradient(135deg,${T.h[0]},${T.h[2]})!important}`; }
+    st.textContent=`.sv-hero{background:radial-gradient(90% 70% at 85% 0%,rgba(255,255,255,.28),transparent 60%),linear-gradient(165deg,${T.h[0]} 0%,${T.h[1]} 55%,${T.h[2]} 100%)!important}.pm-cheer{background:linear-gradient(135deg,${T.v[5]},#fff)!important;border-color:${T.v[4]}!important}.sv-chat-user{background:linear-gradient(135deg,${T.h[0]},${T.h[1]} 60%,${T.h[2]})!important}.sv-day[aria-pressed="true"]{background:linear-gradient(135deg,${T.h[0]},${T.h[2]})!important}`; }
   try{ svUiApply(); }catch(e){}
-  try{ if(typeof gxApply==='function') gxApply(); }catch(e){}
 }
 function svSheet(html){
   let o=document.getElementById('svSheet'); if(o) o.remove();
@@ -13387,7 +13383,7 @@ function svSheet(html){
   document.body.appendChild(o); return o;
 }
 function svThemeOpen(){
-  let cur=svThemeDefault(); try{ cur=localStorage.getItem(svThemeKey())||svThemeDefault(); }catch(e){}
+  let cur='safak'; try{ cur=localStorage.getItem(svThemeKey())||'safak'; }catch(e){}
   const ui=svUiGet();
   svSheet(`<div style="text-align:center"><div style="font-size:34px">🎨</div><h3 style="margin:4px 0 2px;font-family:'Caveat',cursive,var(--sans);font-size:28px;color:var(--blue-900)">Sayfan nasıl görünsün?</h3>
     <p style="margin:0 0 12px;font-size:13px;color:var(--muted)">İstediğin gibi değiştir, istediğin zaman geri dön 💛</p>
@@ -13484,7 +13480,7 @@ function svPopups(snap){
       <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#4a2c3a">${esc(it.msg)}</p>
       <button type="button" id="svSheetOk" class="btn btn-primary" style="width:100%;justify-content:center">Teşekkür ederim 💛</button></div>`;
     else if(it.kind==='color'){
-      let cur=svThemeDefault(); try{ cur=localStorage.getItem(svThemeKey())||svThemeDefault(); }catch(e){}
+      let cur='safak'; try{ cur=localStorage.getItem(svThemeKey())||'safak'; }catch(e){}
       html=`<div style="text-align:center"><div style="font-size:46px;animation:ttBob 2.4s ease-in-out infinite;display:inline-block">🎨</div>
       <h3 style="margin:4px 0 4px;font-family:'Caveat',cursive,var(--sans);font-size:31px;line-height:1.1;color:var(--blue-900)">Güne nasıl başladık bakalım${nm?' '+esc(nm):''}? 🌸</h3>
       <p style="margin:0 0 14px;font-size:14px;line-height:1.6;color:#4a2c3a">Hadi bugünün rengini seçelim! Ruh haline uyanı seç, sayfan sana göre renklensin 💛</p>
@@ -15478,7 +15474,7 @@ function svVisTidy(){
     const upd=()=>{ d.classList.toggle('off',(window.scrollY||document.documentElement.scrollTop||0)>90); };
     window.addEventListener('scroll',upd,{passive:true}); upd();
   }
-  const th=document.documentElement.getAttribute('data-svth'); try{ const n=localStorage.getItem(svThemeKey())||svThemeDefault(); if(th!==n) document.documentElement.setAttribute('data-svth',n); }catch(e){}
+  const th=document.documentElement.getAttribute('data-svth'); try{ const n=localStorage.getItem(svThemeKey())||'safak'; if(th!==n) document.documentElement.setAttribute('data-svth',n); }catch(e){}
   /* menü ikonları */
   document.querySelectorAll('#svTabBar button[data-svtab]').forEach(b=>{ const t=b.querySelector('.ti'); if(t&&!t.dataset.vi&&SV_VIS_ICONS[b.dataset.svtab]){ t.innerHTML=SV_VIS_ICONS[b.dataset.svtab]; t.dataset.vi='1'; } });
   /* karşılama: avatar çevresinde bugünün öğün halkası */
@@ -15878,7 +15874,7 @@ function gxApply(){
   const r=document.documentElement;
   if(!document.getElementById('gxCss')){ const st=document.createElement('style'); st.id='gxCss'; st.textContent=GX_CSS; document.head.appendChild(st); }
   let bg=document.getElementById('gxBg'); if(!bg){ bg=document.createElement('div'); bg.id='gxBg'; bg.setAttribute('aria-hidden','true'); bg.innerHTML='<i></i>'; document.body.insertBefore(bg,document.body.firstChild); }
-  const p=(typeof svThemeCur==='function'&&svThemeCur()==='ayse')?{bg:['#F7F3EA','#EEF2E8','#F6ECDD'],bl:['#7C9170','#B98A57','#C9D3BF']}:GX_PH[gxPhase()];
+  const p=GX_PH[gxPhase()];
   ['--gx0','--gx1','--gx2'].forEach((k,i)=>r.style.setProperty(k,p.bg[i])); ['--gxa','--gxb','--gxc'].forEach((k,i)=>r.style.setProperty(k,p.bl[i]));
   const on=gxOn(); if((r.getAttribute('data-gx')==='on')!==on){ if(on) r.setAttribute('data-gx','on'); else r.removeAttribute('data-gx'); }
 }
