@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261107-130959">
+<meta name="app-ver" content="20261107-132401">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -6806,7 +6806,7 @@ const plansOf=id=>DB.plans.filter(p=>p.clientId===id);
 
 function buildAlerts(){
   const out=[], now=new Date(), day=864e5;
-  const actives=DB.clients.filter(c=>!c.archived);
+  const actives=DB.clients.filter(c=>!c.archived&&!c.frozen);
   actives.forEach(c=>{
     const ps=plansOf(c.id).filter(x=>x.status==='Aktif');
     ps.forEach(p=>{
@@ -7094,7 +7094,7 @@ function pagePanelSade(){
   const nowMs=Date.now();
   const upcoming=DB.appts.filter(a=>new Date(a.when)>=new Date(nowMs-36e5)).sort((a,b)=>new Date(a.when)-new Date(b.when));
   const today=upcoming.filter(a=>new Date(a.when).toDateString()===new Date().toDateString());
-  const act=DB.clients.filter(c=>!c.archived);
+  const act=DB.clients.filter(c=>!c.archived&&!c.frozen);
   const activePlans=DB.plans.filter(p=>p.status==='Aktif').length;
   const al=buildAlerts();
   const g=greetBlock();
@@ -7233,9 +7233,10 @@ function pagePanelDetay(){
 
 function pageClients(){
   const q=S.q.toLocaleLowerCase('tr');
-  const arc=S.arch==='arsiv';
-  const list=DB.clients.filter(c=>!!c.archived===arc && c.name.toLocaleLowerCase('tr').includes(q));
+  const arc=S.arch==='arsiv', frz=S.arch==='dondur';
+  const list=DB.clients.filter(c=>(frz?(!c.archived&&c.frozen):(!!c.archived===arc&&(arc||!c.frozen))) && c.name.toLocaleLowerCase('tr').includes(q));
   const nArc=DB.clients.filter(c=>c.archived).length;
+  const nFrz=DB.clients.filter(c=>!c.archived&&c.frozen).length;
   return `
   <div class="page-head">
     <div><h1>Danışanlar</h1><p>Kişisel bilgiler, ölçüm geçmişi, programlar ve görüşme notları tek dosyada.</p></div>
@@ -7243,7 +7244,8 @@ function pageClients(){
   </div>
   <div class="filters"><div class="searchbar">${ic('search',17)}<input id="q" value="${esc(S.q)}" placeholder="İsme göre ara"></div>
     <div class="chips">
-      <button class="chip" data-arch="aktif" aria-pressed="${!arc}">Aktif (${DB.clients.length-nArc})</button>
+      <button class="chip" data-arch="aktif" aria-pressed="${!arc&&!frz}">Aktif (${DB.clients.length-nArc-nFrz})</button>
+      <button class="chip" data-arch="dondur" aria-pressed="${frz}">❄️ Dondurulanlar (${nFrz})</button>
       <button class="chip" data-arch="arsiv" aria-pressed="${arc}">📁 Eski danışanlar (${nArc})</button>
     </div></div>
   ${list.length? `<section class="card"><div class="tw"><table>
@@ -7254,13 +7256,13 @@ function pageClients(){
       const oa=openAppts[0];
       return `<tr>
         <td><div class="av-row"><span class="av" style="background:${avColor(c.name)}">${initials(c.name)}</span>
-          <div><div class="t-name">${esc(c.name)}</div><div class="t-sub">${c.age?esc(c.age)+' yaş · ':''}${c.sex==='K'?'Kadın':'Erkek'}${c.phone?' · '+esc(c.phone):''}</div></div></div></td>
+          <div><div class="t-name">${esc(c.name)}${c.frozen&&!c.archived?' <span class="tag" style="font-size:10.5px">❄️ ara verdi'+(c.frozenAt?' · '+esc(trDate(c.frozenAt)):'')+'</span>':''}</div><div class="t-sub">${c.age?esc(c.age)+' yaş · ':''}${c.sex==='K'?'Kadın':'Erkek'}${c.phone?' · '+esc(c.phone):''}</div></div></div></td>
         <td><span class="tag tag-blue">${esc(c.goal||'—')}</span></td>
         <td class="t-right num">${esc(c.height||'—')} cm / ${esc(c.weight||'—')} kg</td>
         <td class="t-right"><span class="num">${b?b.toFixed(1):'—'}</span> ${b?`<div class="t-sub"><span class="tag ${lbl[1]}" style="font-size:10.5px">${lbl[0]}</span></div>`:''}</td>
         <td class="t-right num">${c.kcalTarget? c.kcalTarget+' kcal':'—'}</td>
         <td>${p? `<span class="tag tag-ok"><i class="dot"></i>${esc(p.name)}</span>`:'<span class="tag">Program yok</span>'}</td>
-        <td class="t-right">${c.archived?`<button class="btn btn-sm" data-arch-toggle="${c.id}" style="margin-right:6px" title="Tekrar aktif danışanlara al">↩ Aktife al</button>`:`<button class="btn btn-sm btn-primary" data-former="${c.id}" style="margin-right:6px" title="Seans bitti: danışanı Eski danışanlar klasörüne taşı">Bitti</button>`}<button class="btn btn-sm" data-client="${c.id}">Dosyayı aç</button></td></tr>`}).join('')}
+        <td class="t-right">${c.archived||c.frozen?'':`<button class="btn btn-sm" data-freeze="${c.id}" style="margin-right:6px" title="Ara verdi: danışanı dondur, daha sonra tek tıkla geri al">❄️ Dondur</button>`}${c.frozen&&!c.archived?`<button class="btn btn-sm" data-unfreeze="${c.id}" style="margin-right:6px" title="Ara bitti, aktif danışanlara geri al">☀️ Aktife al</button>`:''}${c.archived?`<button class="btn btn-sm" data-arch-toggle="${c.id}" style="margin-right:6px" title="Tekrar aktif danışanlara al">↩ Aktife al</button>`:`<button class="btn btn-sm btn-primary" data-former="${c.id}" style="margin-right:6px" title="Seans bitti: danışanı Eski danışanlar klasörüne taşı">Bitti</button>`}<button class="btn btn-sm" data-client="${c.id}">Dosyayı aç</button></td></tr>`}).join('')}
     </tbody></table></div></section>`
   : `<section class="card"><div class="empty"><div class="eic">${ic('plus',24)}</div><h4>${S.q?'Eşleşen danışan yok':'Henüz danışan eklenmedi'}</h4><p>${S.q?'Farklı bir isim deneyin.':'Danışan eklediğinizde ölçüm takibi, program hazırlama ve randevu yönetimi bu dosyadan yürür.'}</p><button class="btn btn-primary" data-modal="client">${ic('plus',15)} Yeni danışan ekle</button></div></section>`}`;
 }
@@ -7491,6 +7493,7 @@ function pageClient(){
       <button class="btn btn-sm" data-modal="client-edit">Bilgileri düzenle</button>
       <button class="btn btn-sm" data-act="share-open" data-cid="${c.id}">🔗 Danışan linki</button>
       <button class="btn btn-sm" data-wa-quick-open="${c.id}">📱 WhatsApp gönder</button>
+      ${c.archived?'':(c.frozen?`<button class="btn btn-sm btn-primary" data-unfreeze="${c.id}">☀️ Dondurmayı kaldır</button>`:`<button class="btn btn-sm" data-freeze="${c.id}" title="Ara verdi: aktif listeden ve hatırlatmalardan çıkar">❄️ Dondur</button>`)}
       ${c.archived?`<button class="btn btn-sm" data-arch-toggle="${c.id}">↩ Aktif danışanlara al</button>`:`<button class="btn btn-sm" data-former="${c.id}" title="Seansı bitti / artık gelmeyecek">✔ Bitti · Eski danışanlara taşı</button>`}
       <button class="btn btn-sm ${c.invoiced?'':'btn-primary'}" data-inv-toggle="${c.id}">🧾 ${c.invoiced?'Faturayı geri al':'Fatura kesildi'}</button>
       <button class="btn btn-sm btn-primary" data-newplan="${c.id}">${ic('plus',15)} Program</button>
@@ -10142,7 +10145,7 @@ function wcTime(at){ if(!at) return ''; const d=new Date(at), n=new Date(); cons
 function wcRows(){
   const q=(S.wcq||'').toLocaleLowerCase('tr').trim();
   const all=(DB.clients||[]).filter(c=>!c.deleted&&(!q||String(c.name||'').toLocaleLowerCase('tr').includes(q))).map(c=>({c,last:wcLast(c),un:chatUnreadOf(c)}));
-  const w=all.filter(x=>x.last).sort((a,b)=>b.last.at-a.last.at), n=all.filter(x=>!x.last&&!x.c.archived).sort((a,b)=>String(a.c.name).localeCompare(String(b.c.name),'tr'));
+  const w=all.filter(x=>x.last).sort((a,b)=>b.last.at-a.last.at), n=all.filter(x=>!x.last&&!x.c.archived&&!x.c.frozen).sort((a,b)=>String(a.c.name).localeCompare(String(b.c.name),'tr'));
   const item=x=>`<button type="button" class="wc-it${x.un?' un':''}${S.chatOpen&&S.client===x.c.id?' on':''}" data-wc-open="${esc(x.c.id)}"><span class="wc-av" style="background:${avColor(x.c.name)}">${esc(initials(x.c.name))}</span><span class="wc-m"><span class="wc-r1"><b>${esc(x.c.name||'Danışan')}</b>${x.last?`<span>${wcTime(x.last.at)}</span>`:''}</span><span class="wc-r2"><span>${x.last?(x.last.out?'<b style="color:#4a9a62">✓✓</b> ':'')+esc(x.last.text):'Henüz mesaj yok'}</span>${x.un?`<i class="wc-bd" style="font-style:normal">${x.un}</i>`:''}</span></span></button>`;
   return (w.length?w.map(item).join(''):'')+(n.length?`<div class="wc-sec">Mesajlaşma başlat</div>`+n.map(item).join(''):'')+((!w.length&&!n.length)?'<p style="padding:24px;text-align:center;color:var(--muted);font-size:13.5px">Danışan bulunamadı.</p>':'');
 }
@@ -10239,6 +10242,12 @@ document.addEventListener('click',async e=>{
       await save();
     }catch(err){ toast('Taşınamadı: '+(err&&err.message||err)); }
     return; }
+  const fz=t.closest('[data-freeze]'); if(fz){
+    const c2=clientOf(fz.dataset.freeze); if(!c2) return;
+    c2.frozen=true; c2.frozenAt=todayISO(); render(); toast('❄️ '+(c2.name||'Danışan')+' donduruldu (Dondurulanlar sekmesinde)'); await save(); return; }
+  const ufz=t.closest('[data-unfreeze]'); if(ufz){
+    const c2=clientOf(ufz.dataset.unfreeze); if(!c2) return;
+    c2.frozen=false; c2.frozenAt=''; render(); toast('☀️ '+(c2.name||'Danışan')+' aktife alındı'); await save(); return; }
   const at=t.closest('[data-arch-toggle]'); if(at){
     const c2=clientOf(at.dataset.archToggle); c2.archived=!c2.archived; if(!c2.archived){ c2.former=false; }
     await save(); toast(c2.archived?'Eski danışanlar klasörüne taşındı 📁':'Aktif danışanlara alındı'); return render(); }
@@ -15509,7 +15518,7 @@ function admSkyPhase(){ const h=new Date().getHours(); return h>=5&&h<8?'dawn':h
 function admIsClientView(){ return /[?&](v|promo)=/.test(location.search); }
 function admLastAct(c){ let t=0; try{ chatItems(c).forEach(x=>{ if(+x.at>t) t=+x.at; }); }catch(e){} (c.measures||[]).forEach(m=>{ const d=+new Date(m.date); if(d>t) t=d; }); (c.notes||[]).forEach(n=>{ const d=+new Date(n.date); if(d>t) t=d; }); return t; }
 function admTodayHtml(){
-  const now=new Date(), day=864e5, act=DB.clients.filter(c=>!c.archived);
+  const now=new Date(), day=864e5, act=DB.clients.filter(c=>!c.archived&&!c.frozen);
   const rows=[], sec=(ico,tone,title,items)=>{ if(!items.length) return ''; return '<div class="admt-sec"><div class="admt-h"><span class="admt-i '+tone+'">'+ico+'</span><b>'+title+'</b><em>'+items.length+'</em></div>'+items.slice(0,3).map(i=>'<button type="button" class="admt-r" '+i.attr+'><span class="av" style="background:'+avColor(i.name)+'">'+initials(i.name)+'</span><span class="admt-t"><b>'+esc(i.name)+'</b><small>'+i.sub+'</small></span><span class="admt-go">›</span></button>').join('')+(items.length>3?'<div class="admt-more">+'+(items.length-3)+' kişi daha</div>':'')+'</div>'; };
   const todayA=DB.appts.filter(a=>new Date(a.when).toDateString()===now.toDateString()).sort((a,b)=>new Date(a.when)-new Date(b.when)).map(a=>{ const c=clientOf(a.clientId); return {name:c?c.name:'—',sub:hhmm(a.when)+' · '+esc(a.type||'Görüşme'),attr:'data-client="'+a.clientId+'"'}; });
   const unread=act.map(c=>({c,n:chatUnreadOf(c)})).filter(x=>x.n>0).map(x=>({name:x.c.name,sub:x.n+' yeni mesaj bekliyor',attr:'data-wc-open="'+x.c.id+'"'}));
