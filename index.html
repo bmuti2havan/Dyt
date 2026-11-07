@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261107-125216">
+<meta name="app-ver" content="20261107-130959">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -10091,7 +10091,7 @@ function chatSeenOf(c){ return c.chatSeenAt!=null?c.chatSeenAt:((DB.profile&&DB.
 function chatUnreadOf(c){ const seen=chatSeenOf(c); return chatItems(c).filter(x=>(+x.at||0)>seen).length; }
 /* ══════════════ 💬 Sohbet sayfası (WhatsApp Web gibi: solda danışanlar, sağda mesajlar) ══════════════ */
 const WC_CSS=`
-.wc{display:grid;grid-template-columns:minmax(290px,370px) 1fr;height:calc(100dvh - 150px);min-height:480px;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--sh-1,0 6px 24px rgba(20,60,80,.08))}
+.wc{display:grid;grid-template-columns:minmax(290px,370px) minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:calc(100dvh - 150px);min-height:480px;background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--sh-1,0 6px 24px rgba(20,60,80,.08))}
 .wc-l{display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--line);background:#fff}
 .wc-l h2{margin:0;padding:16px 16px 4px;font-family:var(--serif);font-size:21px;color:var(--blue-900);display:flex;align-items:center;gap:8px}
 .wc-q{margin:8px 14px 10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;font-size:14px;background:#f4f7f8;width:calc(100% - 28px)}
@@ -10108,20 +10108,20 @@ const WC_CSS=`
 .wc-it.un .wc-r2 span{color:var(--ink);font-weight:600}
 .wc-bd{flex:0 0 auto;min-width:21px;height:21px;border-radius:11px;background:#25d366;color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center;padding:0 6px}
 .wc-sec{padding:8px 16px;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);background:#f7f9fa}
-.wc-r{display:flex;flex-direction:column;min-width:0;min-height:0;background:#efe7dd}
+.wc-r{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:#efe7dd}
 .wc-h{display:flex;align-items:center;gap:12px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line)}
 .wc-h .wc-av{flex-basis:40px;height:40px;font-size:14px}
 .wc-h b{display:block;font-size:15px}.wc-h small{color:var(--muted);font-size:12px}
 .wc-back{display:none;border:0;background:none;font-size:24px;cursor:pointer;color:var(--blue-700);padding:0 6px}
 .wc-r>section.card{flex:1;display:flex;flex-direction:column;min-height:0;border:0;border-radius:0;box-shadow:none;background:transparent;margin:0}
 .wc-r .card-h{display:none}
-.wc-r #chatBox{flex:1;max-height:none!important;min-height:0}
+.wc-r #chatBox{flex:1 1 0;max-height:none!important;min-height:0!important}
 .wc-r .card-b{background:#fff}
 html:has(.wc) #notifFloat{display:none!important}
 .wc-empty{flex:1;display:grid;place-items:center;text-align:center;color:var(--muted);padding:30px;background:linear-gradient(160deg,#EAF4F7,#FDF1E2)}
 .wc-empty div{font-size:46px;margin-bottom:6px}
 @media(max-width:900px){
- .wc{grid-template-columns:1fr;height:auto;min-height:0;border-radius:16px}
+ .wc{grid-template-columns:1fr;grid-template-rows:auto;height:auto;min-height:0;border-radius:16px}
  .wc.open .wc-l{display:none}.wc:not(.open) .wc-r{display:none}
  .wc-list{max-height:calc(100dvh - 330px)}
  .wc-back{display:block}
