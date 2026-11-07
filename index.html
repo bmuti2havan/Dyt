@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="app-ver" content="20261107-132401">
+<meta name="app-ver" content="20261107-142829">
 <script>
 /* takip alt alanı: çıplak adrese gelen ziyaretçiyi ana siteye yönlendir.
    Atlananlar: ?v= (danışan linki), ?promo, ?app=1 (yönetici/giriş), kurulu uygulama (PWA), aynı sekmede ?app=1 ile açılmış oturum. */
@@ -7688,6 +7688,15 @@ function pagePlanEdit(){
     <div class="field"><textarea data-f="privnote" rows="3" placeholder="Bu listeyi nasıl hazırladım? Örn. 1500 kcal, glutensiz, akşamlar hafif, ... listesinden uyarladım">${esc(planNote(p))}</textarea></div>
   </div></section>
 
+  <section class="card no-print" style="margin:16px 0 0"><div class="card-h"><h3>💠 Genel amaç (kapak sayfası)</h3>
+    <div class="spacer"></div><button class="btn btn-sm btn-primary" data-act="ai-cover">✨ Gemini yazsın</button></div>
+    <div class="card-b"><div class="field">
+      <textarea data-f="purpose" rows="4" placeholder="Her satıra bir madde">${esc((p.purpose||[]).join('\n'))}</textarea>
+      <span class="hint">Kapaktaki yeşil kutuda madde madde görünür.</span></div>
+      <div class="field" style="margin-top:10px"><label>Kutunun kapanış cümlesi</label>
+        <input data-f="closing" value="${esc(p.closing||'')}"></div>
+    </div></section>
+
   <div class="days no-print" style="margin-top:16px">${p.days.map((d,i)=>{
     const f=d.meals.filter(m=>m.lines.length).length, ph=d.meals.filter(m=>m.photo).length;
     return `<button class="day" data-day="${i}" aria-pressed="${i===S.day}" style="--dayc:${DAY_WEB[i%DAY_WEB.length]}">
@@ -7772,14 +7781,7 @@ function pagePlanEdit(){
     </section>`}).join('')}
   ${dayAnalysis(p,c)}
 
-  <section class="card no-print" style="margin-top:14px"><div class="card-h"><h3>💠 Genel amaç (kapak sayfası)</h3>
-    <div class="spacer"></div><button class="btn btn-sm btn-primary" data-act="ai-cover">✨ Gemini yazsın</button></div>
-    <div class="card-b"><div class="field">
-      <textarea data-f="purpose" rows="4" placeholder="Her satıra bir madde">${esc((p.purpose||[]).join('\n'))}</textarea>
-      <span class="hint">Kapaktaki yeşil kutuda madde madde görünür.</span></div>
-      <div class="field" style="margin-top:10px"><label>Kutunun kapanış cümlesi</label>
-        <input data-f="closing" value="${esc(p.closing||'')}"></div>
-    </div></section>
+
 
   <section class="card no-print" style="margin-top:14px"><div class="card-h"><h3>Program kapanış notu</h3></div>
     <div class="card-b"><div class="field">
@@ -11592,6 +11594,14 @@ async function bootPromoView(){
    dolduruyoruz (migratePlan'in daha hafif, sadece okuma amaçlı bir eşleniği)
    — ayrıca gün/öğün yapısı gerçekten tanınmaz haldeyse de çökme yerine
    program kartını sessizce gizleriz. */
+/* Programın en üstünde "Genel amaç" kutusu (danışan görünümü) */
+function svGoalHtml(p){
+  const L=((p&&p.purpose)||[]).map(x=>String(x||'').trim()).filter(Boolean); if(!L.length) return '';
+  return `<div style="background:linear-gradient(135deg,rgba(120,190,150,.18),rgba(250,215,170,.22));border:1px solid rgba(90,150,120,.28);border-radius:16px;padding:13px 15px;margin:0 0 14px">
+    <div style="font-weight:800;margin-bottom:6px">💠 Genel amaç</div>
+    <ul style="margin:0;padding-left:18px;font-size:13.5px;line-height:1.65">${L.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>
+    ${p.closing?`<div style="margin-top:8px;font-size:13px;font-weight:600">${esc(p.closing)}</div>`:''}</div>`;
+}
 function svSafePlan(p){
   if(!p||!Array.isArray(p.days)||!p.days.length) return null;
   const ok=p.days.every(d=>d&&Array.isArray(d.meals));
@@ -12524,6 +12534,7 @@ function renderShareViewCore(snap){
           ${svPlans.map((pl,idx)=>`<button class="chip" data-sv-plan="${idx}" aria-pressed="${idx===0}">${idx===0?'🟢 Güncel':esc(pl.name||'Program')+' · '+trDate(pl.start||'')}</button>`).join('')}
         </div>`:''}
         <p id="svPlanSub" style="color:var(--muted);margin:0 0 12px${p.sub?'':';display:none'}">${esc(p.sub||'')}</p>
+        <div id="svPlanGoal">${svGoalHtml(p)}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
           <button class="btn btn-sm btn-primary" id="svWordBtn">⬇ Word olarak indir</button>
           <button class="btn btn-sm btn-primary" id="svPdfBtn">⬇ PDF olarak indir</button>
@@ -14900,6 +14911,7 @@ function svSelectPlan(idx){
   document.querySelectorAll('[data-sv-plan]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.svPlan===String(idx)?'true':'false'));
   const h3=document.getElementById('svPlanTitle'); if(h3) h3.textContent=(idx===0?'📋 Güncel programın: ':'📋 Program: ')+(window.__svCurPlan.name||'');
   const sub=document.getElementById('svPlanSub'); if(sub){ sub.textContent=window.__svCurPlan.sub||''; sub.style.display=window.__svCurPlan.sub?'':'none'; }
+  const gl=document.getElementById('svPlanGoal'); if(gl) gl.innerHTML=svGoalHtml(window.__svCurPlan);
   svRenderPlanBody();
 }
 function svShowDay(i){
