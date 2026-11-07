@@ -1,0 +1,10 @@
+# Ana site: dytaysenurkorkmazantalya.com.tr
+# Netlify'da bu siteyi depoya baglarken "Base directory" = ana-site olmali.
+# Fotograflar img/site/ klasorunde gomulu; disaridan cekilmez.
+[build]
+  publish = "."
+
+[[headers]]
+  for = "/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
